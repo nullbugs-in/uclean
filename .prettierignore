@@ -1,0 +1,9 @@
+node_modules
+.next
+out
+coverage
+playwright-report
+test-results
+
+# Source specification, not part of our code.
+UClean Laundry Web App Architecture.md

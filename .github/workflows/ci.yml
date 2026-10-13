@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+        env:
+          # Placeholders so the build does not need real credentials. Pages
+          # that read the database degrade gracefully when it is unreachable.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+
+  migrations:
+    name: Database migrations apply cleanly
+    runs-on: ubuntu-latest
+
+    container:
+      image: supabase/postgres:15.1.1.61
+
+    services:
+      db:
+        image: supabase/postgres:15.1.1.61
+
+    steps:
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local stack
+        run: supabase start -x realtime,storage,imgproxy,studio,edge-runtime,logflare,vector,supavisor,supabase-analytics
+        env:
+          SUPABASE_DB_PASSWORD: postgres
+          POSTGRES_PASSWORD: postgres
+
+      - name: Apply migrations and seed
+        run: |
+          supabase db reset --local
+        env:
+          SUPABASE_DB_PASSWORD: postgres
+          POSTGRES_PASSWORD: postgres
+
+      - name: Diff check
+        run: |
+          # A migration that does not reproduce the committed schema fails here,
+          # which catches hand-edited migration files.
+          supabase db diff --local --schema public --use-migra > /tmp/remote.sql
+          if [ -s /tmp/remote.sql ]; then
+            echo "::error::Local schema differs from migrations. Run supabase db diff and commit the result."
+            exit 1
+          fi

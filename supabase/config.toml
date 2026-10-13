@@ -1,0 +1,65 @@
+# Supabase local development configuration.
+#
+# Run `npm run db:start` to bring up the local stack (requires Docker).
+
+project_id = "uclean"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[db.pooler]
+enabled = false
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
+[realtime]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/auth/callback"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+# Enables testing phone OTP flows against the local stack without a real SMS
+# provider. Never enable in production.
+enable_signup = true
+enable_anonymous_sign_ins = false
+enable_manual_linking = false
+
+[auth.email]
+enable_signup = false
+double_confirm_changes = true
+# Magic links are not used: UClean authenticates with phone OTP only.
+enable_confirmations = false
+
+[auth.sms]
+enable_signup = true
+enable_confirmations = false
+template = "Your UClean code is {{ .Code }}"
+# When true, any 6 digit code is accepted and printed in the API logs. Local
+# development only.
+enable_testing = false
+
+[storage]
+enabled = true
+file_size_limit = "10MiB"
+
+[storage.buckets]
+# Photos taken at pickup and invoice PDFs (section 2).
+pickup_photos = true
+invoice_pdfs = true
+
+[auth.email.template.subject]
+invite = "You have been invited to UClean"
