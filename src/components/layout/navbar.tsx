@@ -115,26 +115,14 @@ export function Navbar() {
           >
             <Link href="/auth/signup">Sign up</Link>
           </Button>
-          <Button
-            asChild
-            size="sm"
-            className={cn(CTA_GLOW, "transition-all hover:-translate-y-0.5")}
-          >
-            <Link href="/book">Book Now</Link>
-          </Button>
         </div>
 
         {/*
-          Compact row for phones and tablets: the primary CTA stays visible so
-          the header is never purely a hamburger, while navigation and the auth
+          Compact row for phones and tablets. There is no CTA here, so the
+          hamburger is the only control beside the logo; navigation and the auth
           buttons live in the panel below.
         */}
         <div className="flex items-center gap-2 lg:hidden">
-          {/* h-10 rather than size="sm": a 32px target is below the comfortable
-              minimum for a thumb. */}
-          <Button asChild className={cn("h-10", CTA_GLOW, "transition-all")}>
-            <Link href="/book">Book Now</Link>
-          </Button>
           <button
             type="button"
             className="border-border text-foreground hover:bg-accent grid size-10 place-items-center rounded-full border transition-colors"
@@ -188,11 +176,6 @@ export function Navbar() {
                 onClick={() => setOpen(false)}
               >
                 Log in
-              </Link>
-            </Button>
-            <Button asChild className={cn("h-11 w-full", CTA_GLOW)}>
-              <Link href="/book" onClick={() => setOpen(false)}>
-                Book Now
               </Link>
             </Button>
           </div>

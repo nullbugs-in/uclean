@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import {
@@ -173,13 +174,55 @@ export function Hero() {
                       slide.gradient,
                     )}
                   >
+                    {/*
+                      Photo layer, first child so the gradient tint and the
+                      scrim below both paint over it. `fill` plus the card's
+                      own aspect ratio means each slide is cropped rather than
+                      distorted - the three photos have different aspect ratios
+                      (3:2, 1:1, 4:5) and are cropped to 4:5 on mobile and 16:10
+                      from `sm`.
+
+                      The `sizes` hint matters for how aggressively next/image
+                      picks a source width: the card is full-bleed on phones and
+                      roughly half the container from `md` up. If this carousel
+                      ever grows much past a handful of slides, revisit this
+                      alongside formats - WebP/AVIF and a responsive `sizes`
+                      strategy are the lever, since a `fill` image with a
+                      coarse hint will happily serve a 1200px bitmap to a phone.
+                    */}
+                    {slide.image ? (
+                      <Image
+                        src={slide.image.src}
+                        alt=""
+                        fill
+                        priority={slideIndex === 0}
+                        sizes="(max-width: 768px) 100vw, 50vw"
+                        className="object-cover"
+                      />
+                    ) : null}
+
+                    {/*
+                      Legibility scrim. The copy sits over photography, so the
+                      headline and tagline are white and need a dark base to
+                      clear 4.5:1; a gradient that is darkest at the bottom
+                      where the text is and lightest at the top keeps the badge
+                      area from muddying. Also the visual equaliser across three
+                      very different photos - a light subject on one slide would
+                      otherwise swallow the white text where a dark one would
+                      not.
+                    */}
                     <div
                       aria-hidden="true"
-                      className="pointer-events-none absolute -top-16 -right-10 size-56 rounded-full bg-white/40 blur-2xl"
+                      className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/10"
+                    />
+
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute -top-16 -right-10 size-56 rounded-full bg-white/20 blur-2xl"
                     />
                     <div
                       aria-hidden="true"
-                      className="pointer-events-none absolute -bottom-20 -left-10 size-56 rounded-full bg-white/30 blur-2xl"
+                      className="pointer-events-none absolute -bottom-20 -left-10 size-56 rounded-full bg-white/15 blur-2xl"
                     />
 
                     <div className="relative flex items-start justify-between gap-4">
@@ -195,10 +238,10 @@ export function Hero() {
                     </div>
 
                     <div className="relative space-y-2">
-                      <h2 className="font-display text-primary-foreground text-3xl font-bold tracking-tight sm:text-4xl">
+                      <h2 className="font-display text-3xl font-bold tracking-tight text-white drop-shadow-sm sm:text-4xl">
                         {slide.title}
                       </h2>
-                      <p className="text-primary-foreground/80 max-w-sm text-sm font-medium sm:text-base">
+                      <p className="max-w-sm text-sm font-medium text-white/90 drop-shadow-sm sm:text-base">
                         {slide.tagline}
                       </p>
                     </div>
