@@ -7,7 +7,7 @@
  * this file covers the pieces the marketing page needs before that exists.
  */
 
-const whatsappFallback = "919999999999";
+const whatsappFallback = "918073974160";
 
 /** Digits only, so it is safe to drop straight into a wa.me URL. */
 const whatsappNumber = (
@@ -54,18 +54,17 @@ export const siteConfig = {
   /** REPLACE BEFORE LAUNCH: production URL, used for metadata and JSON-LD. */
   url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://uclean.example.com",
 
-  /** REPLACE BEFORE LAUNCH: real store address. */
   address: {
-    line1: "123 Market Road",
-    line2: "Near City Centre",
-    city: "Bengaluru",
+    line1: "2979/1, D21/1, 6th Main Rd",
+    line2: "Vani Vilas Mohalla",
+    city: "Mysuru",
     state: "Karnataka",
-    postalCode: "560001",
+    postalCode: "570002",
     country: "IN",
   },
 
-  /** REPLACE BEFORE LAUNCH: real store phone number. */
-  phone: "+91 90000 00000",
+  phone: "+91 80739 74160",
+  email: "Jasalventures@gmail.com",
 
   /**
    * Read from NEXT_PUBLIC_WHATSAPP_NUMBER when set, otherwise the placeholder
@@ -75,16 +74,18 @@ export const siteConfig = {
   whatsappMessage:
     "Hi UClean, I would like to book a laundry pickup and delivery.",
 
-  /** REPLACE BEFORE LAUNCH: store coordinates / a real Google Maps embed. */
+  /** Store coordinates, reused by the directions link and the admin panel. */
+  coordinates: {
+    lat: 12.3248091,
+    lng: 76.6288967,
+  },
   mapsEmbedUrl:
-    "https://www.google.com/maps?q=MG%20Road%20Bengaluru&output=embed",
+    "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3897.8659374082317!2d76.6288967!3d12.324809099999998!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3baf7b70bfaa3bbf%3A0x8b986ce7166457d2!2sUClean%20Laundry%20%7C%20Dry%20Cleaning%20%7C%20Shoe%20Cleaning%20%7C%20Curtain%20Cleaning%20%7C%20Carpet%20Cleaning!5e0!3m2!1sen!2sin!4v1791973308589!5m2!1sen!2sin",
   mapsDirectionsUrl:
-    "https://www.google.com/maps/dir/?api=1&destination=UClean",
+    "https://www.google.com/maps/dir/?api=1&destination=12.3248091,76.6288967",
 
-  /** REPLACE BEFORE LAUNCH: confirm the real opening hours. */
   openingHours: [
-    { days: "Monday to Saturday", opens: "10:00", closes: "20:00" },
-    { days: "Sunday", opens: "10:00", closes: "14:00" },
+    { days: "All days", opens: "09:30", closes: "20:00" },
   ] as OpeningHours[],
 
   /** Pickup hours shown on the booking page; the 2-3 PM break is intentional. */
@@ -113,4 +114,73 @@ export function whatsAppLink(message: string = siteConfig.whatsappMessage) {
 export function formattedAddress() {
   const { line1, line2, city, state, postalCode } = siteConfig.address;
   return [line1, line2, city, state, postalCode].filter(Boolean).join(", ");
+}
+
+/**
+ * Renders a 24-hour "HH:MM" config value as "9:30 am" for display.
+ *
+ * The stored times stay 24-hour because schema.org and the booking maths both
+ * expect that format; only the human-facing surfaces convert. Non 24-hour input
+ * is returned untouched so a typo shows up rather than silently becoming NaN.
+ */
+export function formatTime12h(time: string) {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(time);
+  if (!match) return time;
+
+  const hours = Number(match[1]);
+  const minutes = match[2];
+  if (hours > 23) return time;
+
+  const period = hours < 12 ? "am" : "pm";
+  // 0 and 12 both display as 12.
+  const displayHours = hours % 12 === 0 ? 12 : hours % 12;
+
+  return `${displayHours}:${minutes} ${period}`;
+}
+
+/**
+ * Opening hours as `{ days, hours }` pairs for the two-column layouts, e.g.
+ * `{ days: "All days", hours: "9:30 am - 8:00 pm" }`.
+ *
+ * Structured rather than a pre-joined string so callers can lay the two parts
+ * out separately without having to parse the label back apart.
+ */
+export function openingHoursRows() {
+  return siteConfig.openingHours.map((entry) => ({
+    days: entry.days,
+    hours: `${formatTime12h(entry.opens)} - ${formatTime12h(entry.closes)}`,
+  }));
+}
+
+/**
+ * Opening hours as schema.org `openingHoursSpecification` objects.
+ *
+ * `openingHours[].days` is a human label, so it is mapped back to real weekday
+ * names here. An unrecognised label falls back to the full week, which is
+ * correct for the current single "All days" entry and errs on the side of
+ * showing more availability rather than less if the config grows later.
+ */
+export function openingHoursSpecification() {
+  const allDays = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+  ];
+
+  const daysByLabel: Record<string, string[]> = {
+    "All days": allDays,
+    "Monday to Saturday": allDays.slice(0, 6),
+    Sunday: ["Sunday"],
+  };
+
+  return siteConfig.openingHours.map((entry) => ({
+    "@type": "OpeningHoursSpecification",
+    dayOfWeek: daysByLabel[entry.days] ?? allDays,
+    opens: entry.opens,
+    closes: entry.closes,
+  }));
 }

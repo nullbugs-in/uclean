@@ -5,7 +5,11 @@ import { Contact } from "@/components/sections/contact";
 import { Hero } from "@/components/sections/hero";
 import { Services } from "@/components/sections/services";
 import { WhyUClean } from "@/components/sections/why-uclean";
-import { formattedAddress, siteConfig } from "@/config/site";
+import {
+  formattedAddress,
+  openingHoursSpecification,
+  siteConfig,
+} from "@/config/site";
 
 export const metadata: Metadata = {
   title: `${siteConfig.name} | Laundry Pickup and Delivery`,
@@ -21,6 +25,7 @@ export default function HomePage() {
     description: siteConfig.description,
     url: siteConfig.url,
     telephone: siteConfig.phone,
+    email: siteConfig.email,
     image: `${siteConfig.url}/opengraph-image`,
     priceRange: "₹₹",
     address: {
@@ -34,9 +39,7 @@ export default function HomePage() {
       addressCountry: siteConfig.address.country,
     },
     areaServed: `Within ${siteConfig.deliveryRadiusKm} km of ${formattedAddress()}`,
-    openingHours: siteConfig.openingHours.map(
-      (entry) => `${entry.days} ${entry.opens}-${entry.closes}`,
-    ),
+    openingHoursSpecification: openingHoursSpecification(),
     sameAs: siteConfig.social
       .map((item) => item.href)
       .filter((href) => href !== "#"),

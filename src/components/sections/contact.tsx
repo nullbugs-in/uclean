@@ -1,7 +1,12 @@
-import { MapPin, Phone } from "lucide-react";
+import { Mail, MapPin, Phone } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { formattedAddress, siteConfig, whatsAppLink } from "@/config/site";
+import {
+  formattedAddress,
+  openingHoursRows,
+  siteConfig,
+  whatsAppLink,
+} from "@/config/site";
 
 export function Contact() {
   return (
@@ -51,15 +56,31 @@ export function Contact() {
               </div>
             </div>
 
+            <div className="border-border bg-card flex gap-4 rounded-2xl border p-5 shadow-sm">
+              <Mail
+                aria-hidden="true"
+                className="text-primary mt-0.5 size-5 shrink-0"
+              />
+              <div>
+                <h3 className="font-semibold">Email us</h3>
+                <a
+                  href={`mailto:${siteConfig.email}`}
+                  className="text-muted-foreground hover:text-foreground mt-1 block rounded text-sm break-all transition-colors"
+                >
+                  {siteConfig.email}
+                </a>
+              </div>
+            </div>
+
             <div className="border-border bg-card rounded-2xl border p-5 shadow-sm">
               <h3 className="font-semibold">Opening hours</h3>
               <ul className="text-muted-foreground mt-2 space-y-1 text-sm">
-                {siteConfig.openingHours.map((entry) => (
+                {openingHoursRows().map((entry) => (
                   <li key={entry.days} className="flex justify-between gap-4">
-                    <span>{entry.days}</span>
-                    <span>
-                      {entry.opens} - {entry.closes}
+                    <span className="text-foreground font-medium">
+                      {entry.days}
                     </span>
+                    <span>{entry.hours}</span>
                   </li>
                 ))}
               </ul>

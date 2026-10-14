@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Clock, Mail, MapPin, Phone } from "lucide-react";
 
-import { formattedAddress, siteConfig } from "@/config/site";
+import { formattedAddress, openingHoursRows, siteConfig } from "@/config/site";
 
 const QUICK_LINKS = [
   { label: "About", href: "/#about" },
@@ -87,10 +87,10 @@ export function Footer() {
             <li className="flex gap-2">
               <Mail aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
               <a
-                href={`mailto:hello@${new URL(siteConfig.url).hostname}`}
-                className="hover:text-foreground rounded transition-colors"
+                href={`mailto:${siteConfig.email}`}
+                className="hover:text-foreground rounded break-all transition-colors"
               >
-                hello@{new URL(siteConfig.url).hostname}
+                {siteConfig.email}
               </a>
             </li>
           </ul>
@@ -99,11 +99,11 @@ export function Footer() {
         <div className="space-y-3">
           <p className="text-sm font-semibold">Opening hours</p>
           <ul className="text-muted-foreground space-y-2 text-sm">
-            {siteConfig.openingHours.map((entry) => (
+            {openingHoursRows().map((entry) => (
               <li key={entry.days} className="flex gap-2">
                 <Clock aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
                 <span>
-                  {entry.days}: {entry.opens} - {entry.closes}
+                  {entry.days}: {entry.hours}
                 </span>
               </li>
             ))}
