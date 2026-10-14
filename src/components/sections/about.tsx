@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { CalendarClock, MapPin, Truck } from "lucide-react";
 
 import { siteConfig } from "@/config/site";
@@ -71,11 +72,17 @@ export function About() {
           aria-hidden="true"
           className="reveal-up border-border from-accent via-background to-card relative aspect-4/3 w-full overflow-hidden rounded-3xl border bg-gradient-to-br sm:aspect-square"
         >
-          {/*
-            A white wash only reads correctly on the light palette; in dark mode
-            it would glare, so the overlay fades out alongside the tokens.
-          */}
-          <div className="absolute inset-0 [background-image:radial-gradient(circle_at_20%_20%,white,transparent_45%),radial-gradient(circle_at_80%_70%,white,transparent_50%)] opacity-40 dark:opacity-15" />
+          <Image
+            src="/aboutsession.jpg"
+            alt=""
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 50vw"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/30 to-black/15"
+          />
           <div className="absolute inset-0 grid place-items-center p-5 sm:p-10">
             <div className="grid w-full max-w-sm grid-cols-2 gap-3 sm:gap-4">
               <div className="bg-card/80 rounded-2xl p-4 shadow-sm backdrop-blur-sm sm:p-5">
