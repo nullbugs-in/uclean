@@ -12,18 +12,23 @@ export function PagePlaceholder({
   title,
   description,
   milestone,
+  action,
   children,
 }: {
   title: string;
   description: string;
   milestone?: string;
+  action?: ReactNode;
   children?: ReactNode;
 }) {
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-      <header className="space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-        <p className="text-[var(--muted-foreground)]">{description}</p>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+          <p className="text-[var(--muted-foreground)]">{description}</p>
+        </div>
+        {action}
       </header>
 
       {children}

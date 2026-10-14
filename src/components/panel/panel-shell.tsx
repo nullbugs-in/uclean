@@ -1,5 +1,7 @@
 import type { Profile } from "@/db/types";
 
+import { SignOutButton } from "@/components/layout/sign-out-button";
+
 import { PanelSidebar, type PanelNavSection } from "./sidebar";
 
 export type { PanelNavSection, PanelNavItem } from "./sidebar";
@@ -31,16 +33,19 @@ export function PanelShell({
         <PanelSidebar sections={sections} role={user.role} />
       </div>
       <main className="min-w-0 flex-1">
-        <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
-          <p className="text-sm text-[var(--muted-foreground)]">
-            Signed in as{" "}
-            <span className="text-foreground font-medium">
-              {user.full_name}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm text-[var(--muted-foreground)]">
+              Signed in as{" "}
+              <span className="text-foreground font-medium">
+                {user.full_name}
+              </span>
+            </p>
+            <span className="text-xs text-[var(--muted-foreground)]">
+              {user.role}
             </span>
-          </p>
-          <span className="text-xs text-[var(--muted-foreground)]">
-            {user.role}
-          </span>
+          </div>
+          <SignOutButton />
         </div>
         {children}
       </main>

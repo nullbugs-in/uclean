@@ -78,6 +78,7 @@ export function SignUpForm({ redirectTo }: { redirectTo: string }) {
           placeholder=""
           aria-invalid={Boolean(errors.fullName)}
           aria-describedby={errors.fullName ? "fullName-error" : undefined}
+          className="h-11"
         />
         {errors.fullName ? (
           <p
@@ -101,6 +102,7 @@ export function SignUpForm({ redirectTo }: { redirectTo: string }) {
           placeholder=""
           aria-invalid={Boolean(errors.mobile)}
           aria-describedby={errors.mobile ? "mobile-error" : undefined}
+          className="h-11"
         />
         {errors.mobile ? (
           <p
@@ -119,14 +121,18 @@ export function SignUpForm({ redirectTo }: { redirectTo: string }) {
         </p>
       ) : null}
 
-      <Button className="w-full" disabled={isPending} type="submit">
+      <Button
+        className="w-full bg-[var(--primary)] text-[var(--primary-foreground)] shadow-[0_8px_24px_-8px_var(--primary)] transition-all hover:-translate-y-0.5 focus-visible:ring-[var(--ring)]/40 disabled:translate-y-0"
+        disabled={isPending}
+        type="submit"
+      >
         {isPending ? "Sending code..." : "Send code"}
       </Button>
 
       <p className="text-center text-sm text-[var(--muted-foreground)]">
         Already have an account?{" "}
         <a
-          className="font-medium text-[var(--primary)] underline-offset-4 hover:underline"
+          className="font-medium text-[color-mix(in_oklab,var(--primary),black_35%)] underline-offset-4 hover:underline"
           href={`/auth/login?redirect=${encodeURIComponent(redirectTo)}`}
         >
           Sign in

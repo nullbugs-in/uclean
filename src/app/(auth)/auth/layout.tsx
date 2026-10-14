@@ -5,8 +5,8 @@ export default function AuthLayout({
   // Redirecting signed-in users away is left to middleware, which can actually
   // read the session.
   return (
-    <div className="flex min-h-dvh items-center justify-center px-4 py-12">
-      <div className="w-full max-w-sm">{children}</div>
+    <div className="flex min-h-dvh items-center justify-center bg-[radial-gradient(70%_60%_at_50%_0%,color-mix(in_oklab,var(--primary),transparent_88%),transparent)] px-4 py-12">
+      <div className="w-full max-w-md">{children}</div>
     </div>
   );
 }

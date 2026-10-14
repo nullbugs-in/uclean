@@ -4,6 +4,7 @@ import { PagePlaceholder } from "@/components/placeholder";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SignOutButton } from "@/components/layout/sign-out-button";
 import { listActiveOrdersForCustomer } from "@/db/queries/orders";
 import { createClient } from "@/db/server";
 import { CUSTOMER_STATUS_LABEL } from "@/lib/order-status";
@@ -33,6 +34,7 @@ export default async function AccountDashboardPage() {
     <PagePlaceholder
       title={`Welcome, ${session.profile.full_name.split(" ")[0]}`}
       description="Your active laundry orders."
+      action={<SignOutButton />}
       milestone="Milestone 3"
     >
       {orders.length === 0 ? (
