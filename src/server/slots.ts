@@ -11,9 +11,9 @@ export type SlotAvailability = {
   remaining: number;
   isFull: boolean;
   isPast: boolean;
-  isCutOff: boolean;
 };
 
+/** YYYY-MM-DD in the server's timezone, avoiding a UTC date roll mismatch. */
 export function toDateKey(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -21,30 +21,28 @@ export function toDateKey(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function toMinutes(time: string): number {
-  const [hours = "0", minutes = "0"] = time.split(":");
-  return Number(hours) * 60 + Number(minutes);
-}
-
+/**
+ * Slot availability for the booking wizard.
+ *
+ * Past slots for today are hidden rather than shown as full (section 6.2), and
+ * a capacity of 0 means an admin has not configured the slot yet, so it reads
+ * as unavailable instead of silently accepting bookings.
+ */
 export async function getSlotAvailability(
   client: DbClient,
   date: Date,
-  now: Date = new Date(),
 ): Promise<SlotAvailability[]> {
   const dateKey = toDateKey(date);
-  const isToday = dateKey === toDateKey(now);
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const nowIso = now.toISOString();
+  const isToday = dateKey === toDateKey(new Date());
+  const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
 
-  const [slots, bookings, blocked, settings] = await Promise.all([
+  const [slots, bookings, blocked] = await Promise.all([
     listActiveTimeSlots(client),
     client.from("slot_bookings").select("slot_id").eq("slot_date", dateKey),
     listBlockedDates(client, dateKey, dateKey),
-    client.from("store_settings").select("cut_off_minutes").eq("id", true).maybeSingle(),
   ]);
 
   if (bookings.error) throw new Error(bookings.error.message);
-  if (settings.error) throw new Error(settings.error.message);
 
   if (blocked.includes(dateKey)) {
     throw dateBlocked(dateKey);
@@ -55,35 +53,39 @@ export async function getSlotAvailability(
     counts.set(row.slot_id, (counts.get(row.slot_id) ?? 0) + 1);
   }
 
-  const cutOffMinutes = settings.data?.cut_off_minutes ?? 60;
-
   return slots.map((slot) => {
     const booked = counts.get(slot.id) ?? 0;
     const slotStart = toMinutes(slot.start_time);
-    const slotStartDate = new Date(
-      `${dateKey}T${slot.start_time.slice(0, 5)}:00`,
-    );
-    const cutOffAt = new Date(slotStartDate.getTime() - cutOffMinutes * 60 * 1000);
-    const isPast = isToday && slotStart <= nowMinutes;
-    const isCutOff = cutOffMinutes > 0 && new Date(nowIso) >= cutOffAt;
 
     return {
       slot,
       booked,
       remaining: Math.max(0, slot.capacity - booked),
       isFull: slot.capacity === 0 || booked >= slot.capacity,
-      isPast,
-      isCutOff,
+      isPast: isToday && slotStart <= nowMinutes,
     };
   });
 }
 
+function toMinutes(time: string): number {
+  const [hours = "0", minutes = "0"] = time.split(":");
+  return Number(hours) * 60 + Number(minutes);
+}
+
+/** Slots a customer can actually pick right now. */
 export function selectableSlots(
   availability: SlotAvailability[],
 ): SlotAvailability[] {
-  return availability.filter((entry) => !entry.isFull && !entry.isPast && !entry.isCutOff);
+  return availability.filter((entry) => !entry.isFull && !entry.isPast);
 }
 
+/**
+ * Recomputes remaining capacity for one date.
+ *
+ * The authoritative count lives under the row lock inside book_pickup; this is
+ * the cheaper read used by the wizard, so it can briefly disagree with a
+ * concurrent booking. The database has the final say.
+ */
 export async function getRemainingCapacity(
   client: DbClient,
   dateKey: string,

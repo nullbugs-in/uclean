@@ -18,6 +18,7 @@ function unwrap<T>(result: {
   return result.data as T;
 }
 
+/** Active services in display order. Powers the public Services section. */
 export async function listActiveServices(client: Client): Promise<Service[]> {
   return unwrap(
     await client
@@ -29,7 +30,10 @@ export async function listActiveServices(client: Client): Promise<Service[]> {
   );
 }
 
-export async function listActiveHeroSlides(client: Client): Promise<HeroSlide[]> {
+/** Active hero slides for the home page carousel. */
+export async function listActiveHeroSlides(
+  client: Client,
+): Promise<HeroSlide[]> {
   return unwrap(
     await client
       .from("hero_slides")
@@ -39,17 +43,19 @@ export async function listActiveHeroSlides(client: Client): Promise<HeroSlide[]>
   );
 }
 
+/**
+ * Store settings for the public site: address, hours, WhatsApp number.
+ *
+ * Prefer this over fetching store_settings directly from a client component:
+ * lat/lng are business sensitive and are only used by the server-side distance
+ * check, so they have no business in the public bundle.
+ */
 export async function getPublicStoreSettings(client: Client): Promise<{
   address: string | null;
   phone: string | null;
   whatsapp_number: string | null;
   opening_time: string;
   closing_time: string;
-  break_start: string;
-  break_end: string;
-  max_radius_km: number;
-  cut_off_minutes: number;
-  auto_assign: boolean;
 } | null> {
   const row = await getStoreSettings(client);
   if (!row) return null;
@@ -60,20 +66,23 @@ export async function getPublicStoreSettings(client: Client): Promise<{
     whatsapp_number: row.whatsapp_number,
     opening_time: row.opening_time,
     closing_time: row.closing_time,
-    break_start: row.break_start,
-    break_end: row.break_end,
-    max_radius_km: Number(row.max_radius_km),
-    cut_off_minutes: row.cut_off_minutes,
-    auto_assign: row.auto_assign,
   };
 }
 
-export async function getStoreSettings(client: Client): Promise<StoreSettings | null> {
+/** Full store settings row, including coordinates. Server use only. */
+export async function getStoreSettings(
+  client: Client,
+): Promise<StoreSettings | null> {
   return unwrap(
-    await client.from("store_settings").select("*").eq("id", true).maybeSingle(),
+    await client
+      .from("store_settings")
+      .select("*")
+      .eq("id", true)
+      .maybeSingle(),
   );
 }
 
+/** Active slots. Capacity is whatever an admin has configured. */
 export async function listActiveTimeSlots(client: Client): Promise<TimeSlot[]> {
   return unwrap(
     await client
@@ -84,13 +93,18 @@ export async function listActiveTimeSlots(client: Client): Promise<TimeSlot[]> {
   );
 }
 
+/** Dates on which pickups are blocked, e.g. store holidays. */
 export async function listBlockedDates(
   client: Client,
   from: string,
   to: string,
 ): Promise<string[]> {
   const rows = unwrap(
-    await client.from("blocked_dates").select("date").gte("date", from).lte("date", to),
+    await client
+      .from("blocked_dates")
+      .select("date")
+      .gte("date", from)
+      .lte("date", to),
   );
   return rows.map((row) => row.date);
 }
