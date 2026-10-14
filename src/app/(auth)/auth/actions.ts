@@ -1,47 +1,59 @@
 "use server";
 
-import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
-import { sendLoginOtp } from "@/server/otp";
+import { createPickupOrder } from "@/server/orders";
+import {
+  createPickupSchema,
+  zoneNoticeSchema,
+} from "@/lib/validation/booking";
 
-export type OtpActionResult =
-  | { ok: true; message: string }
-  | { ok: false; message: string; fieldErrors?: Record<string, string> };
+import { getAuthUser } from "./_helpers";
 
-/**
- * Requests a login OTP.
- *
- * Errors are returned rather than thrown so the form can render them inline;
- * the DomainError userMessage is already written for a customer, not a
- * developer.
- */
-export async function requestLoginOtpAction(input: {
-  mobile: string;
-  fullName?: string;
-}): Promise<OtpActionResult> {
-  const headerList = await headers();
-  const ip =
-    headerList.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    headerList.get("x-real-ip");
+type FormState = {
+  error?: string;
+  success?: boolean;
+};
+
+export async function startBooking(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const user = await getAuthUser();
+  if (!user) return { error: "Sign in to continue." };
+
+  const notice = zoneNoticeSchema.safeParse({
+    accepted: formData.get("zoneNoticeAccepted") === "on",
+    acceptedAt: formData.get("zoneNoticeAcceptedAt"),
+  });
+  if (!notice.success || !notice.data.acceptedAt) {
+    return { error: "Please accept the delivery zone notice to continue." };
+  }
+
+  const parsed = createPickupSchema.safeParse({
+    customerId: user.id,
+    address: formData.get("address"),
+    lat: formData.get("lat"),
+    lng: formData.get("lng"),
+    whatsappNumber: formData.get("whatsappNumber"),
+    notes: formData.get("notes"),
+    slotDate: formData.get("slotDate"),
+    slotId: formData.get("slotId"),
+    zoneNoticeAcceptedAt: notice.data.acceptedAt,
+  });
+
+  if (!parsed.success) {
+    const first = parsed.error.issues[0];
+    return { error: first?.message ?? "Invalid pickup details." };
+  }
 
   try {
-    await sendLoginOtp({
-      mobile: input.mobile,
-      fullName: input.fullName,
-      ip,
-    });
-
-    return { ok: true, message: `We sent a code to ${input.mobile}.` };
-  } catch (error) {
-    if (error instanceof Error && "userMessage" in error) {
-      return {
-        ok: false,
-        message: String((error as { userMessage: string }).userMessage),
-      };
+    const result = await createPickupOrder(parsed.data);
+    redirect(`/account/orders/${result.orderId}`);
+  } catch (err) {
+    if (err instanceof Error) {
+      return { error: err.message };
     }
-    return {
-      ok: false,
-      message: "We could not send a code right now. Please try again shortly.",
-    };
+    return { error: "Something went wrong. Please try again." };
   }
 }
