@@ -47,7 +47,8 @@ export const heroSlides: HeroSlide[] = [
     title: "Express Service",
     tagline: "Same-day pickup and a 24-hour turnaround when you need it now.",
     badge: "Fast turnaround",
-    gradient: "from-lime-300 via-lime-200 to-sky-100",
+    gradient:
+      "from-[color-mix(in_oklab,var(--primary),white_10%)] via-[var(--primary)]/60 to-[var(--accent)]/70",
     image: { src: "/expressservices.jpg", width: 1000, height: 667 },
     icon: Zap,
     ctaHref: "/book",
@@ -58,7 +59,8 @@ export const heroSlides: HeroSlide[] = [
     tagline:
       "Deep-clean, deodorise and polish - from sneakers to formal pairs.",
     badge: "Deep clean",
-    gradient: "from-sky-200 via-cyan-100 to-lime-100",
+    gradient:
+      "from-[color-mix(in_oklab,var(--primary),white_5%)] via-[var(--primary)]/50 to-[var(--accent)]/70",
     image: { src: "/shoescleaning.jpg", width: 1200, height: 1200 },
     icon: Footprints,
     ctaHref: "/book",
@@ -68,7 +70,8 @@ export const heroSlides: HeroSlide[] = [
     title: "Curtain Cleaning",
     tagline: "Dust-free, fresh curtains with careful handling and re-hanging.",
     badge: "Careful handling",
-    gradient: "from-emerald-200 via-lime-100 to-amber-50",
+    gradient:
+      "from-[color-mix(in_oklab,var(--primary),white_10%)] via-[var(--primary)]/55 to-[var(--accent)]/75",
     image: { src: "/curtaincleaning.jpg", width: 736, height: 920 },
     icon: Blinds,
     ctaHref: "/book",
