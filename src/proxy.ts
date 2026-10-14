@@ -9,7 +9,7 @@ import type { AppRole } from "@/db/types";
  * This is a fast filter, not the security boundary. It refreshes the session
  * cookie and redirects obviously-wrong navigations, but the authoritative
  * check is `requireRole` in src/server/auth.ts, which every page and server
- * action calls as well. Middleware alone is not sufficient: it runs before the
+ * action calls as well. The proxy alone is not sufficient: it runs before the
  * session is refreshed and it cannot see a role that changed mid-session.
  */
 
@@ -30,35 +30,47 @@ type CookieToSet = {
   options?: Record<string, unknown>;
 };
 
-export async function middleware(request: NextRequest) {
+type AuthUser = { id: string } | null;
+
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet: CookieToSet[]) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value),
-          );
-          response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options),
-          );
-        },
-      },
-    },
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const path = request.nextUrl.pathname;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  let supabase: ReturnType<typeof createServerClient> | null = null;
+  let user: AuthUser = null;
+
+  if (supabaseUrl && supabaseAnonKey) {
+    try {
+      supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet: CookieToSet[]) {
+            cookiesToSet.forEach(({ name, value }) =>
+              request.cookies.set(name, value),
+            );
+            response = NextResponse.next({ request });
+            cookiesToSet.forEach(({ name, value, options }) =>
+              response.cookies.set(name, value, options),
+            );
+          },
+        },
+      });
+
+      const { data } = await supabase.auth.getUser();
+      user = data.user;
+    } catch {
+      // Supabase is unconfigured or unreachable. Rather than letting a bad
+      // backend take the whole site down, fall through as an anonymous
+      // visitor: public pages render and guarded routes redirect to sign-in.
+      supabase = null;
+      user = null;
+    }
+  }
 
   // Already signed in: skip the auth pages.
   if (user && AUTH_PREFIXES.some((prefix) => path.startsWith(prefix))) {
@@ -78,6 +90,9 @@ export async function middleware(request: NextRequest) {
     url.searchParams.set("redirect", `${path}${request.nextUrl.search}`);
     return NextResponse.redirect(url);
   }
+
+  // Defensive: `user` is only ever set when the client exists.
+  if (!supabase) return response;
 
   const { data: profile } = await supabase
     .from("profiles")

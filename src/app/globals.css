@@ -3,6 +3,9 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-sora);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -21,49 +24,67 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  /* Warm accent reserved for small highlights (badges, ratings). */
+  --color-cta: var(--cta);
+  --color-cta-foreground: var(--cta-foreground);
 }
 
+/*
+ * UClean palette: lime-green primary, white surfaces, dark charcoal-green
+ * text. Every colour in the app should resolve through one of these tokens -
+ * components use var(--token) classes, never raw hex.
+ */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(0.99 0.002 250);
-  --foreground: oklch(0.21 0.02 260);
+  --radius: 0.75rem;
+
+  --background: oklch(0.985 0.012 130);
+  --foreground: oklch(0.26 0.025 152);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.21 0.02 260);
+  --card-foreground: oklch(0.26 0.025 152);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.21 0.02 260);
-  --primary: oklch(0.55 0.16 250);
-  --primary-foreground: oklch(0.99 0.002 250);
-  --secondary: oklch(0.96 0.005 250);
-  --secondary-foreground: oklch(0.28 0.02 260);
-  --muted: oklch(0.96 0.005 250);
-  --muted-foreground: oklch(0.52 0.02 260);
-  --accent: oklch(0.94 0.02 250);
-  --accent-foreground: oklch(0.28 0.02 260);
+  --popover-foreground: oklch(0.26 0.025 152);
+
+  --primary: oklch(0.77 0.19 131);
+  --primary-foreground: oklch(0.24 0.03 152);
+  --secondary: oklch(0.96 0.03 130);
+  --secondary-foreground: oklch(0.28 0.03 152);
+  --muted: oklch(0.965 0.015 135);
+  --muted-foreground: oklch(0.48 0.03 150);
+  --accent: oklch(0.94 0.06 130);
+  --accent-foreground: oklch(0.28 0.03 152);
   --destructive: oklch(0.58 0.2 27);
-  --border: oklch(0.92 0.005 250);
-  --input: oklch(0.92 0.005 250);
-  --ring: oklch(0.55 0.16 250);
+  --border: oklch(0.9 0.02 135);
+  --input: oklch(0.9 0.02 135);
+  --ring: oklch(0.7 0.16 131);
+
+  --cta: oklch(0.7 0.17 38);
+  --cta-foreground: oklch(0.99 0.01 80);
 }
 
 .dark {
-  --background: oklch(0.17 0.015 260);
-  --foreground: oklch(0.97 0.003 250);
-  --card: oklch(0.21 0.015 260);
-  --card-foreground: oklch(0.97 0.003 250);
-  --popover: oklch(0.21 0.015 260);
-  --popover-foreground: oklch(0.97 0.003 250);
-  --primary: oklch(0.7 0.14 250);
-  --primary-foreground: oklch(0.17 0.015 260);
-  --secondary: oklch(0.26 0.015 260);
-  --secondary-foreground: oklch(0.97 0.003 250);
-  --muted: oklch(0.26 0.015 260);
-  --muted-foreground: oklch(0.68 0.015 260);
-  --accent: oklch(0.3 0.02 260);
-  --accent-foreground: oklch(0.97 0.003 250);
+  --background: oklch(0.19 0.02 150);
+  --foreground: oklch(0.96 0.01 130);
+  --card: oklch(0.23 0.02 150);
+  --card-foreground: oklch(0.96 0.01 130);
+  --popover: oklch(0.23 0.02 150);
+  --popover-foreground: oklch(0.96 0.01 130);
+
+  --primary: oklch(0.83 0.19 131);
+  --primary-foreground: oklch(0.2 0.03 152);
+  --secondary: oklch(0.28 0.02 150);
+  --secondary-foreground: oklch(0.96 0.01 130);
+  --muted: oklch(0.28 0.02 150);
+  --muted-foreground: oklch(0.72 0.02 140);
+  --accent: oklch(0.32 0.04 140);
+  --accent-foreground: oklch(0.96 0.01 130);
   --destructive: oklch(0.65 0.19 25);
-  --border: oklch(0.3 0.015 260);
-  --input: oklch(0.3 0.015 260);
-  --ring: oklch(0.7 0.14 250);
+  --border: oklch(0.32 0.02 150);
+  --input: oklch(0.32 0.02 150);
+  --ring: oklch(0.83 0.19 131);
+
+  --cta: oklch(0.74 0.16 38);
+  --cta-foreground: oklch(0.16 0.02 60);
 }
 
 @layer base {
@@ -71,9 +92,61 @@
     border-color: var(--border);
   }
 
+  html {
+    scroll-behavior: smooth;
+    /* Keep anchored sections clear of the sticky navbar. */
+    scroll-padding-top: 5rem;
+  }
+
   body {
     background-color: var(--background);
     color: var(--foreground);
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+/*
+ * Scroll-reveal using CSS view timelines.
+ *
+ * Browsers that support `animation-timeline: view()` fade sections in as they
+ * enter the viewport. Everywhere else - and whenever the visitor prefers
+ * reduced motion - the content is simply visible, so nothing depends on JS and
+ * there is no hidden-content risk.
+ */
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .reveal-up {
+      animation: reveal-up linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 32%;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }

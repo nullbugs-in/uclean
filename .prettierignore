@@ -7,3 +7,6 @@ test-results
 
 # Source specification, not part of our code.
 UClean Laundry Web App Architecture.md
+
+# Managed by Next.js (rewritten on dev/build), so don't format it.
+tsconfig.json

@@ -28,14 +28,19 @@ test("services page renders", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("book page redirects an anonymous visitor to sign in", async ({
-  page,
-}) => {
+test("book page sends an anonymous visitor to sign in", async ({ page }) => {
   await page.goto("/book");
 
-  const signIn = page.getByRole("link", { name: "Sign in to Book" });
-  await expect(signIn).toBeVisible();
-  await expect(signIn).toHaveAttribute("href", /\/auth\/login\?redirect=/);
+  await expect(
+    page.getByRole("heading", { name: "Book a Pickup" }),
+  ).toBeVisible();
+
+  const cta = page.locator('a[href*="/auth/login"]');
+  await expect(cta).toBeVisible();
+  await expect(cta).toHaveAttribute(
+    "href",
+    /\/auth\/login\?redirect=%2Faccount%2Fbook/,
+  );
 });
 
 test("account redirects an anonymous visitor to sign in", async ({ page }) => {

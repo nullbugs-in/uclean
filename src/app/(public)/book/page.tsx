@@ -1,88 +1,102 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import {
+  CalendarClock,
+  MapPin,
+  Radar,
+  ShieldCheck,
+  type LucideIcon,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { getAuthUser } from "@/server/auth";
+import { siteConfig } from "@/config/site";
 
-export const metadata: Metadata = { title: "Book a Pickup" };
+export const metadata: Metadata = {
+  title: "Book a Pickup",
+  description:
+    "Book a laundry pickup in four steps: check your location, verify with an OTP, choose a slot, and track your order.",
+};
 
-/**
- * Public Book Now page (section 5).
- *
- * Explains the four steps. If the visitor is not signed in the button sends
- * them to login with a redirect back to the wizard, so they land on
- * /account/book once OTP verification completes.
- */
-export default async function BookNowPage() {
-  const user = await getAuthUser();
-  const target = user
-    ? "/account/book"
-    : "/auth/login?redirect=%2Faccount%2Fbook";
+const STEPS: { icon: LucideIcon; title: string; body: string }[] = [
+  {
+    icon: MapPin,
+    title: "Check your location",
+    body: `We confirm your address is within ${siteConfig.deliveryRadiusKm} km of the store.`,
+  },
+  {
+    icon: ShieldCheck,
+    title: "Verify with an OTP",
+    body: "A one-time code confirms your mobile number.",
+  },
+  {
+    icon: CalendarClock,
+    title: "Choose a slot",
+    body: "Pick a pickup slot between 10 AM - 2 PM or 3 PM - 8 PM.",
+  },
+  {
+    icon: Radar,
+    title: "Get order updates",
+    body: "Track every step from pickup to delivery.",
+  },
+];
 
-  const steps = [
-    {
-      title: "Check your location",
-      body: "We confirm your address is within 6 km of the store by driving distance.",
-    },
-    {
-      title: "Verify with an OTP",
-      body: "A one time code confirms your mobile number.",
-    },
-    {
-      title: "Pick a slot",
-      body: "Choose a pickup slot between 10 AM and 8 PM, excluding the 2 to 3 PM break.",
-    },
-    {
-      title: "Track your order",
-      body: "Follow every step from pickup to delivery, with WhatsApp updates.",
-    },
-  ];
-
+export default function BookPage() {
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-10 px-4 py-16 sm:px-6">
+    <div className="mx-auto w-full max-w-3xl px-4 py-16 sm:px-6">
       <header className="space-y-3">
-        <h1 className="text-3xl font-bold tracking-tight">
-          Book a laundry pickup
+        <h1 className="font-display text-4xl font-bold tracking-tight sm:text-5xl">
+          Book a Pickup
         </h1>
-        <p className="text-lg text-[var(--muted-foreground)]">
-          Four steps from your door to a clean wardrobe.
+        <p className="text-muted-foreground text-lg">
+          Four quick steps from your door to a fresh wardrobe.
         </p>
       </header>
 
-      <ol className="space-y-6">
-        {steps.map((step, index) => (
-          <li key={step.title} className="flex gap-4">
-            <span
-              className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--primary)] text-sm font-semibold text-[var(--primary-foreground)]"
-              aria-hidden="true"
+      <ol className="mt-10 space-y-4">
+        {STEPS.map((step, stepIndex) => {
+          const Icon = step.icon;
+          return (
+            <li
+              key={step.title}
+              className="border-border bg-card flex gap-4 rounded-2xl border p-5 shadow-sm"
             >
-              {index + 1}
-            </span>
-            <div>
-              <p className="font-medium">{step.title}</p>
-              <p className="text-sm text-[var(--muted-foreground)]">
-                {step.body}
-              </p>
-            </div>
-          </li>
-        ))}
+              <span
+                aria-hidden="true"
+                className="bg-primary text-primary-foreground grid size-11 shrink-0 place-items-center rounded-xl"
+              >
+                <Icon className="size-5" />
+              </span>
+              <div>
+                <p className="font-semibold">
+                  <span className="text-muted-foreground">
+                    Step {stepIndex + 1}.
+                  </span>{" "}
+                  {step.title}
+                </p>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  {step.body}
+                </p>
+              </div>
+            </li>
+          );
+        })}
       </ol>
 
-      <div className="rounded-lg border border-[var(--border)] bg-[var(--muted)]/40 p-6">
+      <div className="border-border bg-muted/40 mt-8 rounded-2xl border p-6">
         <p className="font-medium">
-          Pickup is available only within 6 km driving distance.
+          Pickup and delivery is free within {siteConfig.deliveryRadiusKm} km.
         </p>
-        <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-          You will be asked to accept this before choosing a slot.
+        <p className="text-muted-foreground mt-1 text-sm">
+          You will confirm your address before choosing a slot.
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="mt-8 flex flex-wrap gap-3">
         <Button asChild size="lg">
-          <Link href={target}>{user ? "Book Now" : "Sign in to Book"}</Link>
+          <Link href="/auth/login?redirect=%2Faccount%2Fbook">Book Now</Link>
         </Button>
         <Button asChild size="lg" variant="outline">
-          <Link href="/services">See prices first</Link>
+          <Link href="/#services">See services and prices</Link>
         </Button>
       </div>
     </div>
