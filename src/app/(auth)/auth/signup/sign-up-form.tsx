@@ -75,7 +75,7 @@ export function SignUpForm({ redirectTo }: { redirectTo: string }) {
           id="fullName"
           name="fullName"
           autoComplete="name"
-          placeholder="Moideen E M"
+          placeholder=""
           aria-invalid={Boolean(errors.fullName)}
           aria-describedby={errors.fullName ? "fullName-error" : undefined}
         />
@@ -98,7 +98,7 @@ export function SignUpForm({ redirectTo }: { redirectTo: string }) {
           type="tel"
           inputMode="tel"
           autoComplete="tel"
-          placeholder="+919876543210"
+          placeholder=""
           aria-invalid={Boolean(errors.mobile)}
           aria-describedby={errors.mobile ? "mobile-error" : undefined}
         />
