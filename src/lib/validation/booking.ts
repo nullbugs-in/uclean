@@ -49,3 +49,23 @@ export const bookPickupSchema = bookingDetailsSchema.extend({
 });
 
 export type BookPickupInput = z.infer<typeof bookPickupSchema>;
+
+/**
+ * The public `/book` wizard submit.
+ *
+ * Distinct from `bookPickupSchema`: `slotDate` stays a `YYYY-MM-DD` string all
+ * the way to Postgres. Coercing it to a `Date` and back is what makes a server
+ * running west of UTC shift the pickup back a day, so this schema never does
+ * that conversion in the first place.
+ */
+export const pickupRequestSchema = z.object({
+  address: z.string().trim().min(10, "Enter your full pickup address").max(500),
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  notes: z.string().trim().max(500).optional().or(z.literal("")),
+  slotDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a pickup date"),
+  slotId: z.string().uuid("Choose a pickup slot"),
+  zoneNoticeAcceptedAt: z.string().datetime(),
+});
+
+export type PickupRequestInput = z.infer<typeof pickupRequestSchema>;

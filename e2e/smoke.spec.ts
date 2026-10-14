@@ -21,26 +21,27 @@ test("home page renders the hero and the primary calls to action", async ({
   await expect(page.getByRole("heading", { name: "Why UClean" })).toBeVisible();
 });
 
-test("services page renders", async ({ page }) => {
+test("services page redirects to the pricing page", async ({ page }) => {
   await page.goto("/services");
+  await expect(page).toHaveURL(/\/pricing$/);
   await expect(
-    page.getByRole("heading", { name: "Services and prices" }),
+    page.getByRole("heading", { name: "Pricing", level: 1 }),
   ).toBeVisible();
 });
 
-test("book page sends an anonymous visitor to sign in", async ({ page }) => {
+test("book page renders the pickup wizard", async ({ page }) => {
   await page.goto("/book");
 
   await expect(
     page.getByRole("heading", { name: "Book a Pickup" }),
   ).toBeVisible();
 
-  const cta = page.locator('a[href*="/auth/login"]');
-  await expect(cta).toBeVisible();
-  await expect(cta).toHaveAttribute(
-    "href",
-    /\/auth\/login\?redirect=%2Faccount%2Fbook/,
-  );
+  // Step 1 is the OTP gate: nothing else, and no address form, renders until
+  // the mobile number is verified.
+  await expect(page.getByLabel("Your name")).toBeVisible();
+  await expect(page.getByLabel("Mobile number")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Send OTP" })).toBeVisible();
+  await expect(page.getByLabel("Pickup address")).toHaveCount(0);
 });
 
 test("account redirects an anonymous visitor to sign in", async ({ page }) => {

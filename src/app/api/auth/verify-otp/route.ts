@@ -11,8 +11,8 @@ import { verifyLoginOtp } from "@/server/otp";
  * The browser never handles a token directly.
  */
 export async function POST(request: Request) {
-  const body = (await request.json().catch(() => null)) as unknown;
-  const parsed = verifyOtpSchema.safeParse(body);
+  const rawBody = (await request.json().catch(() => null)) as unknown;
+  const parsed = verifyOtpSchema.safeParse(rawBody);
 
   if (!parsed.success) {
     return NextResponse.json(
@@ -21,8 +21,15 @@ export async function POST(request: Request) {
     );
   }
 
+  // Only used by the development test-code path in verifyLoginOtp; the schema
+  // above already rejected anything malformed.
+  const fullName =
+    rawBody && typeof rawBody === "object" && "fullName" in rawBody
+      ? String((rawBody as { fullName?: unknown }).fullName ?? "") || undefined
+      : undefined;
+
   try {
-    const { userId } = await verifyLoginOtp(parsed.data);
+    const { userId } = await verifyLoginOtp({ ...parsed.data, fullName });
     return NextResponse.json({ ok: true, userId });
   } catch (error) {
     return NextResponse.json(

@@ -46,11 +46,11 @@ enable_confirmations = false
 
 [auth.sms]
 enable_signup = true
-enable_confirmations = false
+enable_confirmations = true
 template = "Your UClean code is {{ .Code }}"
 # When true, any 6 digit code is accepted and printed in the API logs. Local
 # development only.
-enable_testing = false
+enable_testing = true
 
 [storage]
 enabled = true

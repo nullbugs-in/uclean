@@ -69,7 +69,7 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
           type="tel"
           inputMode="tel"
           autoComplete="tel"
-          placeholder="+919876543210"
+          placeholder=""
           aria-invalid={Boolean(errors.mobile)}
           aria-describedby={errors.mobile ? "mobile-error" : undefined}
         />
