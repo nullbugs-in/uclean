@@ -18,7 +18,7 @@ export function Footer() {
 
   return (
     <footer className="border-border bg-card border-t">
-      <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-2 md:py-14 lg:grid-cols-4">
         <div className="space-y-3">
           <Link
             href="/"

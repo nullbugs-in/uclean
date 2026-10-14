@@ -130,6 +130,24 @@
   }
 }
 
+/*
+ * The scroll-reveal is additive, never load-bearing.
+ *
+ * The rule is attached inside `@supports`, so a browser without
+ * `animation-timeline: view()` never runs it and the content keeps its natural
+ * opacity of 1. Two invariants must hold, and both are easy to break later:
+ *
+ * 1. Never set `opacity: 0` outside the `@supports` block. That would hide
+ *    content in every browser lacking the feature.
+ * 2. `animation-fill-mode: both` pins the `from` state (opacity 0) outside the
+ *    scroll range, so in a browser that DOES support view() but does not drive
+ *    it - print, PDF export, full-page screenshots, some "find in page" and
+ *    reader modes - every `.reveal-up` section renders as a blank void.
+ *    Printing the price list currently produces blank pages for that reason.
+ *
+ * `animation-range` beginning at `entry 0%` keeps below-the-fold content at its
+ * final state until it is scrolled toward.
+ */
 @media (prefers-reduced-motion: no-preference) {
   @supports (animation-timeline: view()) {
     .reveal-up {
@@ -148,5 +166,25 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * Print and forced-colors get no scroll-reveal at all.
+ *
+ * The reduced-motion block above shrinks the duration but keeps
+ * `fill-mode: both`, so the `from` keyframe still pins opacity to 0 in a
+ * renderer that never advances the timeline. Cancelling the animation outright
+ * restores the natural, fully visible state for these media.
+ */
+@media print {
+  .reveal-up {
+    animation: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .reveal-up {
+    animation: none !important;
   }
 }

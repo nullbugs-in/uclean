@@ -20,11 +20,11 @@ export function PriceItemCard({
 }) {
   return (
     <Card className="flex h-full flex-col overflow-hidden">
-      <div className="relative aspect-4/3 w-full shrink-0">
+      <div className="relative aspect-16/10 w-full shrink-0 sm:aspect-4/3">
         <ServiceImage item={item} group={group} />
       </div>
 
-      <CardHeader className="pb-3">
+      <CardHeader className="p-4 pb-3 sm:p-6 sm:pb-3">
         <CardTitle className="text-base leading-snug">{item.name}</CardTitle>
         {group.turnaround ? (
           <p className="text-muted-foreground text-xs">
@@ -33,14 +33,19 @@ export function PriceItemCard({
         ) : null}
       </CardHeader>
 
-      <CardContent className="flex flex-1 flex-col justify-end">
+      <CardContent className="flex flex-1 flex-col justify-end p-4 pt-0 sm:p-6 sm:pt-0">
         <ul className="space-y-2">
           {item.options.map((option, index) => (
             <li
               key={option.label ?? `${item.slug}-${index}`}
-              className="flex items-baseline justify-between gap-3"
+              className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1"
             >
-              <span className="min-w-0">
+              {/*
+                Long names like "Kurta (Designer / Stone work)" would otherwise
+                squeeze the price to nothing, so the label takes a full row
+                below `sm` and sits beside the price from `sm` up.
+              */}
+              <span className="min-w-0 basis-full sm:basis-auto">
                 {option.label ? (
                   <span className="block text-sm font-medium">
                     {option.label}
@@ -53,7 +58,7 @@ export function PriceItemCard({
                 ) : null}
               </span>
 
-              <span className="shrink-0 text-right whitespace-nowrap">
+              <span className="text-right whitespace-nowrap">
                 <span className="text-muted-foreground mr-2 text-sm line-through">
                   {formatPrice(option.original)}
                 </span>

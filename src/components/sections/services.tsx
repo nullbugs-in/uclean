@@ -9,7 +9,7 @@ export function Services() {
       id="services"
       className="border-border bg-muted/40 scroll-mt-20 border-y"
     >
-      <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
+      <div className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 md:py-16 lg:py-24">
         <div className="reveal-up max-w-2xl space-y-3">
           <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
             Services and prices

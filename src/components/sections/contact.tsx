@@ -14,7 +14,7 @@ export function Contact() {
       id="contact"
       className="border-border bg-muted/40 scroll-mt-20 border-t"
     >
-      <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
+      <div className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 md:py-16 lg:py-24">
         <div className="reveal-up max-w-2xl space-y-3">
           <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
             Visit or message us
@@ -25,7 +25,7 @@ export function Contact() {
           </p>
         </div>
 
-        <div className="mt-10 grid gap-8 lg:grid-cols-2">
+        <div className="mt-10 grid gap-8 md:grid-cols-2">
           <div className="reveal-up space-y-6">
             <div className="border-border bg-card flex gap-4 rounded-2xl border p-5 shadow-sm">
               <MapPin
@@ -103,7 +103,7 @@ export function Contact() {
               src={siteConfig.mapsEmbedUrl}
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
-              className="h-80 w-full lg:h-full lg:min-h-96"
+              className="h-72 w-full sm:h-80 md:h-full md:min-h-96"
             />
           </div>
         </div>

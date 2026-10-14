@@ -11,7 +11,7 @@ export function PricingNotes() {
   const { freeAboveInr, chargeInr } = siteConfig.deliveryPolicy;
 
   return (
-    <aside className="border-border bg-muted/40 rounded-2xl border p-5">
+    <aside className="border-border bg-muted/40 rounded-2xl border p-4 sm:p-5">
       <h2 className="flex items-center gap-2 text-sm font-semibold">
         <Info aria-hidden="true" className="size-4" />
         Good to know

@@ -22,7 +22,7 @@ export function CategoryCard({ category }: { category: PriceCategory }) {
       className="group focus-visible:ring-ring rounded-2xl focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
     >
       <Card className="h-full transition-transform group-hover:-translate-y-1 group-hover:shadow-md">
-        <CardHeader>
+        <CardHeader className="p-4 sm:p-6">
           <span
             aria-hidden="true"
             className={
@@ -36,7 +36,7 @@ export function CategoryCard({ category }: { category: PriceCategory }) {
           <CardTitle className="pt-2">{category.name}</CardTitle>
         </CardHeader>
 
-        <CardContent className="flex flex-1 flex-col justify-between gap-4">
+        <CardContent className="flex flex-1 flex-col justify-between gap-4 p-4 pt-0 sm:p-6 sm:pt-0">
           <p className="text-muted-foreground text-sm">{category.tagline}</p>
 
           <dl className="grid grid-cols-2 gap-3 text-sm">
@@ -50,7 +50,7 @@ export function CategoryCard({ category }: { category: PriceCategory }) {
             </div>
           </dl>
 
-          <p className="flex items-baseline justify-between gap-3">
+          <p className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <span className="font-display text-2xl font-bold">
               {formatPrice(cheapest.price)}
               <span className="text-muted-foreground text-sm font-normal">

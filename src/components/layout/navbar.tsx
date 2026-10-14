@@ -51,7 +51,14 @@ export function Navbar() {
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_100%_at_50%_0%,var(--accent),transparent)] opacity-60"
       />
 
-      <div className="relative mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 md:grid md:grid-cols-[1fr_auto_1fr] md:justify-normal">
+      {/*
+        The three-zone row only appears from `lg`. At `md` the logo, the pill nav
+        and the three auth buttons together measure ~784px, which overflows the
+        ~736px available at 768px. Tablets therefore get the compact cluster
+        below instead, which still offers a CTA without risking a horizontal
+        scrollbar.
+      */}
+      <div className="relative mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4 sm:px-6 lg:grid lg:grid-cols-[1fr_auto_1fr]">
         <Link
           href="/"
           className="group flex items-center rounded-md"
@@ -69,13 +76,13 @@ export function Navbar() {
             width={siteConfig.logo.width}
             height={siteConfig.logo.height}
             priority
-            className="h-9 w-auto transition-transform duration-200 group-hover:scale-[1.03] md:h-10"
+            className="h-9 w-auto transition-transform duration-200 group-hover:scale-[1.03] sm:h-10"
           />
         </Link>
 
         <nav
           aria-label="Primary"
-          className="bg-secondary/60 hidden items-center gap-1 rounded-full p-1 md:flex"
+          className="bg-secondary/60 hidden items-center gap-1 rounded-full p-1 lg:flex"
         >
           {NAV_LINKS.map((link) => {
             const active = isActive(link.href);
@@ -97,38 +104,54 @@ export function Navbar() {
           })}
         </nav>
 
-        <div className="hidden items-center justify-end gap-2 md:flex">
+        <div className="hidden items-center justify-end gap-2 lg:flex">
           <Button asChild variant="outline" size="sm">
             <Link href="/auth/login?redirect=/account">Log in</Link>
           </Button>
-          <Button asChild size="sm" className={cn(CTA_GLOW, "hover:-translate-y-0.5 transition-all")}>
+          <Button
+            asChild
+            size="sm"
+            className={cn(CTA_GLOW, "transition-all hover:-translate-y-0.5")}
+          >
             <Link href="/auth/signup">Sign up</Link>
           </Button>
           <Button
             asChild
             size="sm"
-            className={cn(CTA_GLOW, "hover:-translate-y-0.5 transition-all")}
+            className={cn(CTA_GLOW, "transition-all hover:-translate-y-0.5")}
           >
             <Link href="/book">Book Now</Link>
           </Button>
         </div>
 
-        <button
-          type="button"
-          className="border-border text-foreground hover:bg-accent grid size-10 place-items-center rounded-full border transition-colors md:hidden"
-          aria-expanded={open}
-          aria-controls="mobile-menu"
-          aria-label={open ? "Close menu" : "Open menu"}
-          onClick={() => setOpen((value) => !value)}
-        >
-          {open ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
-        </button>
+        {/*
+          Compact row for phones and tablets: the primary CTA stays visible so
+          the header is never purely a hamburger, while navigation and the auth
+          buttons live in the panel below.
+        */}
+        <div className="flex items-center gap-2 lg:hidden">
+          {/* h-10 rather than size="sm": a 32px target is below the comfortable
+              minimum for a thumb. */}
+          <Button asChild className={cn("h-10", CTA_GLOW, "transition-all")}>
+            <Link href="/book">Book Now</Link>
+          </Button>
+          <button
+            type="button"
+            className="border-border text-foreground hover:bg-accent grid size-10 place-items-center rounded-full border transition-colors"
+            aria-expanded={open}
+            aria-controls="mobile-menu"
+            aria-label={open ? "Close menu" : "Open menu"}
+            onClick={() => setOpen((value) => !value)}
+          >
+            {open ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
+          </button>
+        </div>
       </div>
 
       <div
         id="mobile-menu"
         hidden={!open}
-        className="border-border bg-background border-t md:hidden"
+        className="border-border bg-background border-t lg:hidden"
       >
         <nav
           aria-label="Mobile"
@@ -160,7 +183,10 @@ export function Navbar() {
               </Link>
             </Button>
             <Button asChild variant="outline" className="h-11 w-full">
-              <Link href="/auth/login?redirect=/account" onClick={() => setOpen(false)}>
+              <Link
+                href="/auth/login?redirect=/account"
+                onClick={() => setOpen(false)}
+              >
                 Log in
               </Link>
             </Button>

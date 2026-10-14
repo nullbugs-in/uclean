@@ -92,8 +92,17 @@ export function Hero() {
 
   return (
     <section className="border-border from-accent/60 to-background relative overflow-hidden border-b bg-gradient-to-b">
-      <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 lg:grid-cols-2 lg:py-20">
-        <div className="space-y-6">
+      {/*
+        `min-w-0` on both children is load-bearing. Grid items default to
+        `min-width: auto`, so the carousel track - a flex row of three
+        `w-full shrink-0` slides - reports a min-content width of roughly 585px
+        and would widen the column past the viewport. The section's
+        `overflow-hidden` then clips the overflow instead of scrolling it, which
+        hid the damage from a `scrollWidth` check. With `min-w-0` the column can
+        shrink and the track is laid out against the real container width.
+      */}
+      <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 md:grid-cols-2 lg:py-20">
+        <div className="min-w-0 space-y-6">
           <span className="border-border bg-card text-muted-foreground inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium">
             <span
               aria-hidden="true"
@@ -101,18 +110,27 @@ export function Hero() {
             />
             Fresh laundry, picked up and delivered
           </span>
-          <h1 className="font-display text-4xl leading-tight font-bold tracking-tight text-balance sm:text-5xl">
+          <h1 className="font-display text-3xl leading-tight font-bold tracking-tight text-balance sm:text-4xl lg:text-5xl">
             Laundry pickup and delivery, sorted.
           </h1>
           <p className="text-muted-foreground max-w-prose text-lg">
             Book an hourly slot, we collect from your door and return everything
             fresh. Track every step from pickup to delivery.
           </p>
-          <div className="flex flex-wrap gap-3">
-            <Button asChild size="lg">
+          {/*
+            Full-width buttons below `sm`, where two side-by-side `size="lg"`
+            CTAs would each be squeezed under ~150px.
+          */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <Button asChild size="lg" className="w-full sm:w-auto">
               <Link href="/book">Book Now</Link>
             </Button>
-            <Button asChild size="lg" variant="outline">
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="w-full sm:w-auto"
+            >
               <a href="#services">Services</a>
             </Button>
           </div>
@@ -133,7 +151,7 @@ export function Hero() {
           onBlur={() => setInteracting(false)}
           onPointerDown={onPointerDown}
           onPointerUp={onPointerUp}
-          className="focus-visible:outline-ring relative rounded-3xl focus-visible:outline-2 focus-visible:outline-offset-4"
+          className="focus-visible:outline-ring relative min-w-0 rounded-3xl focus-visible:outline-2 focus-visible:outline-offset-4"
         >
           <div className="overflow-hidden rounded-3xl">
             <div
