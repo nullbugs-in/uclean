@@ -224,9 +224,14 @@ create trigger orders_on_status_change
 -- B4. Agent load.
 -- ---------------------------------------------------------------------------
 
+-- SECURITY DEFINER: agents may update their own assignments, but RLS on
+-- public.agents only allows admin writes. Without this, the load update would
+-- silently match zero rows when an agent triggers it.
 create or replace function public.refresh_agent_load(p_agent_id uuid)
 returns void
 language sql
+security definer
+set search_path = public
 as $$
   update public.agents
   set current_load = (
@@ -240,9 +245,33 @@ as $$
   where id = p_agent_id;
 $$;
 
+-- Trigger functions cannot take arguments from the trigger definition, so this
+-- wrapper reads NEW/OLD itself and calls refresh_agent_load.
+create or replace function public.trg_refresh_agent_load()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op in ('INSERT', 'UPDATE') then
+    perform public.refresh_agent_load(new.agent_id);
+  end if;
+
+  -- On DELETE, or when an UPDATE moves the assignment to another agent,
+  -- the previous agent's load must be refreshed too.
+  if tg_op = 'DELETE'
+     or (tg_op = 'UPDATE' and old.agent_id is distinct from new.agent_id) then
+    perform public.refresh_agent_load(old.agent_id);
+  end if;
+
+  return null; -- ignored for AFTER triggers
+end;
+$$;
+
 create trigger assignments_refresh_agent_load
   after insert or update or delete on public.pickup_assignments
-  for each row execute function public.refresh_agent_load(coalesce(new.agent_id, old.agent_id));
+  for each row execute function public.trg_refresh_agent_load();
 
 -- ---------------------------------------------------------------------------
 -- B5. Automatic agent assignment (architecture doc, section 8.3).
