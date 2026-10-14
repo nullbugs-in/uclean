@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Clock, Mail, MapPin, Phone } from "lucide-react";
 
@@ -18,9 +19,20 @@ export function Footer() {
     <footer className="border-border bg-card border-t">
       <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-3">
-          <p className="font-display text-xl font-bold tracking-tight">
-            {siteConfig.name}
-          </p>
+          <Link
+            href="/"
+            className="inline-block rounded-md"
+            aria-label={`${siteConfig.name} home`}
+          >
+            {/* The lockup carries the wordmark, so no text name is repeated. */}
+            <Image
+              src={siteConfig.logo.src}
+              alt=""
+              width={siteConfig.logo.width}
+              height={siteConfig.logo.height}
+              className="h-10 w-auto"
+            />
+          </Link>
           <p className="text-muted-foreground max-w-xs text-sm">
             {siteConfig.tagline} Free pickup and delivery within{" "}
             {siteConfig.deliveryRadiusKm} km.

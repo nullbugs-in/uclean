@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -30,16 +31,23 @@ export function Navbar() {
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link
           href="/"
-          className="font-display flex items-center gap-2 rounded-md text-xl font-bold tracking-tight"
+          className="flex items-center rounded-md"
           aria-label={`${siteConfig.name} home`}
         >
-          <span
-            aria-hidden="true"
-            className="bg-primary text-primary-foreground grid size-8 place-items-center rounded-lg"
-          >
-            <Droplet />
-          </span>
-          {siteConfig.name}
+          {/*
+            The lockup already contains the UCLEAN wordmark, so it replaces the
+            old droplet tile plus text name rather than sitting beside them.
+            alt is empty because the link carries the accessible name; the
+            header is above the fold, hence priority.
+          */}
+          <Image
+            src={siteConfig.logo.src}
+            alt=""
+            width={siteConfig.logo.width}
+            height={siteConfig.logo.height}
+            priority
+            className="h-9 w-auto"
+          />
         </Link>
 
         <nav aria-label="Primary" className="hidden items-center gap-1 md:flex">
@@ -101,22 +109,5 @@ export function Navbar() {
         </nav>
       </div>
     </header>
-  );
-}
-
-function Droplet() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      className="size-4"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M12 2.7 6.6 8.1a7.6 7.6 0 1 0 10.8 0L12 2.7Z" />
-    </svg>
   );
 }

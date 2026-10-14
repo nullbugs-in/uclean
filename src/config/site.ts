@@ -30,6 +30,25 @@ export type SocialLink = {
 export const siteConfig = {
   name: "UClean",
   tagline: "Fresh laundry, picked up and delivered to your door.",
+
+  /**
+   * Brand logo, served from `public/`.
+   *
+   * The artwork is a full lockup: the "U" mark, the UCLEAN wordmark, and the
+   * "WE LAUNDRY" tagline, on a transparent background at 418x185 (about
+   * 2.26:1). Because the wordmark is already part of the image, the header and
+   * footer do not repeat the name as text next to it; the surrounding link
+   * carries an aria-label so the accessible name is still announced.
+   *
+   * Intrinsic dimensions are declared so next/image can reserve the box and
+   * avoid a layout shift, and every usage sizes it by height with `w-auto` so
+   * the aspect ratio is preserved.
+   */
+  logo: {
+    src: "/uclean-logo.png",
+    width: 418,
+    height: 185,
+  },
   description:
     "Book laundry pickup and delivery online. Choose an hourly slot, track your order, and pay on delivery - free pickup and delivery within 6 km of our store.",
   /** REPLACE BEFORE LAUNCH: production URL, used for metadata and JSON-LD. */
