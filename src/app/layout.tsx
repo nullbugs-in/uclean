@@ -60,7 +60,19 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      {/*
+        Browser extensions with a `cz` prefix (colour pickers and the like)
+        inject cz-shortcut-listen onto <body> from a content script that runs
+        before React hydrates, which React reports as a hydration mismatch.
+
+        The scope of this escape hatch is only <body>'s own attributes and its
+        direct text children, so a real mismatch deeper in the tree is still
+        reported. It does not paper over hydration bugs generally.
+
+        Disabling the extension removes the need for this.
+      */}
       <body
+        suppressHydrationWarning
         className={`${inter.variable} ${sora.variable} bg-background text-foreground font-sans antialiased`}
       >
         {children}

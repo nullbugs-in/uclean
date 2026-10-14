@@ -103,6 +103,20 @@ export const siteConfig = {
 
   /** Driving-distance service radius, also mirrored in the database. */
   deliveryRadiusKm: 6,
+
+  /**
+   * Delivery pricing quoted on the public price list.
+   *
+   * These are display-only figures for the marketing page. The charge actually
+   * applied to an order is computed in `src/server/billing.ts` from the draft,
+   * so keep the two in step if this ever changes.
+   */
+  deliveryPolicy: {
+    /** Orders at or above this subtotal ship free. */
+    freeAboveInr: 999,
+    /** Flat charge below that threshold. */
+    chargeInr: 69,
+  },
 } as const;
 
 /** wa.me link with the default prefilled message. */

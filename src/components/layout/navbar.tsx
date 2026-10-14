@@ -10,6 +10,7 @@ import { siteConfig } from "@/config/site";
 const NAV_LINKS = [
   { label: "About", href: "/#about" },
   { label: "Services", href: "/#services" },
+  { label: "Pricing", href: "/pricing" },
   { label: "Why UClean", href: "/#why" },
   { label: "Contact", href: "/#contact" },
 ] as const;

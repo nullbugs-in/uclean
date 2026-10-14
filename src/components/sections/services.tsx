@@ -1,8 +1,7 @@
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { services } from "@/data/services";
+import { CategoryCard } from "@/components/pricing/category-card";
+import { pricingCategories } from "@/data/pricing";
 
 export function Services() {
   return (
@@ -16,48 +15,27 @@ export function Services() {
             Services and prices
           </h2>
           <p className="text-muted-foreground">
-            A simple, transparent price list. Your final total is confirmed
-            after we receive and assess your items.
+            Two ways to get your laundry done: our standard service, or express
+            when you need it back fast. Pick one to see every price.
           </p>
         </div>
 
-        <ul className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {services.map((service) => {
-            const Icon = service.icon;
-            return (
-              <li key={service.id} className="reveal-up">
-                <Card className="flex h-full flex-col transition-transform hover:-translate-y-1 hover:shadow-md">
-                  <CardHeader>
-                    <span
-                      aria-hidden="true"
-                      className="bg-accent text-accent-foreground grid size-11 place-items-center rounded-xl"
-                    >
-                      <Icon className="size-5" />
-                    </span>
-                    <CardTitle className="pt-2">{service.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex flex-1 flex-col justify-between gap-4">
-                    <p className="text-muted-foreground text-sm">
-                      {service.description}
-                    </p>
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="font-display text-xl font-bold">
-                        {service.priceText}
-                        <span className="text-muted-foreground text-sm font-normal">
-                          {" "}
-                          / {service.unit}
-                        </span>
-                      </p>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href="/book">Book Now</Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </li>
-            );
-          })}
+        <ul className="mt-10 grid gap-5 sm:grid-cols-2">
+          {pricingCategories.map((category) => (
+            <li key={category.slug} className="reveal-up">
+              <CategoryCard category={category} />
+            </li>
+          ))}
         </ul>
+
+        <p className="mt-8">
+          <Link
+            href="/pricing"
+            className="text-primary inline-flex items-center rounded text-sm font-medium hover:underline"
+          >
+            Compare both price lists side by side
+          </Link>
+        </p>
       </div>
     </section>
   );
