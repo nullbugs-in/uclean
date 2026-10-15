@@ -78,7 +78,9 @@ export function ServicesStep({
         </p>
       </div>
 
-      <CategoryToggle category={category} onChange={onCategoryChange} />
+      <div className="flex justify-center">
+        <CategoryToggle category={category} onChange={onCategoryChange} />
+      </div>
 
       <div className="space-y-3">
         <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
@@ -244,9 +246,13 @@ export function ServicesStep({
  * customer sees the real difference immediately in the line prices and the
  * total once they pick, so the control itself only has to name the choice.
  *
- * The lime fill is the brand primary, and the soft shadow under the active
- * segment is what makes it read as a pill sitting on a track rather than two
- * labels on a grey box.
+ * Sized to its content rather than the card, and centred, so it reads as a
+ * compact control over the list instead of a full-width bar competing with it.
+ *
+ * The active pill is a solid fill rather than a gradient. A lime sweep faded
+ * out towards `--accent` washed the far half of the pill out to near-white,
+ * which made the selected option look weaker than the unselected one sitting
+ * next to it.
  */
 function CategoryToggle({
   category,
@@ -260,8 +266,8 @@ function CategoryToggle({
       role="group"
       aria-label="Service speed"
       className={cn(
-        "bg-muted ring-border inline-flex w-full rounded-full p-1 ring-1",
-        "ring-inset",
+        "ring-border inline-flex w-auto rounded-full p-1 ring-1 ring-inset sm:w-64",
+        "bg-muted",
       )}
     >
       {(["regular", "express"] as const).map((value) => {
@@ -274,11 +280,11 @@ function CategoryToggle({
             aria-pressed={active}
             onClick={() => onChange(value)}
             className={cn(
-              "flex-1 rounded-full px-6 py-2.5 text-sm font-semibold",
+              "rounded-full px-5 py-1.5 text-sm font-semibold sm:flex-1 sm:px-4",
               "transition-all duration-200 ease-out",
               "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
               active
-                ? "bg-primary text-primary-foreground shadow-[0_2px_12px] shadow-[color-mix(in_oklab,var(--primary),transparent_70%)]"
+                ? "text-primary-foreground bg-primary shadow-[0_2px_10px] shadow-[color-mix(in_oklab,var(--primary),transparent_60%)]"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
