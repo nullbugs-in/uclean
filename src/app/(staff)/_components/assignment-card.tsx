@@ -13,9 +13,9 @@ import {
 } from "@/components/ui/card";
 import type { AssignedOrder } from "@/db/queries/staff";
 import type { AssignmentType, OrderStatus } from "@/db/types";
+import { toDateKey } from "@/lib/dates";
 import { INTERNAL_STATUS_LABEL } from "@/lib/order-status";
 import { formatDate } from "@/lib/utils";
-import { toDateKey } from "@/server/slots";
 
 function badgeVariant(status: OrderStatus) {
   if (status === "delivered") return "success" as const;

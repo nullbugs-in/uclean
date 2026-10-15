@@ -1,14 +1,19 @@
 import type { ReactNode } from "react";
 
 /**
- * Page container for the staff panel.
+ * Page container shared by every panel screen.
  *
  * A page owns its own padding but not its width: `PanelShell` already caps the
- * content column at max-w-7xl, so every screen in the panel lines up no matter
- * which nav item opened it. This used to re-declare a narrower max-w-5xl of its
- * own, which made some staff pages visibly ragged against others.
+ * content column, so every screen lines up no matter which nav item opened it.
+ * The staff panel used to re-declare a narrower width of its own, which made
+ * its pages visibly ragged against the admin panel's - hence one component
+ * rather than one per panel.
+ *
+ * Deliberately not the same thing as `PagePlaceholder`, which still marks the
+ * routes that have a layout and a data contract but no feature yet. A screen
+ * that is finished should not advertise itself as a stub.
  */
-export function StaffPage({
+export function PanelPage({
   title,
   description,
   action,

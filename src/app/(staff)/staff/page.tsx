@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { CalendarClock, Route, Truck, Warehouse } from "lucide-react";
 
+import { DonutChart } from "@/components/panel/donut-chart";
 import { StatCard } from "@/components/panel/stat-card";
 import {
   Card,
@@ -13,12 +14,12 @@ import type { AssignedOrder } from "@/db/queries/staff";
 import { getStaffOverview, listAssignedOrders } from "@/db/queries/staff";
 import { createClient } from "@/db/server";
 import type { AssignmentType } from "@/db/types";
-import { toDateKey } from "@/server/slots";
+import { toDateKey } from "@/lib/dates";
+import { INTERNAL_STATUS_LABEL } from "@/lib/order-status";
 
 import { AssignmentCard } from "../_components/assignment-card";
 import { SlotLoadChart } from "../_components/slot-load-chart";
-import { StaffPage } from "../_components/staff-page";
-import { StatusMixChart } from "../_components/status-mix-chart";
+import { PanelPage } from "@/components/panel/panel-page";
 
 export const metadata: Metadata = { title: "Overview" };
 
@@ -81,10 +82,6 @@ export default async function StaffOverviewPage() {
   );
 
   const upcoming = pickups.length - todayPickups.length;
-  const activeOrders = overview.statusMix.reduce(
-    (total, row) => total + row.count,
-    0,
-  );
 
   const dateText = new Date().toLocaleDateString("en-IN", {
     weekday: "long",
@@ -102,7 +99,7 @@ export default async function StaffOverviewPage() {
         : `${stopCount} stops on the round`;
 
   return (
-    <StaffPage
+    <PanelPage
       title="Your round today"
       description={`${dateText} · ${stopText}`}
     >
@@ -153,14 +150,14 @@ export default async function StaffOverviewPage() {
             <CardDescription>Active orders by state.</CardDescription>
           </CardHeader>
           <CardContent>
-            {activeOrders === 0 ? (
-              <p className="text-muted-foreground py-8 text-center text-sm">
-                Nothing in progress. An order shows up here the moment one is
-                assigned to you.
-              </p>
-            ) : (
-              <StatusMixChart rows={overview.statusMix} />
-            )}
+            <DonutChart
+              rows={overview.statusMix.map((row) => ({
+                label: INTERNAL_STATUS_LABEL[row.status],
+                value: row.count,
+              }))}
+              centerLabel="active"
+              emptyLabel="Nothing in progress. An order shows up here the moment one is assigned to you."
+            />
           </CardContent>
         </Card>
       </div>
@@ -194,6 +191,6 @@ export default async function StaffOverviewPage() {
           )}
         </CardContent>
       </Card>
-    </StaffPage>
+    </PanelPage>
   );
 }

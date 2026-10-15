@@ -10,7 +10,7 @@ import { createClient } from "@/db/server";
 import { INTERNAL_STATUS_LABEL } from "@/lib/order-status";
 import { formatINR } from "@/lib/utils";
 import { requireRoleOrRedirect } from "@/server/auth";
-import { StaffPage } from "../../../_components/staff-page";
+import { PanelPage } from "@/components/panel/panel-page";
 import { StaffOrderStatusActions } from "./status-actions";
 
 export const metadata: Metadata = { title: "Order" };
@@ -41,7 +41,7 @@ export default async function StaffOrderPage({
   );
 
   return (
-    <StaffPage
+    <PanelPage
       title={`Order ${order.order_no}`}
       description="Items, status and the transitions you are allowed to make."
       action={<CycleMeter status={order.status} className="w-full max-w-60" />}
@@ -116,6 +116,6 @@ export default async function StaffOrderPage({
           </Card>
         </div>
       </div>
-    </StaffPage>
+    </PanelPage>
   );
 }

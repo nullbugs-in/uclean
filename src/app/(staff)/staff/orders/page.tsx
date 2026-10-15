@@ -14,7 +14,7 @@ import { listOrdersForStaff } from "@/db/queries/orders";
 import { createClient } from "@/db/server";
 
 import { dayLabel } from "../../_components/assignment-card";
-import { StaffPage } from "../../_components/staff-page";
+import { PanelPage } from "@/components/panel/panel-page";
 
 export const metadata: Metadata = { title: "Orders" };
 
@@ -37,7 +37,7 @@ export default async function StaffOrdersPage() {
   });
 
   return (
-    <StaffPage
+    <PanelPage
       title="Orders"
       description="Everything you can see, in pickup order."
     >
@@ -92,6 +92,6 @@ export default async function StaffOrdersPage() {
           </Table>
         </div>
       )}
-    </StaffPage>
+    </PanelPage>
   );
 }

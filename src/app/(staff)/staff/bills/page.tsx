@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-import { StaffPage } from "../../_components/staff-page";
+import { PanelPage } from "@/components/panel/panel-page";
 
 export const metadata: Metadata = { title: "Bills" };
 
@@ -25,7 +25,7 @@ export const metadata: Metadata = { title: "Bills" };
  */
 export default function StaffBillsPage() {
   return (
-    <StaffPage
+    <PanelPage
       title="Bills"
       description="Invoices and payment records for orders you handle."
     >
@@ -43,6 +43,6 @@ export default function StaffBillsPage() {
           </p>
         </CardContent>
       </Card>
-    </StaffPage>
+    </PanelPage>
   );
 }

@@ -1,3 +1,4 @@
+import { addDays, toDateKey } from "@/lib/dates";
 import { ORDER_STATUSES } from "@/lib/order-status";
 
 import type {
@@ -18,28 +19,6 @@ function unwrap<T>(result: {
     throw new Error(result.error.message);
   }
   return result.data as T;
-}
-
-/**
- * Local day key, YYYY-MM-DD.
- *
- * A copy of `toDateKey` from src/server/slots.ts rather than an import: that
- * module is marked "server-only" and reaches back into the catalog queries, so
- * depending on it from the query layer would point db at server and risk a
- * cycle. Slot dates are local calendar days, so slicing a UTC ISO string would
- * put evening slots on the wrong day.
- */
-function toDateKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function addDays(date: Date, days: number): Date {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
 }
 
 /** An assignment still needing work. Completed and cancelled legs are history. */

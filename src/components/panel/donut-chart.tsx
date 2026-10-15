@@ -8,12 +8,12 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { INTERNAL_STATUS_LABEL, type OrderStatus } from "@/lib/order-status";
 
 /**
- * Colour slots are cycled across the active statuses. Five chart tokens is
- * enough because an agent rarely sees more than a handful of states at once;
- * the swatch list below the donut carries the mapping either way.
+ * Five colour slots, cycled across however many rows arrive. More rows than
+ * slots is rare - the panels show a handful of states at a time - and the
+ * swatch list beneath the donut carries the mapping either way, so a repeat
+ * colour never leaves a slice unidentifiable.
  */
 const chartConfig = {
   s0: { color: "var(--chart-1)" },
@@ -23,30 +23,50 @@ const chartConfig = {
   s4: { color: "var(--chart-5)" },
 } satisfies ChartConfig;
 
+/**
+ * Read from the config rather than from the injected `--color-s0`, because the
+ * config's colours are the global `--chart-*` tokens. The injected ones only
+ * exist inside the chart container, and this swatch list sits outside it.
+ */
 function colorFor(key: string): string {
-  return chartConfig[key as keyof typeof chartConfig]?.color ?? "var(--chart-1)";
+  return (
+    chartConfig[key as keyof typeof chartConfig]?.color ?? "var(--chart-1)"
+  );
 }
 
-/**
- * Active orders by state - how much of the book is waiting where.
- *
- * Deliberately built from `status` rather than from invoice amounts: this is
- * the staff panel, where the question is "what is stuck", never "what is it
- * worth". The count in the middle is the whole picture; the list beneath it
- * keeps the chart readable without hunting for a tooltip.
- */
-export function StatusMixChart({
-  rows,
-}: {
-  rows: Array<{ status: OrderStatus; count: number }>;
-}) {
-  const data = rows.map((row, index) => ({
-    key: `s${index % 5}`,
-    label: INTERNAL_STATUS_LABEL[row.status],
-    count: row.count,
-  }));
+export type DonutRow = { label: string; value: number };
 
-  const total = data.reduce((sum, row) => sum + row.count, 0);
+/**
+ * Share-of-a-total donut with the count in the middle.
+ *
+ * One implementation for every panel breakdown - active orders by state on the
+ * staff side, invoice states on the admin side - because the only real
+ * difference between them is where the labels come from. The list beneath it is
+ * not decoration: a donut alone makes people guess, and the whole point of
+ * these screens is that nobody has to.
+ */
+export function DonutChart({
+  rows,
+  centerLabel,
+  emptyLabel,
+}: {
+  rows: DonutRow[];
+  centerLabel: string;
+  emptyLabel: string;
+}) {
+  if (rows.length === 0) {
+    return (
+      <p className="text-muted-foreground py-8 text-center text-sm">
+        {emptyLabel}
+      </p>
+    );
+  }
+
+  const data = rows.map((row, index) => ({
+    ...row,
+    key: `s${index % 5}`,
+  }));
+  const total = data.reduce((sum, row) => sum + row.value, 0);
 
   return (
     <div className="space-y-4">
@@ -59,7 +79,7 @@ export function StatusMixChart({
             <ChartTooltip content={<ChartTooltipContent nameKey="label" />} />
             <Pie
               data={data}
-              dataKey="count"
+              dataKey="value"
               nameKey="label"
               innerRadius={58}
               outerRadius={88}
@@ -77,7 +97,9 @@ export function StatusMixChart({
           <span className="text-foreground text-2xl leading-none font-semibold tabular-nums">
             {total}
           </span>
-          <span className="text-muted-foreground mt-1.5 text-xs">active</span>
+          <span className="text-muted-foreground mt-1.5 text-xs">
+            {centerLabel}
+          </span>
         </div>
       </div>
 
@@ -91,7 +113,7 @@ export function StatusMixChart({
             />
             <span className="truncate">{row.label}</span>
             <span className="text-muted-foreground ml-auto tabular-nums">
-              {row.count}
+              {row.value}
             </span>
           </li>
         ))}
