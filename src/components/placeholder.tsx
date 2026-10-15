@@ -7,6 +7,10 @@ import type { ReactNode } from "react";
  * Keeping these consistent makes it obvious at a glance which parts of the
  * architecture doc are scaffolded and which are actually implemented, and
  * gives a reviewer a single place to check the next milestone.
+ *
+ * The "scaffolded" strip renders only when `milestone` is passed, since that
+ * prop is the signal that a page is not built yet. A page that has been
+ * finished stops advertising itself as unfinished by dropping the prop.
  */
 export function PagePlaceholder({
   title,
@@ -33,10 +37,11 @@ export function PagePlaceholder({
 
       {children}
 
-      <p className="rounded-md border border-dashed border-[var(--border)] px-4 py-3 text-sm text-[var(--muted-foreground)]">
-        Scaffolded, not yet implemented.
-        {milestone ? ` Scheduled for ${milestone}.` : null}
-      </p>
+      {milestone ? (
+        <p className="rounded-md border border-dashed border-[var(--border)] px-4 py-3 text-sm text-[var(--muted-foreground)]">
+          Scaffolded, not yet implemented. Scheduled for {milestone}.
+        </p>
+      ) : null}
     </div>
   );
 }

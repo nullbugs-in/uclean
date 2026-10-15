@@ -46,6 +46,63 @@ export async function listActiveOrdersForCustomer(
   );
 }
 
+/**
+ * How many orders a customer has placed, active or not.
+ *
+ * `head: true` fetches no rows, so this stays a count. The public layout uses
+ * it to decide whether to show the "My bookings" shortcut in the navbar, which
+ * only appears once someone has actually booked.
+ */
+export async function countCustomerOrders(
+  client: Client,
+  customerId: string,
+): Promise<number> {
+  const { count, error } = await client
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("customer_id", customerId);
+
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+/**
+ * Status history for every order a customer owns, keyed by order id.
+ *
+ * A plain record rather than a Map so it can be handed to a client component.
+ * Fetched in one `in (...)` query rather than per order, so the bookings page
+ * costs the same whatever the customer's history length.
+ */
+export async function listOrderHistoryForCustomer(
+  client: Client,
+  customerId: string,
+): Promise<Record<string, OrderStatusHistory[]>> {
+  const { data: orders, error: ordersError } = await client
+    .from("orders")
+    .select("id")
+    .eq("customer_id", customerId);
+
+  if (ordersError) throw new Error(ordersError.message);
+
+  const orderIds = (orders ?? []).map((order) => order.id);
+  if (orderIds.length === 0) return {};
+
+  const { data, error } = await client
+    .from("order_status_history")
+    .select("order_id, from_status, to_status, note, created_at")
+    .in("order_id", orderIds)
+    .order("created_at", { ascending: true });
+
+  if (error) throw new Error(error.message);
+
+  const grouped: Record<string, OrderStatusHistory[]> = {};
+  for (const row of data ?? []) {
+    (grouped[row.order_id] ??= []).push(row as OrderStatusHistory);
+  }
+
+  return grouped;
+}
+
 /** A single order with its items and full status history for the timeline. */
 export async function getOrderDetail(
   client: Client,
