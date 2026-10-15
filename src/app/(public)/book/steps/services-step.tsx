@@ -1,14 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Clock3, MapPin, Minus, Plus, Zap } from "lucide-react";
+import { MapPin, Minus, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  cheapestPrice,
-  getPricingCategory,
-  type CategorySlug,
-} from "@/data/pricing";
+import type { CategorySlug } from "@/data/pricing";
 import { cn, formatPrice } from "@/lib/utils";
 
 import type { DeliveryQuote } from "../delivery-charge";
@@ -82,11 +78,7 @@ export function ServicesStep({
         </p>
       </div>
 
-      <CategoryToggle
-        category={category}
-        onChange={onCategoryChange}
-        counts={groupCounts(category, selection)}
-      />
+      <CategoryToggle category={category} onChange={onCategoryChange} />
 
       <div className="space-y-3">
         <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
@@ -244,35 +236,36 @@ export function ServicesStep({
 }
 
 /**
- * Regular and Express, as two full cards rather than a flat segmented strip.
+ * Regular and Express, as a capsule pill.
  *
- * The choice is a real tradeoff - turnaround against price - so each side
- * states its own turnaround and starting price instead of relying on the
- * customer already knowing what Express costs. Switching keeps the selection,
- * which is why the active card also says how many lines carry over.
+ * Deliberately labels only. The two options differ by a multiple on every line
+ * rather than by a fixed price, so any "from Rs X" figure would be the price of
+ * one unrelated item and would quietly mislead about the one being chosen. The
+ * customer sees the real difference immediately in the line prices and the
+ * total once they pick, so the control itself only has to name the choice.
+ *
+ * The lime fill is the brand primary, and the soft shadow under the active
+ * segment is what makes it read as a pill sitting on a track rather than two
+ * labels on a grey box.
  */
 function CategoryToggle({
   category,
   onChange,
-  counts,
 }: {
   category: CategorySlug;
   onChange: (category: CategorySlug) => void;
-  counts: Record<string, number>;
 }) {
-  const picked = Object.keys(counts).length;
-
   return (
     <div
       role="group"
       aria-label="Service speed"
-      className="grid gap-3 sm:grid-cols-2"
+      className={cn(
+        "bg-muted ring-border inline-flex w-full rounded-full p-1 ring-1",
+        "ring-inset",
+      )}
     >
       {(["regular", "express"] as const).map((value) => {
         const active = category === value;
-        const source = getPricingCategory(value);
-        const Icon = value === "express" ? Zap : Clock3;
-        const cheapest = source ? cheapestPrice(source) : null;
 
         return (
           <button
@@ -281,65 +274,15 @@ function CategoryToggle({
             aria-pressed={active}
             onClick={() => onChange(value)}
             className={cn(
-              "group relative flex flex-col items-start gap-1 rounded-xl border p-4 text-left transition-all",
+              "flex-1 rounded-full px-6 py-2.5 text-sm font-semibold",
+              "transition-all duration-200 ease-out",
               "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
               active
-                ? "border-[var(--primary)] bg-[var(--primary)]/8 shadow-[var(--primary)]/10 shadow-md"
-                : "bg-card hover:bg-accent/50 border-[var(--border)] hover:border-[var(--primary)]/40",
+                ? "bg-primary text-primary-foreground shadow-[0_2px_12px] shadow-[color-mix(in_oklab,var(--primary),transparent_70%)]"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
-            {active ? (
-              <span
-                aria-hidden="true"
-                className="absolute top-3 right-3 size-2 rounded-full bg-[var(--primary)]"
-              />
-            ) : null}
-
-            <span className="flex items-center gap-2">
-              <span
-                className={cn(
-                  "grid size-8 place-items-center rounded-lg transition-colors",
-                  active
-                    ? "bg-[var(--primary)] text-[var(--primary-foreground)]"
-                    : "bg-muted text-muted-foreground group-hover:text-foreground",
-                )}
-              >
-                <Icon className="size-4" aria-hidden="true" />
-              </span>
-              <span className="font-display text-base font-bold">
-                {value === "regular" ? "Regular" : "Express"}
-              </span>
-            </span>
-
-            <span className="text-muted-foreground text-xs">
-              Ready in {source?.turnaround ?? "a few days"}
-            </span>
-
-            <span className="text-muted-foreground mt-1 text-xs">
-              {value === "regular"
-                ? "Best value for everyday laundry"
-                : "Priority handling, same-day turnaround"}
-            </span>
-
-            <span className="mt-2 flex items-baseline gap-1">
-              {cheapest ? (
-                <>
-                  <span className="text-muted-foreground text-xs">From</span>
-                  <span className="font-display text-sm font-bold">
-                    {formatPrice(cheapest.price)}
-                  </span>
-                  <span className="text-muted-foreground text-xs">
-                    / {cheapest.unit}
-                  </span>
-                </>
-              ) : null}
-            </span>
-
-            {active && picked > 0 ? (
-              <span className="text-foreground mt-2 rounded-full bg-[var(--primary)]/15 px-2 py-0.5 text-xs font-medium">
-                {picked} kept
-              </span>
-            ) : null}
+            {value === "regular" ? "Regular" : "Express"}
           </button>
         );
       })}
