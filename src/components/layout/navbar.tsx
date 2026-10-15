@@ -106,7 +106,7 @@ export function Navbar() {
 
         <div className="hidden items-center justify-end gap-2 lg:flex">
           <Button asChild variant="outline" size="sm">
-            <Link href="/auth/login?redirect=/account">Log in</Link>
+            <Link href="/auth/login?redirect=/">Log in</Link>
           </Button>
           <Button
             asChild
@@ -172,7 +172,7 @@ export function Navbar() {
             </Button>
             <Button asChild variant="outline" className="h-11 w-full">
               <Link
-                href="/auth/login?redirect=/account"
+                href="/auth/login?redirect=/"
                 onClick={() => setOpen(false)}
               >
                 Log in

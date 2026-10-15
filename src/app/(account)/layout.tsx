@@ -12,7 +12,8 @@ const SECTIONS: PanelNavSection[] = [
   {
     title: "Account",
     items: [
-      { href: "/account", label: "Dashboard" },
+      // No dashboard row: /account forwards to the home page now that a booking
+      // confirms on the site rather than inside a panel.
       { href: "/account/book", label: "Book a pickup" },
       { href: "/account/orders", label: "My orders" },
       { href: "/account/profile", label: "Profile" },

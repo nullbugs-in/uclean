@@ -13,7 +13,7 @@ export default async function VerifyOtpPage({
 }: {
   searchParams: Promise<{ mobile?: string; redirect?: string }>;
 }) {
-  const { mobile, redirect: redirectTo = "/account" } = await searchParams;
+  const { mobile, redirect: redirectTo = "/" } = await searchParams;
 
   if (!mobile) {
     return (

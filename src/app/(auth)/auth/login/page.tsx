@@ -15,7 +15,7 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ redirect?: string }>;
 }) {
-  const { redirect: redirectTo = "/account" } = await searchParams;
+  const { redirect: redirectTo = "/" } = await searchParams;
 
   return (
     <Card className="relative w-full overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[0_28px_60px_-28px_color-mix(in_oklab,var(--primary),transparent_65%)] ring-1 ring-black/5">
