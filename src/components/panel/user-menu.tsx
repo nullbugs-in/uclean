@@ -25,7 +25,11 @@ const PANELS: Array<{
 }> = [
   { href: "/staff", label: "Staff panel", roles: ["staff", "admin"] },
   { href: "/admin", label: "Admin panel", roles: ["admin"] },
-  { href: "/account", label: "My account", roles: ["customer", "staff", "admin"] },
+  {
+    href: "/account",
+    label: "My account",
+    roles: ["customer", "staff", "admin"],
+  },
 ];
 
 function initials(fullName: string) {
@@ -53,9 +57,7 @@ export function PanelUserMenu({
   const [isPending, startTransition] = useTransition();
   const { isMobile } = useSidebar();
 
-  const reachable = PANELS.filter((panel) =>
-    panel.roles.includes(user.role),
-  );
+  const reachable = PANELS.filter((panel) => panel.roles.includes(user.role));
 
   return (
     <DropdownMenu>

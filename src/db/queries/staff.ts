@@ -236,7 +236,8 @@ export async function getStaffOverview(
     .filter(
       (order) =>
         order.status !== "cancelled" &&
-        (order.pickup_slot_date === start || order.delivery_slot_date === start),
+        (order.pickup_slot_date === start ||
+          order.delivery_slot_date === start),
     )
     .reduce((total, order) => total + order.distance_km, 0);
 

@@ -74,8 +74,8 @@ export function AssignmentCard({
           <CardTitle className="text-base">{order.order_no}</CardTitle>
           <p className="text-muted-foreground text-xs">
             {type === "pickup" ? "Pickup" : "Delivery"} &middot;{" "}
-            {day ? day : "no slot yet"} &middot;{" "}
-            {order.distance_km.toFixed(1)} km
+            {day ? day : "no slot yet"} &middot; {order.distance_km.toFixed(1)}{" "}
+            km
           </p>
         </div>
         <CardAction>
@@ -96,11 +96,7 @@ export function AssignmentCard({
 
         <div className="flex flex-wrap items-center gap-2">
           <Button asChild size="sm" variant="outline">
-            <a
-              href={mapsHref}
-              target="_blank"
-              rel="noreferrer noopener"
-            >
+            <a href={mapsHref} target="_blank" rel="noreferrer noopener">
               <Navigation />
               Navigate
             </a>
