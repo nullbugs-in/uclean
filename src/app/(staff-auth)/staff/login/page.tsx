@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { siteConfig } from "@/config/site";
+import { PANEL_PREFIXES } from "@/lib/constants";
 import { getSessionUser } from "@/server/auth";
 
 import {
@@ -31,8 +32,17 @@ export default async function StaffLoginPage({
   const redirectTo = safeRedirectTarget(requested);
   const session = await getSessionUser();
 
-  if (session?.profile.is_active && isPanelRole(session.profile.role)) {
-    redirect(resolveDestination(session.profile.role, redirectTo));
+  if (session) {
+    const { role, is_active: isActive } = session.profile;
+
+    if (isPanelRole(role) && isActive) {
+      redirect(resolveDestination(role, redirectTo));
+    }
+
+    // A signed-in customer belongs in their own panel, not on the staff door.
+    // Anything else signed in but not a live staff/admin account goes home;
+    // either way the form is never shown to someone who already has a session.
+    redirect(role === "customer" ? PANEL_PREFIXES.account : "/");
   }
 
   return (
