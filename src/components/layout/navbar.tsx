@@ -2,13 +2,21 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { CalendarClock, ChevronDown, Menu, UserRound, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
+import {
+  getMyBookingsAction,
+  type MyBookings,
+} from "@/app/(account)/account-actions";
+import { SignOutButton } from "@/components/layout/sign-out-button";
+import { OrderTimeline } from "@/components/order-timeline";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { siteConfig } from "@/config/site";
-import { cn } from "@/lib/utils";
+import { CUSTOMER_STATUS_LABEL } from "@/lib/order-status";
+import { formatDate, cn } from "@/lib/utils";
 
 const NAV_LINKS = [
   { label: "About", href: "/#about" },
@@ -21,7 +29,13 @@ const NAV_LINKS = [
 /** Soft lime glow cast by the primary CTAs. */
 const CTA_GLOW = "shadow-[0_8px_24px_-8px_var(--primary)]";
 
-export function Navbar() {
+export type NavbarUser = {
+  fullName: string;
+  mobile: string;
+  role: string;
+};
+
+export function Navbar({ user = null }: { user?: NavbarUser | null }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -53,7 +67,7 @@ export function Navbar() {
 
       {/*
         The three-zone row only appears from `lg`. At `md` the logo, the pill nav
-        and the three auth buttons together measure ~784px, which overflows the
+        and the auth controls together measure ~784px, which overflows the
         ~736px available at 768px. Tablets therefore get the compact cluster
         below instead, which still offers a CTA without risking a horizontal
         scrollbar.
@@ -105,22 +119,13 @@ export function Navbar() {
         </nav>
 
         <div className="hidden items-center justify-end gap-2 lg:flex">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/auth/login?redirect=/">Log in</Link>
-          </Button>
-          <Button
-            asChild
-            size="sm"
-            className={cn(CTA_GLOW, "transition-all hover:-translate-y-0.5")}
-          >
-            <Link href="/auth/signup">Sign up</Link>
-          </Button>
+          <AuthControls user={user} />
         </div>
 
         {/*
           Compact row for phones and tablets. There is no CTA here, so the
           hamburger is the only control beside the logo; navigation and the auth
-          buttons live in the panel below.
+          controls live in the panel below.
         */}
         <div className="flex items-center gap-2 lg:hidden">
           <button
@@ -164,23 +169,331 @@ export function Navbar() {
               </Link>
             );
           })}
-          <div className="mt-3 flex flex-col gap-2">
-            <Button asChild className={cn("h-11 w-full", CTA_GLOW)}>
-              <Link href="/auth/signup" onClick={() => setOpen(false)}>
-                Sign up
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="h-11 w-full">
-              <Link
-                href="/auth/login?redirect=/"
-                onClick={() => setOpen(false)}
-              >
-                Log in
-              </Link>
-            </Button>
-          </div>
+
+          {user ? (
+            <div className="mt-3 flex flex-col gap-2">
+              <div className="bg-muted/60 flex items-center gap-3 rounded-xl px-3 py-3">
+                <span
+                  aria-hidden="true"
+                  className="ring-primary/40 bg-primary/20 grid size-9 shrink-0 place-items-center rounded-full text-xs font-semibold ring-2"
+                >
+                  {initialsOf(user.fullName)}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">
+                    {user.fullName}
+                  </p>
+                  <p className="text-muted-foreground truncate text-xs">
+                    {user.mobile} · {user.role}
+                  </p>
+                </div>
+              </div>
+              <Button asChild className="h-11 w-full">
+                <Link
+                  href="/account/profile"
+                  onClick={() => setOpen(false)}
+                  className="justify-center"
+                >
+                  User profile
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="h-11 w-full">
+                <Link
+                  href="/account/orders"
+                  onClick={() => setOpen(false)}
+                  className="justify-center"
+                >
+                  My bookings
+                </Link>
+              </Button>
+              <SignOutButton />
+            </div>
+          ) : (
+            <div className="mt-3 flex flex-col gap-2">
+              <Button asChild className={cn("h-11 w-full", CTA_GLOW)}>
+                <Link href="/auth/signup" onClick={() => setOpen(false)}>
+                  Sign up
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="h-11 w-full">
+                <Link
+                  href="/auth/login?redirect=/"
+                  onClick={() => setOpen(false)}
+                >
+                  Log in
+                </Link>
+              </Button>
+            </div>
+          )}
         </nav>
       </div>
     </header>
+  );
+}
+
+/**
+ * Log in / Sign up while signed out; the profile icon and sign out once signed
+ * in. The session is resolved by (public)/layout.tsx and passed in, because the
+ * navbar is a client component and cannot read cookies itself.
+ */
+function AuthControls({ user }: { user: NavbarUser | null }) {
+  if (!user) {
+    return (
+      <>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/auth/login?redirect=/">Log in</Link>
+        </Button>
+        <Button
+          asChild
+          size="sm"
+          className={cn(CTA_GLOW, "transition-all hover:-translate-y-0.5")}
+        >
+          <Link href="/auth/signup">Sign up</Link>
+        </Button>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <UserMenu user={user} />
+      <SignOutButton />
+    </>
+  );
+}
+
+function initialsOf(fullName: string) {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  const first = parts[0];
+  if (!first) return "?";
+  const last = parts.length > 1 ? parts[parts.length - 1] : undefined;
+  if (!last) return first.slice(0, 2).toUpperCase();
+  return `${first[0]}${last[0]}`.toUpperCase();
+}
+
+/** Which panel, if any, is expanded inside the dropdown. */
+type Panel = "none" | "profile" | "bookings";
+
+/**
+ * The profile icon and its dropdown.
+ *
+ * Both rows expand a panel in place instead of navigating, so the details can
+ * be read without leaving the page. Escape or a click outside closes the menu.
+ */
+function UserMenu({ user }: { user: NavbarUser }) {
+  const [open, setOpen] = useState(false);
+  const [panel, setPanel] = useState<Panel>("none");
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [bookings, setBookings] = useState<MyBookings | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+
+    function onPointerDown(event: MouseEvent) {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("mousedown", onPointerDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("mousedown", onPointerDown);
+    };
+  }, [open]);
+
+  // Fetched on first expand rather than on mount, so an ordinary visit to any
+  // public page never runs the query.
+  async function openBookings() {
+    setPanel((current) => (current === "bookings" ? "none" : "bookings"));
+
+    if (loaded || loading) return;
+
+    setLoading(true);
+    try {
+      setBookings(await getMyBookingsAction());
+      setLoaded(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function togglePanel(next: Exclude<Panel, "none">) {
+    setPanel((current) => (current === next ? "none" : next));
+  }
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Account menu for ${user.fullName}`}
+        onClick={() => setOpen((value) => !value)}
+        className="ring-primary/40 bg-primary/20 grid size-9 place-items-center rounded-full text-xs font-semibold transition-shadow hover:ring-2 focus-visible:ring-2 focus-visible:outline-none"
+      >
+        <span aria-hidden="true">{initialsOf(user.fullName)}</span>
+      </button>
+
+      {open ? (
+        <div
+          role="menu"
+          aria-label="Account"
+          className="bg-card border-border absolute right-0 z-50 mt-2 w-96 origin-top-right rounded-2xl border p-2 shadow-lg"
+        >
+          <MenuRow
+            icon={<UserRound className="size-4" aria-hidden="true" />}
+            label="Profile details"
+            expanded={panel === "profile"}
+            onToggle={() => togglePanel("profile")}
+          />
+
+          {panel === "profile" ? (
+            <div className="border-border space-y-2 border-t px-3 pt-3 pb-1">
+              <div>
+                <p className="text-muted-foreground text-xs">Name</p>
+                <p className="text-sm font-medium">{user.fullName}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Mobile</p>
+                <p className="text-sm font-medium">{user.mobile}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Account type</p>
+                <p className="text-sm font-medium capitalize">{user.role}</p>
+              </div>
+              <div className="flex items-center justify-between pt-1">
+                <Link
+                  href="/account/profile"
+                  onClick={() => setOpen(false)}
+                  className="text-primary text-sm font-medium hover:underline"
+                >
+                  Edit profile
+                </Link>
+                <Link
+                  href="/account/orders"
+                  onClick={() => setOpen(false)}
+                  className="text-primary text-sm font-medium hover:underline"
+                >
+                  All orders
+                </Link>
+              </div>
+            </div>
+          ) : null}
+
+          <MenuRow
+            icon={<CalendarClock className="size-4" aria-hidden="true" />}
+            label="My bookings"
+            expanded={panel === "bookings"}
+            onToggle={() => void openBookings()}
+          />
+
+          {panel === "bookings" ? (
+            <div className="border-border max-h-80 space-y-3 overflow-y-auto border-t px-3 pt-3 pb-1">
+              {loading ? (
+                <p className="text-muted-foreground text-sm">Loading…</p>
+              ) : !bookings?.latest ? (
+                <p className="text-muted-foreground text-sm">
+                  You have no active orders. Book a pickup and it will show up
+                  here.
+                </p>
+              ) : (
+                <BookingsPanel booking={bookings.latest} />
+              )}
+            </div>
+          ) : null}
+
+          <div className="border-border mt-2 border-t pt-2">
+            <SignOutButton />
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * A dropdown row that expands a panel rather than navigating.
+ *
+ * A button, not a link: it performs an in-place reveal, so a link would be
+ * misleading and the keyboard behaviour would be wrong.
+ */
+function MenuRow({
+  icon,
+  label,
+  expanded,
+  onToggle,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      aria-expanded={expanded}
+      onClick={onToggle}
+      className="hover:bg-accent flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors"
+    >
+      {icon}
+      <span className="flex-1">{label}</span>
+      <ChevronDown
+        aria-hidden="true"
+        className={cn(
+          "text-muted-foreground size-4 transition-transform",
+          expanded && "rotate-180",
+        )}
+      />
+    </button>
+  );
+}
+
+function BookingsPanel({
+  booking,
+}: {
+  booking: NonNullable<MyBookings["latest"]>;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-mono text-xs">{booking.orderNo}</span>
+        <Badge variant="secondary">
+          {CUSTOMER_STATUS_LABEL[booking.status]}
+        </Badge>
+      </div>
+
+      <dl className="text-muted-foreground space-y-1 text-xs">
+        <div className="flex justify-between gap-2">
+          <dt>Pickup</dt>
+          <dd className="text-foreground font-medium">
+            {formatDate(booking.pickupDate)}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-2">
+          <dt className="shrink-0">Address</dt>
+          <dd className="text-foreground truncate text-right font-medium">
+            {booking.address}
+          </dd>
+        </div>
+      </dl>
+
+      <OrderTimeline status={booking.status} history={booking.history} />
+
+      <Link
+        href={`/account/orders/${booking.orderId}`}
+        className="text-primary inline-block text-xs font-medium hover:underline"
+      >
+        Open full tracking
+      </Link>
+    </div>
   );
 }
