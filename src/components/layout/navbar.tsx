@@ -3,19 +3,19 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Package, UserRound, Menu, X } from "lucide-react";
+import { Bell, Package, UserRound, Menu, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { notificationLabel } from "@/db/queries/notifications";
 import { SignOutLink } from "@/components/layout/sign-out-link";
 import { Button } from "@/components/ui/button";
 import { siteConfig } from "@/config/site";
+import { formatDateTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
   { label: "About", href: "/#about" },
-  { label: "Services", href: "/#services" },
   { label: "Pricing", href: "/pricing" },
-  { label: "Why UClean", href: "/#why" },
   { label: "Contact", href: "/#contact" },
 ] as const;
 
@@ -28,6 +28,16 @@ export type NavbarUser = {
   role: string;
   /** True once the customer has placed at least one order. */
   hasBookings: boolean;
+  /** Recent messages, for the notification bell. */
+  notifications: {
+    count: number;
+    items: Array<{
+      id: number;
+      template: string;
+      channel: string;
+      created_at: string;
+    }>;
+  };
 };
 
 export function Navbar({ user = null }: { user?: NavbarUser | null }) {
@@ -239,11 +249,95 @@ function AuthControls({ user }: { user: NavbarUser | null }) {
 
   return (
     <>
-      {/* Sign out first, then the bookings shortcut, then the profile menu. */}
-      <SignOutLink />
+      {/* Sign out first, then bookings, notifications and the profile menu. */}
+      <SignOutLink variant="icon" />
       {user.hasBookings ? <BookingsIcon /> : null}
+      <NotificationsBell notifications={user.notifications} />
       <UserMenu user={user} />
     </>
+  );
+}
+
+/**
+ * The notification bell.
+ *
+ * The badge counts messages from the last week rather than unread ones: the
+ * `read` status exists in the schema but nothing writes it yet, so an unread
+ * count would always read zero and the bell would look permanently empty.
+ */
+function NotificationsBell({
+  notifications,
+}: {
+  notifications: NavbarUser["notifications"];
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const { count, items } = notifications;
+
+  useDismissable(containerRef, open, () => setOpen(false));
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={
+          count > 0 ? `Notifications, ${count} recent` : "Notifications"
+        }
+        onClick={() => setOpen((value) => !value)}
+        className="border-border text-foreground hover:bg-accent relative grid size-9 place-items-center rounded-full border transition-colors focus-visible:ring-2 focus-visible:outline-none"
+      >
+        <Bell className="size-4" aria-hidden="true" />
+        {count > 0 ? (
+          <span
+            aria-hidden="true"
+            className="absolute -top-0.5 -right-0.5 grid min-w-4 place-items-center rounded-full bg-[var(--destructive)] px-1 text-[10px] leading-4 font-semibold text-white"
+          >
+            {count > 9 ? "9+" : count}
+          </span>
+        ) : null}
+      </button>
+
+      {open ? (
+        <div
+          role="menu"
+          aria-label="Notifications"
+          className="bg-card border-border absolute right-0 z-50 mt-2 w-80 origin-top-right rounded-2xl border p-2 shadow-lg"
+        >
+          <p className="text-muted-foreground px-3 py-2 text-xs tracking-wide uppercase">
+            Notifications
+          </p>
+
+          {items.length === 0 ? (
+            <p className="text-muted-foreground px-3 py-4 text-sm">
+              Nothing new in the last week.
+            </p>
+          ) : (
+            <ul className="space-y-0.5">
+              {items.map((item) => (
+                <li
+                  key={item.id}
+                  className="hover:bg-accent flex items-start justify-between gap-3 rounded-xl px-3 py-2 transition-colors"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      {notificationLabel(item.template)}
+                    </p>
+                    <p className="text-muted-foreground text-xs capitalize">
+                      {item.channel}
+                    </p>
+                  </div>
+                  <span className="text-muted-foreground shrink-0 text-xs">
+                    {formatDateTime(item.created_at)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -267,6 +361,38 @@ function BookingsIcon() {
   );
 }
 
+/**
+ * Closes a dropdown on Escape or a click outside it.
+ *
+ * Shared by the notification bell and the profile menu so both behave the same
+ * way, which is also what a keyboard user would expect from two menus sitting
+ * next to each other.
+ */
+function useDismissable(
+  ref: React.RefObject<HTMLElement | null>,
+  active: boolean,
+  onDismiss: () => void,
+) {
+  useEffect(() => {
+    if (!active) return;
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onDismiss();
+    }
+
+    function onPointerDown(event: MouseEvent) {
+      if (!ref.current?.contains(event.target as Node)) onDismiss();
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("mousedown", onPointerDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("mousedown", onPointerDown);
+    };
+  }, [active, onDismiss, ref]);
+}
+
 function initialsOf(fullName: string) {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
   const first = parts[0];
@@ -287,26 +413,7 @@ function UserMenu({ user }: { user: NavbarUser }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-
-    function onPointerDown(event: MouseEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("mousedown", onPointerDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("mousedown", onPointerDown);
-    };
-  }, [open]);
+  useDismissable(containerRef, open, () => setOpen(false));
 
   return (
     <div className="relative" ref={containerRef}>

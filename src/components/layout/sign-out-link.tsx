@@ -8,14 +8,24 @@ import { signOutAction } from "@/server/sign-out";
 import { cn } from "@/lib/utils";
 
 /**
- * The navbar's sign-out control, in the brand lime.
+ * The navbar's sign-out control.
  *
  * Deliberately separate from `sign-out-button.tsx`, which the staff and admin
  * panels render through PanelShell. Recolouring that one would change their
- * sign-out button too, so the navbar gets its own control that calls the same
- * `signOutAction` server action.
+ * sign-out button too, so the navbar gets its own control calling the same
+ * `signOutAction`.
+ *
+ * `variant="icon"` is the round toolbar button used in the navbar row;
+ * `variant="button"` keeps the labelled button for the profile dropdown and the
+ * mobile menu, where an icon on its own would be ambiguous.
  */
-export function SignOutLink({ className }: { className?: string }) {
+export function SignOutLink({
+  variant = "button",
+  className,
+}: {
+  variant?: "icon" | "button";
+  className?: string;
+}) {
   const [isPending, startTransition] = useTransition();
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -23,6 +33,25 @@ export function SignOutLink({ className }: { className?: string }) {
     startTransition(async () => {
       await signOutAction();
     });
+  }
+
+  if (variant === "icon") {
+    return (
+      <form onSubmit={onSubmit}>
+        <button
+          type="submit"
+          disabled={isPending}
+          aria-label="Sign out"
+          title="Sign out"
+          className={cn(
+            "border-border text-foreground hover:bg-accent grid size-9 place-items-center rounded-full border transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60",
+            className,
+          )}
+        >
+          <LogOut className="size-4" aria-hidden="true" />
+        </button>
+      </form>
+    );
   }
 
   return (
