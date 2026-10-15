@@ -51,7 +51,7 @@ test("account redirects an anonymous visitor to sign in", async ({ page }) => {
 
 test("admin redirects an anonymous visitor to sign in", async ({ page }) => {
   await page.goto("/admin");
-  await expect(page).toHaveURL(/\/auth\/login\?redirect=%2Fadmin/);
+  await expect(page).toHaveURL(/\/staff\/login\?redirect=%2Fadmin/);
 });
 
 test("an unknown route renders the not found page", async ({ page }) => {

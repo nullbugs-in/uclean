@@ -18,6 +18,7 @@ import { toDateKey } from "@/lib/dates";
 import { INTERNAL_STATUS_LABEL } from "@/lib/order-status";
 
 import { AssignmentCard } from "../_components/assignment-card";
+import { PageEntrance } from "../_components/page-entrance";
 import { SlotLoadChart } from "../_components/slot-load-chart";
 import { PanelPage } from "@/components/panel/panel-page";
 
@@ -99,11 +100,12 @@ export default async function StaffOverviewPage() {
         : `${stopCount} stops on the round`;
 
   return (
-    <PanelPage
-      title="Your round today"
-      description={`${dateText} · ${stopText}`}
-    >
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <PageEntrance>
+      <PanelPage
+        title="Your round today"
+        description={`${dateText} · ${stopText}`}
+      >
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Pickups today"
           value={overview.counts.pickupsToday}
@@ -191,6 +193,7 @@ export default async function StaffOverviewPage() {
           )}
         </CardContent>
       </Card>
-    </PanelPage>
+      </PanelPage>
+    </PageEntrance>
   );
 }
