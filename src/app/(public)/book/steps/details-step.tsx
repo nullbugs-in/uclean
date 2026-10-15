@@ -4,6 +4,7 @@ import { Loader2, ShieldCheck } from "lucide-react";
 import * as React from "react";
 
 import { requestLoginOtpAction } from "@/app/(auth)/auth/actions";
+import { DevOtpHint } from "@/components/dev-otp-hint";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { signUpSchema } from "@/lib/validation";
@@ -124,18 +125,7 @@ export function DetailsStep({
         </p>
 
         {devTestCode ? (
-          <p className="border-primary/40 bg-primary/10 rounded-lg border px-3 py-2 text-xs">
-            <span className="font-semibold">Dev mode:</span> no SMS is sent. Use
-            code{" "}
-            <button
-              type="button"
-              className="font-mono font-semibold underline"
-              onClick={() => setToken(devTestCode)}
-            >
-              {devTestCode}
-            </button>
-            .
-          </p>
+          <DevOtpHint code={devTestCode} onUse={() => setToken(devTestCode)} />
         ) : null}
 
         <form className="space-y-4" onSubmit={verifyCode} noValidate>

@@ -1,89 +1,29 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { OtpVerifyStage } from "@/components/otp-verify-stage";
 
-import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/input";
-import { verifyOtpSchema } from "@/lib/validation/auth";
-
+/**
+ * The standalone verify page, kept for anyone arriving with a bookmarked or
+ * shared `/auth/verify-otp?mobile=...` link.
+ *
+ * The verify logic now lives in `OtpVerifyStage`, which the login and sign-up
+ * forms use inline so a code can be entered without leaving the page.
+ */
 export function VerifyOtpForm({
   mobile,
   redirectTo,
+  devTestCode,
 }: {
   mobile: string;
   redirectTo: string;
+  /** Non-null only in development, where the fixed code is shown as a hint. */
+  devTestCode: string | null;
 }) {
-  const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function onSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-
-    const data = new FormData(event.currentTarget);
-    const parsed = verifyOtpSchema.safeParse({
-      mobile,
-      token: data.get("token"),
-    });
-
-    if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Enter the 6 digit code");
-      return;
-    }
-
-    startTransition(async () => {
-      const response = await fetch("/api/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsed.data),
-      });
-
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        setError(body?.error ?? "That code is not valid or has expired.");
-        return;
-      }
-
-      // Hard navigation so the middleware re-reads the freshly set session
-      // cookie before the destination renders.
-      router.replace(redirectTo);
-      router.refresh();
-    });
-  }
-
   return (
-    <form className="space-y-4" onSubmit={onSubmit} noValidate>
-      <div className="space-y-2">
-        <Label htmlFor="token">6 digit code</Label>
-        <Input
-          id="token"
-          name="token"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          maxLength={6}
-          placeholder="123456"
-          className="text-center text-lg tracking-[0.4em]"
-          aria-invalid={Boolean(error)}
-          aria-describedby={error ? "token-error" : undefined}
-        />
-        {error ? (
-          <p
-            id="token-error"
-            role="alert"
-            className="text-sm text-[var(--destructive)]"
-          >
-            {error}
-          </p>
-        ) : null}
-      </div>
-
-      <Button className="w-full" disabled={isPending} type="submit">
-        {isPending ? "Verifying..." : "Verify and continue"}
-      </Button>
-    </form>
+    <OtpVerifyStage
+      mobile={mobile}
+      redirectTo={redirectTo}
+      devTestCode={devTestCode}
+    />
   );
 }

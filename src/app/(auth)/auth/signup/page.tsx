@@ -4,6 +4,8 @@ import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { siteConfig } from "@/config/site";
 
+import { devOtpCode } from "@/server/otp";
+
 import { SignUpForm } from "./sign-up-form";
 
 export const metadata: Metadata = { title: "Create your UClean account" };
@@ -37,7 +39,7 @@ export default async function SignUpPage({
             Enter your name and mobile number. We’ll send you a one-time code.
           </p>
         </div>
-        <SignUpForm redirectTo={redirectTo} />
+        <SignUpForm redirectTo={redirectTo} devTestCode={devOtpCode()} />
         <div className="mt-6 space-y-2 text-center">
           <p className="text-xs text-[var(--muted-foreground)]">
             {siteConfig.tagline}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateTime } from "@/lib/utils";
+import { devOtpCode } from "@/server/otp";
 
 import { VerifyOtpForm } from "./verify-otp-form";
 
@@ -46,7 +47,11 @@ export default async function VerifyOtpPage({
           <span className="text-foreground font-medium">{mobile}</span>. It
           expires in a few minutes.
         </p>
-        <VerifyOtpForm mobile={mobile} redirectTo={redirectTo} />
+        <VerifyOtpForm
+          mobile={mobile}
+          redirectTo={redirectTo}
+          devTestCode={devOtpCode()}
+        />
         <p className="mt-6 text-center text-xs text-[var(--muted-foreground)]">
           Requested {formatDateTime(new Date())}. Resend limits apply per mobile
           and per IP.

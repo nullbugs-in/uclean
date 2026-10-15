@@ -2,13 +2,21 @@
 
 import { useState, useTransition } from "react";
 
+import { OtpVerifyStage } from "@/components/otp-verify-stage";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { mobileSchema } from "@/lib/validation/auth";
 
 import { requestLoginOtpAction } from "../actions";
 
-export function LoginForm({ redirectTo }: { redirectTo: string }) {
+export function LoginForm({
+  redirectTo,
+  devTestCode,
+}: {
+  redirectTo: string;
+  /** Non-null only in development, where the fixed code is shown as a hint. */
+  devTestCode: string | null;
+}) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [sent, setSent] = useState<string | null>(null);
@@ -43,19 +51,15 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
 
   if (sent) {
     return (
-      <div className="space-y-4">
-        <p className="text-sm text-[var(--muted-foreground)]">
-          We sent a 6 digit code to{" "}
-          <span className="text-foreground font-medium">{sent}</span>.
-        </p>
-        <form
-          action={`/auth/verify-otp?mobile=${encodeURIComponent(sent)}&redirect=${encodeURIComponent(redirectTo)}`}
-        >
-          <Button className="w-full" type="submit">
-            Enter the code
-          </Button>
-        </form>
-      </div>
+      <OtpVerifyStage
+        mobile={sent}
+        redirectTo={redirectTo}
+        devTestCode={devTestCode}
+        onChangeNumber={() => {
+          setSent(null);
+          setFormError(null);
+        }}
+      />
     );
   }
 

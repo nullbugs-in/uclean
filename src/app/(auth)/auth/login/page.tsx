@@ -4,6 +4,8 @@ import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { siteConfig } from "@/config/site";
 
+import { devOtpCode } from "@/server/otp";
+
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Sign in to UClean" };
@@ -37,7 +39,7 @@ export default async function LoginPage({
             Enter your mobile number and we’ll send you a one-time code.
           </p>
         </div>
-        <LoginForm redirectTo={redirectTo} />
+        <LoginForm redirectTo={redirectTo} devTestCode={devOtpCode()} />
         <div className="mt-6 space-y-2 text-center">
           <p className="text-xs text-[var(--muted-foreground)]">
             {siteConfig.tagline}
