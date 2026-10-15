@@ -13,14 +13,12 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-import { MapPicker } from "../map-picker";
+import { forwardGeocode } from "../geocode";
 import type { LatLng, ZoneResult } from "../types";
 
 type AddressStepProps = {
-  center: LatLng;
   maxRadiusKm: number;
   addressText: string;
-  coords: LatLng | null;
   zone: ZoneResult | null;
   checking: boolean;
   noticeAccepted: boolean;
@@ -104,16 +102,20 @@ function ZoneFeedback({
 }
 
 /**
- * Step 2: pickup address and map.
+ * Step 2: the pickup address.
  *
- * Only reachable once the mobile number is verified. The distance verdict is
- * produced by the server-side Routes API call in the wizard, never here.
+ * Only reachable once the mobile number is verified. The address is the one
+ * thing the customer has to give us: the map is out of this step for now, so
+ * the typed address is resolved to a position in the background purely to feed
+ * the server-side distance check and the zone banner.
+ *
+ * That lookup is deliberately not a gate. A slow, failed, or out-of-zone
+ * lookup must not stop someone booking; it is reported, and the confirm step
+ * is where an address we cannot place finally stops the booking.
  */
 export function AddressStep({
-  center,
   maxRadiusKm,
   addressText,
-  coords,
   zone,
   checking,
   noticeAccepted,
@@ -125,12 +127,58 @@ export function AddressStep({
   onBack,
   onContinue,
 }: AddressStepProps) {
-  const addressInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [geocoding, setGeocoding] = React.useState(false);
+  const [geoWarning, setGeoWarning] = React.useState<string | null>(null);
+  /** The exact text the current coordinates were resolved from. */
+  const [geocodedFor, setGeocodedFor] = React.useState<string | null>(null);
+  // Read through a ref so a re-render in the wizard cannot restart the lookup.
+  const onCoordsRef = React.useRef(onCoords);
+  React.useEffect(() => {
+    onCoordsRef.current = onCoords;
+  }, [onCoords]);
 
-  const canContinue =
-    zone?.status === "within" &&
-    noticeAccepted &&
-    addressText.trim().length >= 10;
+  const trimmedAddress = addressText.trim();
+
+  // Resolve the typed address to a position, because the booking still needs
+  // coordinates. Debounced because typing fires on every keystroke, and skipped
+  // once the text we have already looked up is unchanged.
+  React.useEffect(() => {
+    if (trimmedAddress.length < 10 || trimmedAddress === geocodedFor) {
+      return;
+    }
+
+    let ignore = false;
+
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        setGeocoding(true);
+        setGeoWarning(null);
+
+        const position = await forwardGeocode(trimmedAddress);
+
+        if (ignore) return;
+
+        setGeocoding(false);
+
+        if (!position) {
+          setGeoWarning(
+            "We could not verify this address yet. Check the spelling, or add a pin code or a nearby landmark.",
+          );
+          return;
+        }
+
+        setGeocodedFor(trimmedAddress);
+        onCoordsRef.current(position);
+      })();
+    }, 600);
+
+    return () => {
+      ignore = true;
+      window.clearTimeout(timer);
+    };
+  }, [trimmedAddress, geocodedFor]);
+
+  const canContinue = trimmedAddress.length >= 10 && noticeAccepted;
 
   return (
     <div className="space-y-6">
@@ -139,27 +187,23 @@ export function AddressStep({
         <Input
           id="address"
           name="address"
-          ref={addressInputRef}
           autoComplete="street-address"
-          placeholder="Flat / house no, street, area"
+          placeholder="Flat / house no, street, area, pin code"
           value={addressText}
           onChange={(event) => onAddressText(event.target.value)}
         />
         <p className="text-muted-foreground text-xs">
-          Start typing and pick your address from the suggestions, then fine
-          tune the pin on the map.
+          Type your full pickup address including the flat or house number, area
+          and pin code. We will check it against our pickup area.
         </p>
+        {geoWarning ? (
+          <p role="status" className="text-muted-foreground text-sm">
+            {geoWarning}
+          </p>
+        ) : null}
       </div>
 
-      <MapPicker
-        center={center}
-        value={coords}
-        onChange={onCoords}
-        onAddressResolved={onAddressText}
-        inputRef={addressInputRef}
-      />
-
-      <ZoneFeedback zone={zone} checking={checking} />
+      <ZoneFeedback zone={zone} checking={checking || geocoding} />
 
       <div className="space-y-2">
         <Label htmlFor="notes">Notes for the pickup (optional)</Label>
@@ -202,8 +246,14 @@ export function AddressStep({
           disabled={!canContinue}
           className="sm:min-w-40"
         >
-          <MapPin aria-hidden="true" />
-          Continue to slots
+          {checking || geocoding ? (
+            <Loader2 className="animate-spin" aria-hidden="true" />
+          ) : (
+            <MapPin aria-hidden="true" />
+          )}
+          {geocoding || checking
+            ? "Checking your address..."
+            : "Continue to slots"}
         </Button>
       </div>
     </div>

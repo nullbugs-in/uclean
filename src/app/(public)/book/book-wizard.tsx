@@ -19,7 +19,6 @@ import type {
 } from "./types";
 
 type BookWizardProps = {
-  storeCenter: LatLng;
   maxRadiusKm: number;
   devTestCode: string | null;
   initialIdentity: { name: string; mobile: string } | null;
@@ -105,7 +104,6 @@ function Stepper({
  * transaction).
  */
 export function BookWizard({
-  storeCenter,
   maxRadiusKm,
   devTestCode,
   initialIdentity,
@@ -262,7 +260,17 @@ export function BookWizard({
   }
 
   async function confirmBooking() {
-    if (!coords || !slotDate || !slotId || !noticeAcceptedAt) {
+    // The address step only asks for an address, so an address we could not
+    // resolve to a position is expected here rather than exceptional. Say what
+    // to fix instead of the generic message.
+    if (!coords) {
+      setConfirmError(
+        "We could not locate that address. Go back to the address step and add a pin code or a nearby landmark.",
+      );
+      return;
+    }
+
+    if (!slotDate || !slotId || !noticeAcceptedAt) {
       setConfirmError(
         "Something is missing from your booking. Please step back and try again.",
       );
@@ -316,10 +324,8 @@ export function BookWizard({
 
         {step === "address" ? (
           <AddressStep
-            center={storeCenter}
             maxRadiusKm={maxRadiusKm}
             addressText={addressText}
-            coords={coords}
             zone={zone}
             checking={checking}
             noticeAccepted={noticeAccepted}

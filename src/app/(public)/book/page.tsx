@@ -9,7 +9,7 @@ import { BookWizard } from "./book-wizard";
 export const metadata: Metadata = {
   title: "Book a Pickup",
   description:
-    "Book a laundry pickup in four steps: verify your mobile number, set your pickup address on the map, choose a slot, and confirm.",
+    "Book a laundry pickup in four steps: verify your mobile number, enter your pickup address, choose a slot, and confirm.",
 };
 
 export default async function BookPage() {
@@ -29,7 +29,6 @@ export default async function BookPage() {
       </header>
 
       <BookWizard
-        storeCenter={siteConfig.coordinates}
         maxRadiusKm={siteConfig.deliveryRadiusKm}
         devTestCode={devOtpCode()}
         initialIdentity={

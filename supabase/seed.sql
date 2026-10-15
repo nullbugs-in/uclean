@@ -8,8 +8,9 @@
 --   * store lat/lng stay NULL. The exact store coordinates are an open
 --     question in the source design, so book_pickup refuses to run until an
 --     admin sets them in /admin/settings.
---   * time_slots.capacity stays 0. Slot capacity per hour is also open, so a
---     capacity of 0 makes every slot report full rather than guessing.
+--   * time_slots.capacity is 9. A capacity of 0 makes every slot report full
+--     rather than guessing, so it has to be a real number for the wizard to
+--     offer anything. Change it here, or per slot in /admin/slots.
 -- ---------------------------------------------------------------------------
 
 -- --- Store -----------------------------------------------------------------

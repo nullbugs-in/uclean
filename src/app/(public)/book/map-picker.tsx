@@ -73,6 +73,9 @@ export function MapPicker({
   const mapRef = React.useRef<google.maps.Map | null>(null);
   const markerRef = React.useRef<MarkerHandle | null>(null);
   const geocoderRef = React.useRef<google.maps.Geocoder | null>(null);
+  const autocompleteRef = React.useRef<google.maps.places.Autocomplete | null>(
+    null,
+  );
   const onChangeRef = React.useRef(onChange);
   const onAddressRef = React.useRef(onAddressResolved);
 
@@ -215,10 +218,14 @@ export function MapPicker({
 
         const input = inputRef.current;
         if (input) {
-          const autocomplete = new window.google.maps.places.Autocomplete(input, {
-            fields: ["formatted_address", "name", "geometry"],
-            componentRestrictions: { country: "in" },
-          });
+          const autocomplete = new window.google.maps.places.Autocomplete(
+            input,
+            {
+              fields: ["formatted_address", "name", "geometry"],
+              componentRestrictions: { country: "in" },
+            },
+          );
+          autocompleteRef.current = autocomplete;
 
           autocomplete.addListener("place_changed", () => {
             const place = autocomplete.getPlace();
@@ -244,6 +251,10 @@ export function MapPicker({
       markerRef.current?.remove();
       markerRef.current = null;
       mapRef.current = null;
+      // The address input outlives the map, so the widget has to let go of it
+      // or a remount leaves two listeners fighting over one field.
+      autocompleteRef.current?.unbindAll();
+      autocompleteRef.current = null;
     };
     // Intentionally initialised once; later value changes are handled below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
