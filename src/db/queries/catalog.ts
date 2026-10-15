@@ -93,6 +93,22 @@ export async function listActiveTimeSlots(client: Client): Promise<TimeSlot[]> {
   );
 }
 
+/**
+ * Every slot, active or not, ordered by start time.
+ *
+ * Distinct from `listActiveTimeSlots` on purpose: a booked order has to keep
+ * showing its slot label ("10 AM - 11 AM") for display even after an admin
+ * deactivates that slot, so display code must not read through the is_active
+ * filter.
+ */
+export async function listTimeSlots(client: Client): Promise<TimeSlot[]> {
+  return unwrap(
+    await client.from("time_slots").select("*").order("start_time", {
+      ascending: true,
+    }),
+  );
+}
+
 /** Dates on which pickups are blocked, e.g. store holidays. */
 export async function listBlockedDates(
   client: Client,

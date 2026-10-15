@@ -1,0 +1,113 @@
+/*
+ * Design tokens for the customer account pages only: /account/orders and
+ * /account/profile.
+ *
+ * Imported by (public)/account/layout.tsx and nowhere else, so the glass
+ * styling never reaches the staff or admin panels. The --uc-* prefix keeps it
+ * clear of the shared tokens in globals.css.
+ *
+ * Values transcribed from UCLEAN_USER_DASHBOARD_UI.md section 2. The lime
+ * matches the --primary already defined in globals.css, so these pages read as
+ * one system with the rest of the site.
+ */
+
+:root {
+  /* Brand */
+  --uc-lime-100: #f2f9e3;
+  --uc-lime-200: #e3f2c4;
+  --uc-lime-300: #cfe79a;
+  --uc-lime-400: #badb6e;
+  --uc-lime-500: #a6cf4d;
+  --uc-lime-600: #8ab534;
+  --uc-lime-700: #6d9327;
+
+  --uc-green-800: #1f3d2b;
+  --uc-green-900: #14291d;
+
+  /* Accent */
+  --uc-teal-500: #2fb8a0;
+  --uc-sky-500: #4da8da;
+
+  /* Status */
+  --uc-success: #3fae5a;
+  --uc-warning: #f2a93b;
+  --uc-danger: #e5574f;
+  --uc-info: #4da8da;
+
+  /* Glass surfaces */
+  --uc-glass: rgb(255 255 255 / 0.55);
+  --uc-glass-strong: rgb(255 255 255 / 0.78);
+  --uc-border: rgb(255 255 255 / 0.55);
+  --uc-divider: rgb(31 61 43 / 0.1);
+
+  /* Page wash */
+  --uc-bg-gradient: linear-gradient(
+    135deg,
+    #f2f9e3 0%,
+    #e3f2c4 45%,
+    #d5efe6 100%
+  );
+
+  /* Elevation */
+  --uc-shadow-sm: 0 2px 8px rgb(31 61 43 / 0.06);
+  --uc-shadow-md: 0 8px 24px rgb(31 61 43 / 0.1);
+  --uc-shadow-lg: 0 20px 50px rgb(31 61 43 / 0.14);
+}
+
+/* Section 5.1: the glass card base. */
+.uc-card {
+  background: var(--uc-glass);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid var(--uc-border);
+  box-shadow: var(--uc-shadow-md);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.uc-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--uc-shadow-lg);
+}
+
+/* Section 5.10: page-load fade-up, staggered per card via an inline delay. */
+@keyframes uc-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.uc-fade-up {
+  animation: uc-fade-up 300ms ease-out both;
+}
+
+/*
+ * Section 7: a solid surface where backdrop-filter is unsupported, so text
+ * contrast does not depend on a blur being available.
+ */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .uc-card,
+  .uc-glass {
+    background: var(--uc-glass-strong);
+  }
+}
+
+/* Section 5.10: motion is opt-out for anyone who asks for it. */
+@media (prefers-reduced-motion: reduce) {
+  .uc-fade-up {
+    animation: none !important;
+  }
+
+  .uc-card,
+  .uc-card-hover {
+    transition: none !important;
+    transform: none !important;
+  }
+}

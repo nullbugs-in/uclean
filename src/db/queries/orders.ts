@@ -66,6 +66,43 @@ export async function countCustomerOrders(
   return count ?? 0;
 }
 
+/**
+ * Status history for every order a customer owns, keyed by order id.
+ *
+ * A plain record rather than a Map so it can be handed to a client component.
+ * Fetched in one `in (...)` query rather than per order, so the bookings page
+ * costs the same whatever the customer's history length.
+ */
+export async function listOrderHistoryForCustomer(
+  client: Client,
+  customerId: string,
+): Promise<Record<string, OrderStatusHistory[]>> {
+  const { data: orders, error: ordersError } = await client
+    .from("orders")
+    .select("id")
+    .eq("customer_id", customerId);
+
+  if (ordersError) throw new Error(ordersError.message);
+
+  const orderIds = (orders ?? []).map((order) => order.id);
+  if (orderIds.length === 0) return {};
+
+  const { data, error } = await client
+    .from("order_status_history")
+    .select("order_id, from_status, to_status, note, created_at")
+    .in("order_id", orderIds)
+    .order("created_at", { ascending: true });
+
+  if (error) throw new Error(error.message);
+
+  const grouped: Record<string, OrderStatusHistory[]> = {};
+  for (const row of data ?? []) {
+    (grouped[row.order_id] ??= []).push(row as OrderStatusHistory);
+  }
+
+  return grouped;
+}
+
 /** A single order with its items and full status history for the timeline. */
 export async function getOrderDetail(
   client: Client,
