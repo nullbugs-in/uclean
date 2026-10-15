@@ -84,6 +84,20 @@ export async function requireAdmin(): Promise<SessionUser> {
 }
 
 /**
+ * Which sign-in door serves a given destination. Staff and admin panels use the
+ * email + password page (`/staff/login`); everything else uses the customer
+ * phone-OTP flow. Without this, a signed-out staff member is dropped on the
+ * customer sign-in.
+ */
+function signInPathFor(destination: string): string {
+  if (destination.startsWith("/staff") || destination.startsWith("/admin")) {
+    return "/staff/login";
+  }
+
+  return "/auth/login";
+}
+
+/**
  * Require a role and redirect rather than throw. Use in page and layout code,
  * where a thrown DomainError would surface as an error boundary.
  */
@@ -95,7 +109,7 @@ export async function requireRoleOrRedirect(
 
   if (!session) {
     const params = new URLSearchParams({ redirect: signInPath });
-    redirect(`/auth/login?${params}`);
+    redirect(`${signInPathFor(signInPath)}?${params}`);
   }
 
   if (!roles.includes(session.profile.role) || !session.profile.is_active) {
