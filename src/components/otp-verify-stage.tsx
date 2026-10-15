@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
 import { DevOtpHint } from "@/components/dev-otp-hint";
@@ -38,7 +37,6 @@ export function OtpVerifyStage({
   /** Re-requests a code, when the caller has a cooldown or button for it. */
   onResend?: () => void;
 }) {
-  const router = useRouter();
   const [token, setToken] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -72,10 +70,22 @@ export function OtpVerifyStage({
         return;
       }
 
-      // Hard navigation so the middleware re-reads the freshly set session
-      // cookie before the destination renders.
-      router.replace(redirectTo);
-      router.refresh();
+      /*
+       * A real document load, not a soft route change.
+       *
+       * Two things a client-side `router.replace` cannot do here:
+       *
+       * 1. `router.replace` is a soft navigation, so the freshly set session
+       *    cookie is never re-read by the proxy before the destination renders.
+       * 2. A soft navigation to a URL with a hash does not reliably scroll to
+       *    the anchor - the destination can render with the hero scrolled out
+       *    of view, which is exactly what "land on the hero" means here.
+       *
+       * `location.assign` is a genuine page load: the proxy runs again, the
+       * browser resolves the fragment itself, and `scroll-padding-top` in
+       * globals.css keeps the hero clear of the sticky navbar.
+       */
+      window.location.assign(redirectTo);
     });
   }
 

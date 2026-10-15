@@ -92,7 +92,10 @@ export function Hero() {
   if (count === 0) return null;
 
   return (
-    <section className="border-border relative overflow-hidden border-b bg-gradient-to-b from-[var(--accent)]/60 to-[var(--background)] lg:flex lg:min-h-[calc(100dvh-4rem)] lg:items-center">
+    <section
+      id="hero"
+      className="border-border relative overflow-hidden border-b bg-gradient-to-b from-[var(--accent)]/60 to-[var(--background)] lg:flex lg:min-h-[calc(100dvh-4rem)] lg:items-center"
+    >
       {/* Logo-colour static glows */}
       <div
         aria-hidden="true"

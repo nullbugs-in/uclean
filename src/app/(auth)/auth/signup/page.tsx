@@ -15,7 +15,9 @@ export default async function SignUpPage({
 }: {
   searchParams: Promise<{ redirect?: string }>;
 }) {
-  const { redirect: redirectTo = "/" } = await searchParams;
+  // New customers land on the hero too, same as sign-in. See the note in
+  // the login page for why the target is named rather than left as "/".
+  const { redirect: redirectTo = "/#hero" } = await searchParams;
 
   return (
     <Card className="relative w-full overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[0_28px_60px_-28px_color-mix(in_oklab,var(--primary),transparent_65%)] ring-1 ring-black/5">
@@ -32,14 +34,29 @@ export default async function SignUpPage({
               className="h-auto w-full"
             />
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Sign up for UClean
+          <p className="text-xs font-semibold tracking-widest text-[var(--primary)] uppercase">
+            New to UClean
+          </p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight">
+            Create your account
           </h1>
           <p className="mt-2 text-sm text-[var(--muted-foreground)]">
-            Enter your name and mobile number. We’ll send you a one-time code.
+            First time here? Enter your name and mobile number. We’ll send you a
+            one-time code.
+          </p>
+          <p className="mt-3 text-sm text-[var(--muted-foreground)]">
+            Already have an account?{" "}
+            <a
+              className="font-medium text-[color-mix(in_oklab,var(--primary),black_35%)] underline-offset-4 hover:underline"
+              href="/auth/login"
+            >
+              Log in instead
+            </a>
           </p>
         </div>
-        <SignUpForm redirectTo={redirectTo} devTestCode={devOtpCode()} />
+        <div className="-mt-2">
+          <SignUpForm redirectTo={redirectTo} devTestCode={devOtpCode()} />
+        </div>
         <div className="mt-6 space-y-2 text-center">
           <p className="text-xs text-[var(--muted-foreground)]">
             {siteConfig.tagline}

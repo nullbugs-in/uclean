@@ -13,7 +13,9 @@ export default async function VerifyOtpPage({
 }: {
   searchParams: Promise<{ mobile?: string; redirect?: string }>;
 }) {
-  const { mobile, redirect: redirectTo = "/" } = await searchParams;
+  // Kept in step with the login and sign-up defaults, so a code verified from
+  // this standalone page lands on the same place as one verified inline.
+  const { mobile, redirect: redirectTo = "/#hero" } = await searchParams;
 
   if (!mobile) {
     return (

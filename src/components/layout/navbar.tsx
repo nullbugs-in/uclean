@@ -26,7 +26,13 @@ export type NavbarUser = {
   fullName: string;
   mobile: string;
   role: string;
-  /** True once the customer has placed at least one order. */
+  /**
+   * True once the customer has placed at least one order.
+   *
+   * No longer read by this component, which now links to My bookings
+   * unconditionally. Kept because (public)/layout.tsx already computes it and
+   * it is the natural signal for a future "new" badge.
+   */
   hasBookings: boolean;
   /** Recent messages, for the notification bell. */
   notifications: {
@@ -186,17 +192,15 @@ export function Navbar({ user = null }: { user?: NavbarUser | null }) {
                   Profile details
                 </Link>
               </Button>
-              {user.hasBookings ? (
-                <Button asChild variant="outline" className="h-11 w-full">
-                  <Link
-                    href="/account/orders"
-                    onClick={() => setOpen(false)}
-                    className="justify-center"
-                  >
-                    My bookings
-                  </Link>
-                </Button>
-              ) : null}
+              <Button asChild variant="outline" className="h-11 w-full">
+                <Link
+                  href="/account/orders"
+                  onClick={() => setOpen(false)}
+                  className="justify-center"
+                >
+                  My bookings
+                </Link>
+              </Button>
               <SignOutLink className="[&_button]:h-11 [&_button]:w-full" />
             </div>
           ) : (
@@ -207,10 +211,7 @@ export function Navbar({ user = null }: { user?: NavbarUser | null }) {
                 </Link>
               </Button>
               <Button asChild variant="outline" className="h-11 w-full">
-                <Link
-                  href="/auth/login?redirect=/"
-                  onClick={() => setOpen(false)}
-                >
+                <Link href="/auth/login" onClick={() => setOpen(false)}>
                   Log in
                 </Link>
               </Button>
@@ -223,8 +224,8 @@ export function Navbar({ user = null }: { user?: NavbarUser | null }) {
 }
 
 /**
- * Log in / Sign up while signed out; once signed in, a My bookings shortcut
- * (only when they have booked), the profile menu, and sign out.
+ * Log in / Sign up while signed out; once signed in, the My bookings shortcut,
+ * notifications, the profile menu, and sign out.
  *
  * The session is resolved by (public)/layout.tsx and passed in, because the
  * navbar is a client component and cannot read cookies itself.
@@ -234,7 +235,13 @@ function AuthControls({ user }: { user: NavbarUser | null }) {
     return (
       <>
         <Button asChild variant="outline" size="sm">
-          <Link href="/auth/login?redirect=/">Log in</Link>
+          {/*
+            No `?redirect=` here. A present param overrides the page's own
+            default, so hardcoding "/" pinned every sign-in to the bare home
+            route and quietly defeated the `/#hero` destination. Leaving it off
+            lets the login page decide where a successful sign-in goes.
+          */}
+          <Link href="/auth/login">Log in</Link>
         </Button>
         <Button
           asChild
@@ -251,7 +258,7 @@ function AuthControls({ user }: { user: NavbarUser | null }) {
     <>
       {/* Sign out first, then bookings, notifications and the profile menu. */}
       <SignOutLink variant="icon" />
-      {user.hasBookings ? <BookingsIcon /> : null}
+      <BookingsIcon />
       <NotificationsBell notifications={user.notifications} />
       <UserMenu user={user} />
     </>
@@ -344,9 +351,11 @@ function NotificationsBell({
 /**
  * The My bookings shortcut.
  *
- * Hidden until the customer has at least one order, so a brand new account does
- * not see a link to an empty page. Goes straight to the list, where each order
- * links through to its tracking view.
+ * Always shown, including for an account with no orders yet. /account/orders
+ * already renders a "No bookings yet" state with a Book a pickup call to
+ * action, so an empty list is something worth navigating to rather than a dead
+ * end - and the customer who has just signed up can see where their bookings
+ * will appear.
  */
 function BookingsIcon() {
   return (
@@ -407,7 +416,8 @@ function initialsOf(fullName: string) {
  *
  * Both entries are plain links to real pages: /account/profile for the
  * customer's details and /account/orders for their bookings. Nothing expands in
- * place, so the menu holds no state beyond whether it is open.
+ * place, so the menu holds no state beyond whether it is open. The menu sizes
+ * to its own content, floored at a width that keeps the labels comfortable.
  */
 function UserMenu({ user }: { user: NavbarUser }) {
   const [open, setOpen] = useState(false);
@@ -432,7 +442,7 @@ function UserMenu({ user }: { user: NavbarUser }) {
         <div
           role="menu"
           aria-label="Account"
-          className="bg-card border-border absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-2xl border p-2 shadow-lg"
+          className="bg-card border-border absolute right-0 z-50 mt-2 w-fit min-w-44 origin-top-right rounded-2xl border p-2 shadow-lg"
         >
           <MenuLink
             href="/account/profile"
@@ -442,18 +452,24 @@ function UserMenu({ user }: { user: NavbarUser }) {
             Profile details
           </MenuLink>
 
-          {user.hasBookings ? (
-            <MenuLink
-              href="/account/orders"
-              icon={<Package className="size-4" aria-hidden="true" />}
-              onNavigate={() => setOpen(false)}
-            >
-              My bookings
-            </MenuLink>
-          ) : null}
+          <MenuLink
+            href="/account/orders"
+            icon={<Package className="size-4" aria-hidden="true" />}
+            onNavigate={() => setOpen(false)}
+          >
+            My bookings
+          </MenuLink>
 
-          <div className="border-border mt-2 border-t pt-2">
-            <SignOutLink className="[&_button]:w-full" />
+          {/*
+            The icon variant, matching the round sign-out control in the navbar
+            row rather than a full-width lime button. At full width it read as
+            the loudest thing in a menu of two quiet links, and it stretched the
+            menu to fit a label the dropdown no longer needs. The button still
+            carries an aria-label and title, so it stays announced on hover and
+            to screen readers.
+          */}
+          <div className="border-border mt-2 flex justify-end border-t pt-2">
+            <SignOutLink variant="icon" />
           </div>
         </div>
       ) : null}
