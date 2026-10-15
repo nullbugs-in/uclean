@@ -8,7 +8,7 @@ import { siteConfig } from "@/config/site";
 export const metadata: Metadata = {
   title: "Pricing",
   description:
-    "Our full laundry price list. Compare Regular and Express service across wash and fold, dry cleaning, ironing, shoe cleaning and household items.",
+    "Our full laundry price list. Compare Regular and Express service across wash and fold, dry cleaning, ironing, shoe cleaning, household items and curtain cleaning.",
 };
 
 export default function PricingPage() {

@@ -75,6 +75,15 @@
   Bathmat / Foot mat                                  ~~83~~ **69**
   Carpet Cleaning                   ~~Rs. 48/sqft~~ **Rs. 40/sqft**
 
+## CURTAIN CLEANING (3 DAYS)
+
+  Size Rate
+  -------------------- -----------------
+  0-4 Feet             ~~359~~ **299**
+  4-8 Feet             ~~539~~ **449**
+  8-12 Feet            ~~719~~ **599**
+  More than 12 Feet    ~~959~~ **799**
+
 ## NOTE
 
 -   Price including GST

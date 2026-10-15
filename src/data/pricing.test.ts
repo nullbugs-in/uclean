@@ -56,8 +56,8 @@ describe("pricing categories", () => {
 
 describe("price data integrity", () => {
   it("transcribes every regular item from the price list", () => {
-    // 3 laundry + 23 adult + 11 kids + 4 shoes + 6 household.
-    expect(itemCount(regularPriceList)).toBe(47);
+    // 3 laundry + 23 adult + 11 kids + 4 shoes + 6 household + 4 curtains.
+    expect(itemCount(regularPriceList)).toBe(51);
   });
 
   it("keeps group slugs unique inside a category", () => {
@@ -105,8 +105,8 @@ describe("price data integrity", () => {
   });
 
   it("counts one price line per option, so dual-price items count twice", () => {
-    // 3 laundry + (23 + 11) * 2 + 4 shoes + 6 household = 81.
-    expect(optionCount(regularPriceList)).toBe(81);
+    // 3 laundry + (23 + 11) * 2 + 4 shoes + 6 household + 4 curtains = 85.
+    expect(optionCount(regularPriceList)).toBe(85);
   });
 
   it("reports the cheapest price for the category card", () => {

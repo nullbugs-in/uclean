@@ -881,6 +881,40 @@ const household: PriceGroup = {
   ],
 };
 
+/* -- Curtain cleaning ----------------------------------------------------- */
+
+/**
+ * Curtains are priced by size band rather than per piece, so each band is its
+ * own item with a single price, the way Household lists its sizes.
+ */
+const curtainCleaning: PriceGroup = {
+  slug: "curtain-cleaning",
+  name: "Curtain Cleaning",
+  turnaround: "3 days",
+  items: [
+    {
+      slug: "curtain-0-4-feet",
+      name: "0 to 4 Feet",
+      options: [{ original: 359, price: 299, unit: "piece" }],
+    },
+    {
+      slug: "curtain-4-8-feet",
+      name: "4 to 8 Feet",
+      options: [{ original: 539, price: 449, unit: "piece" }],
+    },
+    {
+      slug: "curtain-8-12-feet",
+      name: "8 to 12 Feet",
+      options: [{ original: 719, price: 599, unit: "piece" }],
+    },
+    {
+      slug: "curtain-above-12-feet",
+      name: "More than 12 Feet",
+      options: [{ original: 959, price: 799, unit: "piece" }],
+    },
+  ],
+};
+
 /* -- Categories ----------------------------------------------------------- */
 
 const regularCategory: PriceCategory = {
@@ -889,7 +923,14 @@ const regularCategory: PriceCategory = {
   tagline:
     "Our standard service. Handled in the normal queue and returned within the listed turnaround.",
   turnaround: "2 to 3 days",
-  groups: [laundryServices, adultWear, kidsWear, shoeCleaning, household],
+  groups: [
+    laundryServices,
+    adultWear,
+    kidsWear,
+    shoeCleaning,
+    household,
+    curtainCleaning,
+  ],
 };
 
 /**

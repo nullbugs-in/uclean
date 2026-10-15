@@ -1,5 +1,12 @@
 import Image from "next/image";
-import { BedDouble, Footprints, Shirt, Sparkles, Baby } from "lucide-react";
+import {
+  BedDouble,
+  Blinds,
+  Footprints,
+  Shirt,
+  Sparkles,
+  Baby,
+} from "lucide-react";
 
 import type { PriceGroup, PriceItem } from "@/data/pricing";
 
@@ -22,6 +29,7 @@ const GROUP_ICONS: Record<string, typeof Shirt> = {
   "kids-wear": Baby,
   "shoe-cleaning": Footprints,
   household: BedDouble,
+  "curtain-cleaning": Blinds,
 };
 
 /**
