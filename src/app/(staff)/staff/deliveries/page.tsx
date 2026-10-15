@@ -1,19 +1,18 @@
 import type { Metadata } from "next";
 
-import { PagePlaceholder } from "@/components/placeholder";
-import { AssignmentList } from "../pickups/assignment-list";
+import { AssignmentList } from "../../_components/assignment-list";
+import { StaffPage } from "../../_components/staff-page";
 
 export const metadata: Metadata = { title: "My deliveries" };
 
 /** Assigned deliveries, with a navigation link per stop (section 10). */
 export default function StaffDeliveriesPage() {
   return (
-    <PagePlaceholder
+    <StaffPage
       title="My deliveries"
-      description="Orders due for delivery, with navigation links."
-      milestone="Milestone 5"
+      description="Orders due to go back out, with navigation links."
     >
       <AssignmentList type="delivery" />
-    </PagePlaceholder>
+    </StaffPage>
   );
 }

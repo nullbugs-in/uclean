@@ -32,6 +32,7 @@ export async function updateOrderStatusAction(
     await changeOrderStatus(orderId, next);
 
     revalidatePath(`/staff/orders/${orderId}`);
+    revalidatePath("/staff");
     revalidatePath("/staff/pickups");
     revalidatePath("/staff/deliveries");
 

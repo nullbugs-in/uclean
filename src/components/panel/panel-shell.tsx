@@ -44,7 +44,12 @@ export function PanelShell({
             sections={sections}
             role={user.role}
           />
-          <main className="min-w-0 flex-1">{children}</main>
+          <main className="min-w-0 flex-1">
+            {/* One shared width cap so every page lines up; padding stays with
+                the page, since an embedded table and a summary card want
+                different amounts of it. */}
+            <div className="mx-auto w-full max-w-7xl">{children}</div>
+          </main>
         </SidebarInset>
       </SidebarProvider>
     </PanelProviders>

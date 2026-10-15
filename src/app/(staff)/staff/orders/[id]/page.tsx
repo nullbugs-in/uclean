@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { OrderTimeline } from "@/components/order-timeline";
+import { CycleMeter } from "@/components/panel/cycle-meter";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getOrderDetail } from "@/db/queries/orders";
@@ -43,6 +44,7 @@ export default async function StaffOrderPage({
     <StaffPage
       title={`Order ${order.order_no}`}
       description="Items, status and the transitions you are allowed to make."
+      action={<CycleMeter status={order.status} className="w-full max-w-60" />}
     >
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <Card>
@@ -54,11 +56,12 @@ export default async function StaffOrderPage({
           </CardHeader>
           <CardContent className="space-y-3">
             {order.order_items.length === 0 ? (
-              <p className="text-sm text-[var(--muted-foreground)]">
-                No items recorded yet. Admin records items in Milestone 4.
+              <p className="text-muted-foreground text-sm">
+                No items recorded yet. Items are added when the order is
+                assessed.
               </p>
             ) : (
-              <ul className="divide-y divide-[var(--border)] text-sm">
+              <ul className="divide-border divide-y text-sm">
                 {order.order_items.map((item) => (
                   <li
                     key={item.id}
@@ -66,7 +69,7 @@ export default async function StaffOrderPage({
                   >
                     <span>
                       {item.item_name}
-                      <span className="text-[var(--muted-foreground)]">
+                      <span className="text-muted-foreground">
                         {" "}
                         x {item.qty}
                       </span>
@@ -93,7 +96,7 @@ export default async function StaffOrderPage({
                 orderId={order.id}
                 status={order.status}
               />
-              <p className="mt-3 text-xs text-[var(--muted-foreground)]">
+              <p className="text-muted-foreground mt-3 text-xs">
                 Only the transitions the database permits are shown. The
                 orders_enforce_transition trigger rejects anything else.
               </p>
