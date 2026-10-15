@@ -31,7 +31,7 @@ export function Footer() {
               alt=""
               width={siteConfig.logo.width}
               height={siteConfig.logo.height}
-              className="h-10 w-auto"
+              className="h-12 w-auto"
             />
           </Link>
           <p className="text-muted-foreground max-w-xs text-sm">

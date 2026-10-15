@@ -76,7 +76,7 @@ export function Navbar() {
             width={siteConfig.logo.width}
             height={siteConfig.logo.height}
             priority
-            className="h-9 w-auto transition-transform duration-200 group-hover:scale-[1.03] sm:h-10"
+            className="h-10 w-auto transition-transform duration-200 group-hover:scale-[1.03] sm:h-12"
           />
         </Link>
 

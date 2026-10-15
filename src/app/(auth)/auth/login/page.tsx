@@ -20,7 +20,7 @@ export default async function LoginPage({
       <div className="absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-gradient-to-r from-[var(--primary)] via-[var(--primary)] to-[var(--accent)]" />
       <CardContent className="p-6 sm:p-8">
         <div className="mb-6 flex flex-col items-center text-center">
-          <div className="relative mb-4 h-auto w-40">
+          <div className="relative mb-4 h-auto w-48">
             <Image
               src={siteConfig.logo.src}
               alt="UClean logo"
