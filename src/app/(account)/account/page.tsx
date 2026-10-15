@@ -1,79 +1,15 @@
-import Link from "next/link";
-
-import { PagePlaceholder } from "@/components/placeholder";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SignOutButton } from "@/components/layout/sign-out-button";
-import { listActiveOrdersForCustomer } from "@/db/queries/orders";
-import { createClient } from "@/db/server";
-import { CUSTOMER_STATUS_LABEL } from "@/lib/order-status";
-import { formatDate } from "@/lib/utils";
-import { requireRoleOrRedirect } from "@/server/auth";
-
-export const metadata = { title: "Dashboard" };
+import { redirect } from "next/navigation";
 
 /**
- * Customer dashboard: active orders plus a link into the booking wizard.
- * Reads live orders through the query module so RLS scopes the result to the
- * signed-in customer.
+ * The customer dashboard was removed: a booking now confirms on the site and
+ * sends the customer home.
+ *
+ * The route is kept as a redirect rather than deleted because six places still
+ * point here as the default landing after sign-in: the middleware bounce off
+ * /auth/* (src/proxy.ts) and the `redirectTo` default on the login, sign-up and
+ * verify pages. Removing it outright would leave every successful sign-in on a
+ * 404. Nothing renders here; it forwards to the home page.
  */
-export default async function AccountDashboardPage() {
-  const session = await requireRoleOrRedirect(
-    ["customer", "staff", "admin"],
-    "/account",
-  );
-  const supabase = await createClient();
-
-  const orders = await listActiveOrdersForCustomer(
-    supabase,
-    session.profile.id,
-  ).catch(() => []);
-
-  return (
-    <PagePlaceholder
-      title={`Welcome, ${session.profile.full_name.split(" ")[0]}`}
-      description="Your active laundry orders."
-      action={<SignOutButton />}
-      milestone="Milestone 3"
-    >
-      {orders.length === 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>No active orders</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-[var(--muted-foreground)]">
-              When you book a pickup it will appear here so you can track it.
-            </p>
-            <Button asChild>
-              <Link href="/account/book">Book a pickup</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {orders.map((order) => (
-            <Card key={order.id}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between gap-4">
-                  <CardTitle className="text-base">{order.order_no}</CardTitle>
-                  <Badge variant="secondary">
-                    {CUSTOMER_STATUS_LABEL[order.status]}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-1 text-sm text-[var(--muted-foreground)]">
-                <p>Pickup: {formatDate(order.pickup_slot_date)}</p>
-                <p>{order.address_snapshot}</p>
-                <Button asChild size="sm" variant="outline" className="mt-2">
-                  <Link href={`/account/orders/${order.id}`}>Track order</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-    </PagePlaceholder>
-  );
+export default function AccountRedirectPage() {
+  redirect("/");
 }
