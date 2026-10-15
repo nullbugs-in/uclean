@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { listAddresses } from "@/db/queries/profiles";
+import { createClient } from "@/db/server";
 import { siteConfig } from "@/config/site";
 import { getSessionUser } from "@/server/auth";
 import { devOtpCode } from "@/server/otp";
@@ -14,6 +16,18 @@ export const metadata: Metadata = {
 
 export default async function BookPage() {
   const session = await getSessionUser().catch(() => null);
+
+  /**
+   * A returning customer should not have to retype the address they gave us
+   * last time. `listAddresses` already orders defaults first, so the first row
+   * is the one worth offering. A read failure is not worth failing the page
+   * over: the wizard still works, the field just starts empty.
+   */
+  const savedAddress = session
+    ? await listAddresses(await createClient(), session.profile.id)
+        .then((addresses) => addresses[0]?.address_text ?? "")
+        .catch(() => "")
+    : "";
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
@@ -32,6 +46,7 @@ export default async function BookPage() {
         storeCenter={siteConfig.coordinates}
         maxRadiusKm={siteConfig.deliveryRadiusKm}
         devTestCode={devOtpCode()}
+        initialAddress={savedAddress}
         initialIdentity={
           session
             ? {

@@ -5,11 +5,19 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 import { createBookingAction, listWeekSlotsAction } from "./actions";
+import { quoteDelivery } from "./delivery-charge";
+import {
+  resolveSelection,
+  selectionTotal,
+  type ServiceSelection,
+} from "./service-selection";
 import { AddressStep } from "./steps/address-step";
 import { ConfirmStep } from "./steps/confirm-step";
 import { DetailsStep } from "./steps/details-step";
+import { ServicesStep } from "./steps/services-step";
 import { SlotStep } from "./steps/slot-step";
 import { SuccessStep } from "./steps/success-step";
+import type { CategorySlug } from "@/data/pricing";
 import type { BookingSummary, LatLng, SlotDay, WizardStep } from "./types";
 
 type BookWizardProps = {
@@ -17,11 +25,14 @@ type BookWizardProps = {
   maxRadiusKm: number;
   devTestCode: string | null;
   initialIdentity: { name: string; mobile: string } | null;
+  /** The customer's last saved address, so it can be prefilled. */
+  initialAddress?: string;
 };
 
 const STEP_LABELS: { id: WizardStep; label: string }[] = [
   { id: "details", label: "Your details" },
   { id: "address", label: "Address" },
+  { id: "services", label: "Services" },
   { id: "slot", label: "Pickup slot" },
   { id: "confirm", label: "Confirm" },
 ];
@@ -33,7 +44,13 @@ function Stepper({
   current: WizardStep;
   verified: boolean;
 }) {
-  const order: WizardStep[] = ["details", "address", "slot", "confirm"];
+  const order: WizardStep[] = [
+    "details",
+    "address",
+    "services",
+    "slot",
+    "confirm",
+  ];
   const visualStep = current === "success" ? "confirm" : current;
   const currentIndex = order.indexOf(visualStep);
 
@@ -95,6 +112,7 @@ export function BookWizard({
   maxRadiusKm,
   devTestCode,
   initialIdentity,
+  initialAddress = "",
 }: BookWizardProps) {
   const [step, setStep] = React.useState<WizardStep>(
     initialIdentity ? "address" : "details",
@@ -104,12 +122,37 @@ export function BookWizard({
   );
   const verified = Boolean(initialIdentity) || identity.mobile !== "";
 
-  const [addressText, setAddressText] = React.useState("");
+  const [addressText, setAddressText] = React.useState(initialAddress);
+  // Tracked separately so the "saved address" hint disappears the moment the
+  // customer starts typing over it.
+  const [addressEdited, setAddressEdited] = React.useState(false);
+
+  function handleAddressText(value: string) {
+    setAddressEdited(true);
+    setAddressText(value);
+  }
   const [noticeAccepted, setNoticeAccepted] = React.useState(false);
   const [noticeAcceptedAt, setNoticeAcceptedAt] = React.useState<string | null>(
     null,
   );
   const [notes, setNotes] = React.useState("");
+
+  // Service choices, keyed by the stable "<group>/<item>/<option>" key so the
+  // customer can switch between Regular and Express without losing them.
+  const [category, setCategory] = React.useState<CategorySlug>("regular");
+  const [serviceSelection, setServiceSelection] =
+    React.useState<ServiceSelection>({});
+  const selectedServices = React.useMemo(
+    () => resolveSelection(serviceSelection, category),
+    [serviceSelection, category],
+  );
+
+  // One quote, derived from the selection, shared by the services, review and
+  // confirmation screens so the three can never disagree about the charge.
+  const delivery = React.useMemo(
+    () => quoteDelivery(selectionTotal(selectedServices)),
+    [selectedServices],
+  );
 
   const [weekDays, setWeekDays] = React.useState<SlotDay[] | null>(null);
   const [loadingSlots, setLoadingSlots] = React.useState(false);
@@ -159,6 +202,11 @@ export function BookWizard({
     if (firstOpen) setSlotDate(firstOpen.dateKey);
   }
 
+  function goToServices() {
+    setStep("services");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   function goToSlots() {
     setStep("slot");
     if (!weekDays && !loadingSlots) void loadSlots();
@@ -170,6 +218,11 @@ export function BookWizard({
       setConfirmError(
         "Something is missing from your booking. Please step back and try again.",
       );
+      return;
+    }
+
+    if (selectedServices.length === 0) {
+      setConfirmError("Choose at least one service before confirming.");
       return;
     }
 
@@ -188,6 +241,13 @@ export function BookWizard({
       slotDate,
       slotId,
       zoneNoticeAcceptedAt: noticeAcceptedAt,
+      items: selectedServices.map((service) => ({
+        name: service.option
+          ? `${service.item} (${service.option})`
+          : service.item,
+        qty: service.qty,
+        unitPrice: service.unitPrice,
+      })),
     });
 
     setSubmitting(false);
@@ -202,6 +262,11 @@ export function BookWizard({
       orderNo: result.data.orderNo,
       slotDate,
       slotLabel: selectedSlot?.label ?? "",
+      subtotal: delivery.subtotal,
+      deliveryCharge: delivery.charge,
+      total: delivery.total,
+      isFreeDelivery: delivery.isFree,
+      addressText: addressText.trim(),
     });
     setStep("success");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -225,12 +290,25 @@ export function BookWizard({
           <AddressStep
             maxRadiusKm={maxRadiusKm}
             addressText={addressText}
+            prefilled={Boolean(initialAddress) && !addressEdited}
             noticeAccepted={noticeAccepted}
             notes={notes}
-            onAddressText={setAddressText}
+            onAddressText={handleAddressText}
             onNoticeAccepted={handleNoticeAccepted}
             onNotes={setNotes}
             onBack={() => setStep("details")}
+            onContinue={goToServices}
+          />
+        ) : null}
+
+        {step === "services" ? (
+          <ServicesStep
+            category={category}
+            selection={serviceSelection}
+            delivery={delivery}
+            onCategoryChange={setCategory}
+            onSelectionChange={setServiceSelection}
+            onBack={() => setStep("address")}
             onContinue={goToSlots}
           />
         ) : null}
@@ -260,6 +338,8 @@ export function BookWizard({
             name={identity.name}
             mobile={identity.mobile}
             addressText={addressText.trim()}
+            services={selectedServices}
+            delivery={delivery}
             slotDate={slotDate ?? ""}
             slotLabel={selectedSlot?.label ?? ""}
             submitting={submitting}

@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin } from "lucide-react";
+import { Check, MapPin } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 type AddressStepProps = {
   maxRadiusKm: number;
   addressText: string;
+  /** True while the field still holds the address saved on the profile. */
+  prefilled?: boolean;
   noticeAccepted: boolean;
   notes: string;
   onAddressText: (value: string) => void;
@@ -29,6 +31,7 @@ type AddressStepProps = {
 export function AddressStep({
   maxRadiusKm,
   addressText,
+  prefilled = false,
   noticeAccepted,
   notes,
   onAddressText,
@@ -52,10 +55,17 @@ export function AddressStep({
           value={addressText}
           onChange={(event) => onAddressText(event.target.value)}
         />
-        <p className="text-muted-foreground text-xs">
-          Type your full pickup address including the flat or house number, area
-          and pin code.
-        </p>
+        {prefilled ? (
+          <p className="flex items-center gap-1.5 text-xs font-medium text-[var(--uc-green-800,var(--foreground))]">
+            <MapPin aria-hidden="true" className="size-3.5" />
+            Saved from your last booking - edit it if you have moved.
+          </p>
+        ) : (
+          <p className="text-muted-foreground text-xs">
+            Type your full pickup address including the flat or house number,
+            area and pin code. We will save it for your next booking.
+          </p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -99,8 +109,8 @@ export function AddressStep({
           disabled={!canContinue}
           className="sm:min-w-40"
         >
-          <MapPin aria-hidden="true" />
-          Continue to slots
+          <Check aria-hidden="true" />
+          Choose your service
         </Button>
       </div>
     </div>
