@@ -29,6 +29,7 @@ export default async function BookPage() {
       </header>
 
       <BookWizard
+        storeCenter={siteConfig.coordinates}
         maxRadiusKm={siteConfig.deliveryRadiusKm}
         devTestCode={devOtpCode()}
         initialIdentity={

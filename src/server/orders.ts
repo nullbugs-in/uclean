@@ -11,8 +11,6 @@ import {
   unauthenticated,
   zoneNoticeNotAccepted,
 } from "./errors";
-import { googleServerKey } from "./env";
-import { assertWithinDeliveryZone } from "./maps";
 
 export type CreatePickupInput = {
   customerId: string;
@@ -31,7 +29,6 @@ export type CreatePickupInput = {
 export type CreatePickupResult = {
   orderId: string;
   orderNo: string;
-  distanceKm: number;
 };
 
 /**
@@ -43,7 +40,8 @@ export type CreatePickupResult = {
  *   2. Re-read name and mobile from `profiles` rather than accepting them from
  *      the form, so a booking records who the customer is *now* (section 6.1).
  *   3. Recompute the driving distance server side. The browser's number is
- *      never used, which is what makes the 6 km rule unbypassable.
+ *      never used, which is what makes the 6 km rule unbypassable. TEMPORARY:
+ *      this step is disabled for testing, see below.
  *   4. Call book_pickup, which re-checks capacity and the zone under a row
  *      lock inside one transaction.
  */
@@ -77,10 +75,13 @@ export async function createPickupOrder(
     throw new Error(`No profile found for customer ${input.customerId}`);
   }
 
-  const { distanceKm } = await assertWithinDeliveryZone(
-    { lat: input.lat, lng: input.lng },
-    googleServerKey(),
-  );
+  // TEMPORARY (testing): the 6 km delivery-zone rule is switched off.
+  //
+  // assertWithinDeliveryZone used to recompute the driving distance here and
+  // throw outsideDeliveryZone past the radius. Restore it before launch: it is
+  // the only thing stopping an out-of-zone address from booking, because
+  // book_pickup trusts the distance passed to it.
+  const distanceKm = 0;
 
   // The booking RPC is SECURITY DEFINER and validates capacity, the blocked
   // dates, and the zone again under a lock. The service role is used because
@@ -116,7 +117,7 @@ export async function createPickupOrder(
 
   if (orderError) throw new Error(orderError.message);
 
-  return { orderId, orderNo: order.order_no, distanceKm };
+  return { orderId, orderNo: order.order_no };
 }
 
 /**

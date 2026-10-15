@@ -10,7 +10,6 @@ type ConfirmStepProps = {
   name: string;
   mobile: string;
   addressText: string;
-  distanceKm: number | null;
   slotDate: string;
   slotLabel: string;
   submitting: boolean;
@@ -33,7 +32,6 @@ export function ConfirmStep({
   name,
   mobile,
   addressText,
-  distanceKm,
   slotDate,
   slotLabel,
   submitting,
@@ -47,14 +45,6 @@ export function ConfirmStep({
         <Row label="Name" value={name} />
         <Row label="Mobile" value={mobile} />
         <Row label="Pickup address" value={addressText} />
-        <Row
-          label="Distance"
-          value={
-            distanceKm === null
-              ? "-"
-              : `About ${distanceKm.toFixed(1)} km from the store`
-          }
-        />
         <Row label="Pickup day" value={formatFullDate(slotDate)} />
         <Row label="Pickup slot" value={slotLabel} />
         <Row label="Payment" value="Cash on delivery" />

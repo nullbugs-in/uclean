@@ -98,9 +98,7 @@ export type CreateBookingInput = {
  */
 export async function createBookingAction(
   input: CreateBookingInput,
-): Promise<
-  ActionResult<{ orderId: string; orderNo: string; distanceKm: number }>
-> {
+): Promise<ActionResult<{ orderId: string; orderNo: string }>> {
   const parsed = pickupRequestSchema.safeParse(input);
 
   if (!parsed.success) {

@@ -34,7 +34,6 @@ export type SlotDay = {
 export type BookingSummary = {
   orderId: string;
   orderNo: string;
-  distanceKm: number;
   slotDate: string;
   slotLabel: string;
 };

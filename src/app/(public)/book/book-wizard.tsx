@@ -10,26 +10,13 @@ import { ConfirmStep } from "./steps/confirm-step";
 import { DetailsStep } from "./steps/details-step";
 import { SlotStep } from "./steps/slot-step";
 import { SuccessStep } from "./steps/success-step";
-import type {
-  BookingSummary,
-  LatLng,
-  SlotDay,
-  WizardStep,
-  ZoneResult,
-} from "./types";
+import type { BookingSummary, LatLng, SlotDay, WizardStep } from "./types";
 
 type BookWizardProps = {
+  storeCenter: LatLng;
   maxRadiusKm: number;
   devTestCode: string | null;
   initialIdentity: { name: string; mobile: string } | null;
-};
-
-type DistanceResponse = {
-  ok?: boolean;
-  distanceKm?: number;
-  maxRadiusKm?: number;
-  reason?: string;
-  error?: string;
 };
 
 const STEP_LABELS: { id: WizardStep; label: string }[] = [
@@ -104,6 +91,7 @@ function Stepper({
  * transaction).
  */
 export function BookWizard({
+  storeCenter,
   maxRadiusKm,
   devTestCode,
   initialIdentity,
@@ -117,9 +105,6 @@ export function BookWizard({
   const verified = Boolean(initialIdentity) || identity.mobile !== "";
 
   const [addressText, setAddressText] = React.useState("");
-  const [coords, setCoords] = React.useState<LatLng | null>(null);
-  const [zone, setZone] = React.useState<ZoneResult | null>(null);
-  const [checking, setChecking] = React.useState(false);
   const [noticeAccepted, setNoticeAccepted] = React.useState(false);
   const [noticeAcceptedAt, setNoticeAcceptedAt] = React.useState<string | null>(
     null,
@@ -145,89 +130,10 @@ export function BookWizard({
     );
   }, [weekDays, slotDate, slotId]);
 
-  // Distance check: debounced so dragging the pin does not fire a request per
-  // pixel. The verdict always comes from the server.
-  //
-  // `checking` is raised in the coords handler, not here: a synchronous
-  // setState inside an effect body triggers the react-hooks/set-state-in-effect
-  // rule and causes a cascading render.
-  React.useEffect(() => {
-    if (!coords) return;
-
-    let ignore = false;
-    const controller = new AbortController();
-
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const response = await fetch("/api/distance", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(coords),
-            signal: controller.signal,
-          });
-          const body = (await response
-            .json()
-            .catch(() => null)) as DistanceResponse | null;
-
-          if (ignore) return;
-
-          if (!response.ok || !body) {
-            setZone({
-              status: "error",
-              message:
-                body?.error ??
-                "We could not check this location. Please try again.",
-            });
-            return;
-          }
-
-          if (body.ok) {
-            setZone({
-              status: "within",
-              distanceKm: body.distanceKm ?? 0,
-              maxRadiusKm: body.maxRadiusKm ?? maxRadiusKm,
-            });
-          } else if (body.reason === "STORE_NOT_CONFIGURED") {
-            setZone({ status: "unconfigured" });
-          } else {
-            setZone({
-              status: "outside",
-              distanceKm: body.distanceKm ?? 0,
-              maxRadiusKm: body.maxRadiusKm ?? maxRadiusKm,
-            });
-          }
-        } catch (error) {
-          if (ignore || (error as Error).name === "AbortError") return;
-          setZone({
-            status: "error",
-            message: "We could not check this location. Please try again.",
-          });
-        } finally {
-          if (!ignore) setChecking(false);
-        }
-      })();
-    }, 400);
-
-    return () => {
-      ignore = true;
-      controller.abort();
-      window.clearTimeout(timer);
-    };
-  }, [coords, maxRadiusKm]);
-
   function handleVerified(next: { name: string; mobile: string }) {
     setIdentity(next);
     setStep("address");
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function handleCoords(next: LatLng) {
-    setCoords(next);
-    // Clear the previous verdict immediately so a moved pin never shows a stale
-    // "inside our zone" message while the new check is in flight.
-    setZone(null);
-    setChecking(true);
   }
 
   function handleNoticeAccepted(value: boolean) {
@@ -260,16 +166,6 @@ export function BookWizard({
   }
 
   async function confirmBooking() {
-    // The address step only asks for an address, so an address we could not
-    // resolve to a position is expected here rather than exceptional. Say what
-    // to fix instead of the generic message.
-    if (!coords) {
-      setConfirmError(
-        "We could not locate that address. Go back to the address step and add a pin code or a nearby landmark.",
-      );
-      return;
-    }
-
     if (!slotDate || !slotId || !noticeAcceptedAt) {
       setConfirmError(
         "Something is missing from your booking. Please step back and try again.",
@@ -280,10 +176,14 @@ export function BookWizard({
     setSubmitting(true);
     setConfirmError(null);
 
+    // The address step takes no map and does no location work, so the order is
+    // recorded against the store point. TEMPORARY for testing: this is a
+    // placeholder, not a resolved address, and the real coordinates have to come
+    // back (with the zone check) before launch.
     const result = await createBookingAction({
       address: addressText.trim(),
-      lat: coords.lat,
-      lng: coords.lng,
+      lat: storeCenter.lat,
+      lng: storeCenter.lng,
       notes: notes.trim() || undefined,
       slotDate,
       slotId,
@@ -300,7 +200,6 @@ export function BookWizard({
     setSummary({
       orderId: result.data.orderId,
       orderNo: result.data.orderNo,
-      distanceKm: result.data.distanceKm,
       slotDate,
       slotLabel: selectedSlot?.label ?? "",
     });
@@ -326,12 +225,9 @@ export function BookWizard({
           <AddressStep
             maxRadiusKm={maxRadiusKm}
             addressText={addressText}
-            zone={zone}
-            checking={checking}
             noticeAccepted={noticeAccepted}
             notes={notes}
             onAddressText={setAddressText}
-            onCoords={handleCoords}
             onNoticeAccepted={handleNoticeAccepted}
             onNotes={setNotes}
             onBack={() => setStep("details")}
@@ -364,11 +260,6 @@ export function BookWizard({
             name={identity.name}
             mobile={identity.mobile}
             addressText={addressText.trim()}
-            distanceKm={
-              zone?.status === "within" || zone?.status === "outside"
-                ? zone.distanceKm
-                : null
-            }
             slotDate={slotDate ?? ""}
             slotLabel={selectedSlot?.label ?? ""}
             submitting={submitting}

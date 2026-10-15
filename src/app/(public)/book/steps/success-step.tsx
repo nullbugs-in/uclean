@@ -35,10 +35,6 @@ export function SuccessStep({ summary }: { summary: BookingSummary }) {
         <p className="font-mono text-lg font-semibold tracking-wide">
           {summary.orderNo}
         </p>
-        <p className="text-muted-foreground pt-2">
-          Pickup address is about {summary.distanceKm.toFixed(1)} km from the
-          store.
-        </p>
       </div>
 
       <div className="flex flex-col justify-center gap-3 sm:flex-row">

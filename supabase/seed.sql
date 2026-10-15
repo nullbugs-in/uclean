@@ -26,18 +26,20 @@ on conflict (id) do update set max_radius_km = excluded.max_radius_km;
 
 -- --- Nine daily slots (section 6.2, step 3) --------------------------------
 -- 10-11, 11-12, 12-1, 1-2, then the 2 PM-3 PM break is skipped, then 3-4
--- through 7-8. capacity 0 means "not configured yet" and blocks booking.
+-- through 7-8. Capacity 0 means "not configured yet" and blocks booking, so the
+-- seeded value has to be real. The upsert deliberately leaves capacity alone:
+-- re-running the seed must not undo a capacity an admin has since changed.
 insert into public.time_slots (start_time, end_time, label, capacity, is_active)
 values
-  ('10:00', '11:00', '10 AM - 11 AM',  0, true),
-  ('11:00', '12:00', '11 AM - 12 PM',  0, true),
-  ('12:00', '13:00', '12 PM - 1 PM',   0, true),
-  ('13:00', '14:00', '1 PM - 2 PM',    0, true),
-  ('15:00', '16:00', '3 PM - 4 PM',    0, true),
-  ('16:00', '17:00', '4 PM - 5 PM',    0, true),
-  ('17:00', '18:00', '5 PM - 6 PM',    0, true),
-  ('18:00', '19:00', '6 PM - 7 PM',    0, true),
-  ('19:00', '20:00', '7 PM - 8 PM',    0, true)
+  ('10:00', '11:00', '10 AM - 11 AM',  9, true),
+  ('11:00', '12:00', '11 AM - 12 PM',  9, true),
+  ('12:00', '13:00', '12 PM - 1 PM',   9, true),
+  ('13:00', '14:00', '1 PM - 2 PM',    9, true),
+  ('15:00', '16:00', '3 PM - 4 PM',    9, true),
+  ('16:00', '17:00', '4 PM - 5 PM',    9, true),
+  ('17:00', '18:00', '5 PM - 6 PM',    9, true),
+  ('18:00', '19:00', '6 PM - 7 PM',    9, true),
+  ('19:00', '20:00', '7 PM - 8 PM',    9, true)
 on conflict (start_time, end_time) do update set label = excluded.label;
 
 -- --- Services --------------------------------------------------------------
