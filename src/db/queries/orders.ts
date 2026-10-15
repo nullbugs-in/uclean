@@ -46,6 +46,26 @@ export async function listActiveOrdersForCustomer(
   );
 }
 
+/**
+ * How many orders a customer has placed, active or not.
+ *
+ * `head: true` fetches no rows, so this stays a count. The public layout uses
+ * it to decide whether to show the "My bookings" shortcut in the navbar, which
+ * only appears once someone has actually booked.
+ */
+export async function countCustomerOrders(
+  client: Client,
+  customerId: string,
+): Promise<number> {
+  const { count, error } = await client
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("customer_id", customerId);
+
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
 /** A single order with its items and full status history for the timeline. */
 export async function getOrderDetail(
   client: Client,

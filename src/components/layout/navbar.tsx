@@ -3,20 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarClock, ChevronDown, Menu, UserRound, X } from "lucide-react";
+import { Package, UserRound, Menu, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import {
-  getMyBookingsAction,
-  type MyBookings,
-} from "@/app/(account)/account-actions";
-import { SignOutButton } from "@/components/layout/sign-out-button";
-import { OrderTimeline } from "@/components/order-timeline";
-import { Badge } from "@/components/ui/badge";
+import { SignOutLink } from "@/components/layout/sign-out-link";
 import { Button } from "@/components/ui/button";
 import { siteConfig } from "@/config/site";
-import { CUSTOMER_STATUS_LABEL } from "@/lib/order-status";
-import { formatDate, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
   { label: "About", href: "/#about" },
@@ -33,6 +26,8 @@ export type NavbarUser = {
   fullName: string;
   mobile: string;
   role: string;
+  /** True once the customer has placed at least one order. */
+  hasBookings: boolean;
 };
 
 export function Navbar({ user = null }: { user?: NavbarUser | null }) {
@@ -172,41 +167,27 @@ export function Navbar({ user = null }: { user?: NavbarUser | null }) {
 
           {user ? (
             <div className="mt-3 flex flex-col gap-2">
-              <div className="bg-muted/60 flex items-center gap-3 rounded-xl px-3 py-3">
-                <span
-                  aria-hidden="true"
-                  className="ring-primary/40 bg-primary/20 grid size-9 shrink-0 place-items-center rounded-full text-xs font-semibold ring-2"
-                >
-                  {initialsOf(user.fullName)}
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">
-                    {user.fullName}
-                  </p>
-                  <p className="text-muted-foreground truncate text-xs">
-                    {user.mobile} · {user.role}
-                  </p>
-                </div>
-              </div>
               <Button asChild className="h-11 w-full">
                 <Link
                   href="/account/profile"
                   onClick={() => setOpen(false)}
                   className="justify-center"
                 >
-                  User profile
+                  Profile details
                 </Link>
               </Button>
-              <Button asChild variant="outline" className="h-11 w-full">
-                <Link
-                  href="/account/orders"
-                  onClick={() => setOpen(false)}
-                  className="justify-center"
-                >
-                  My bookings
-                </Link>
-              </Button>
-              <SignOutButton />
+              {user.hasBookings ? (
+                <Button asChild variant="outline" className="h-11 w-full">
+                  <Link
+                    href="/account/orders"
+                    onClick={() => setOpen(false)}
+                    className="justify-center"
+                  >
+                    My bookings
+                  </Link>
+                </Button>
+              ) : null}
+              <SignOutLink className="[&_button]:h-11 [&_button]:w-full" />
             </div>
           ) : (
             <div className="mt-3 flex flex-col gap-2">
@@ -232,8 +213,10 @@ export function Navbar({ user = null }: { user?: NavbarUser | null }) {
 }
 
 /**
- * Log in / Sign up while signed out; the profile icon and sign out once signed
- * in. The session is resolved by (public)/layout.tsx and passed in, because the
+ * Log in / Sign up while signed out; once signed in, a My bookings shortcut
+ * (only when they have booked), the profile menu, and sign out.
+ *
+ * The session is resolved by (public)/layout.tsx and passed in, because the
  * navbar is a client component and cannot read cookies itself.
  */
 function AuthControls({ user }: { user: NavbarUser | null }) {
@@ -256,9 +239,31 @@ function AuthControls({ user }: { user: NavbarUser | null }) {
 
   return (
     <>
+      {/* Sign out first, then the bookings shortcut, then the profile menu. */}
+      <SignOutLink />
+      {user.hasBookings ? <BookingsIcon /> : null}
       <UserMenu user={user} />
-      <SignOutButton />
     </>
+  );
+}
+
+/**
+ * The My bookings shortcut.
+ *
+ * Hidden until the customer has at least one order, so a brand new account does
+ * not see a link to an empty page. Goes straight to the list, where each order
+ * links through to its tracking view.
+ */
+function BookingsIcon() {
+  return (
+    <Link
+      href="/account/orders"
+      aria-label="My bookings"
+      title="My bookings"
+      className="border-border text-foreground hover:bg-accent grid size-9 place-items-center rounded-full border transition-colors focus-visible:ring-2 focus-visible:outline-none"
+    >
+      <Package className="size-4" aria-hidden="true" />
+    </Link>
   );
 }
 
@@ -271,21 +276,15 @@ function initialsOf(fullName: string) {
   return `${first[0]}${last[0]}`.toUpperCase();
 }
 
-/** Which panel, if any, is expanded inside the dropdown. */
-type Panel = "none" | "profile" | "bookings";
-
 /**
  * The profile icon and its dropdown.
  *
- * Both rows expand a panel in place instead of navigating, so the details can
- * be read without leaving the page. Escape or a click outside closes the menu.
+ * Both entries are plain links to real pages: /account/profile for the
+ * customer's details and /account/orders for their bookings. Nothing expands in
+ * place, so the menu holds no state beyond whether it is open.
  */
 function UserMenu({ user }: { user: NavbarUser }) {
   const [open, setOpen] = useState(false);
-  const [panel, setPanel] = useState<Panel>("none");
-  const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [bookings, setBookings] = useState<MyBookings | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -309,26 +308,6 @@ function UserMenu({ user }: { user: NavbarUser }) {
     };
   }, [open]);
 
-  // Fetched on first expand rather than on mount, so an ordinary visit to any
-  // public page never runs the query.
-  async function openBookings() {
-    setPanel((current) => (current === "bookings" ? "none" : "bookings"));
-
-    if (loaded || loading) return;
-
-    setLoading(true);
-    try {
-      setBookings(await getMyBookingsAction());
-      setLoaded(true);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function togglePanel(next: Exclude<Panel, "none">) {
-    setPanel((current) => (current === next ? "none" : next));
-  }
-
   return (
     <div className="relative" ref={containerRef}>
       <button
@@ -346,72 +325,28 @@ function UserMenu({ user }: { user: NavbarUser }) {
         <div
           role="menu"
           aria-label="Account"
-          className="bg-card border-border absolute right-0 z-50 mt-2 w-96 origin-top-right rounded-2xl border p-2 shadow-lg"
+          className="bg-card border-border absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-2xl border p-2 shadow-lg"
         >
-          <MenuRow
+          <MenuLink
+            href="/account/profile"
             icon={<UserRound className="size-4" aria-hidden="true" />}
-            label="Profile details"
-            expanded={panel === "profile"}
-            onToggle={() => togglePanel("profile")}
-          />
+            onNavigate={() => setOpen(false)}
+          >
+            Profile details
+          </MenuLink>
 
-          {panel === "profile" ? (
-            <div className="border-border space-y-2 border-t px-3 pt-3 pb-1">
-              <div>
-                <p className="text-muted-foreground text-xs">Name</p>
-                <p className="text-sm font-medium">{user.fullName}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground text-xs">Mobile</p>
-                <p className="text-sm font-medium">{user.mobile}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground text-xs">Account type</p>
-                <p className="text-sm font-medium capitalize">{user.role}</p>
-              </div>
-              <div className="flex items-center justify-between pt-1">
-                <Link
-                  href="/account/profile"
-                  onClick={() => setOpen(false)}
-                  className="text-primary text-sm font-medium hover:underline"
-                >
-                  Edit profile
-                </Link>
-                <Link
-                  href="/account/orders"
-                  onClick={() => setOpen(false)}
-                  className="text-primary text-sm font-medium hover:underline"
-                >
-                  All orders
-                </Link>
-              </div>
-            </div>
-          ) : null}
-
-          <MenuRow
-            icon={<CalendarClock className="size-4" aria-hidden="true" />}
-            label="My bookings"
-            expanded={panel === "bookings"}
-            onToggle={() => void openBookings()}
-          />
-
-          {panel === "bookings" ? (
-            <div className="border-border max-h-80 space-y-3 overflow-y-auto border-t px-3 pt-3 pb-1">
-              {loading ? (
-                <p className="text-muted-foreground text-sm">Loading…</p>
-              ) : !bookings?.latest ? (
-                <p className="text-muted-foreground text-sm">
-                  You have no active orders. Book a pickup and it will show up
-                  here.
-                </p>
-              ) : (
-                <BookingsPanel booking={bookings.latest} />
-              )}
-            </div>
+          {user.hasBookings ? (
+            <MenuLink
+              href="/account/orders"
+              icon={<Package className="size-4" aria-hidden="true" />}
+              onNavigate={() => setOpen(false)}
+            >
+              My bookings
+            </MenuLink>
           ) : null}
 
           <div className="border-border mt-2 border-t pt-2">
-            <SignOutButton />
+            <SignOutLink className="[&_button]:w-full" />
           </div>
         </div>
       ) : null}
@@ -419,81 +354,26 @@ function UserMenu({ user }: { user: NavbarUser }) {
   );
 }
 
-/**
- * A dropdown row that expands a panel rather than navigating.
- *
- * A button, not a link: it performs an in-place reveal, so a link would be
- * misleading and the keyboard behaviour would be wrong.
- */
-function MenuRow({
+function MenuLink({
+  href,
   icon,
-  label,
-  expanded,
-  onToggle,
+  children,
+  onNavigate,
 }: {
+  href: string;
   icon: React.ReactNode;
-  label: string;
-  expanded: boolean;
-  onToggle: () => void;
+  children: React.ReactNode;
+  onNavigate: () => void;
 }) {
   return (
-    <button
-      type="button"
+    <Link
+      href={href}
       role="menuitem"
-      aria-expanded={expanded}
-      onClick={onToggle}
-      className="hover:bg-accent flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors"
+      onClick={onNavigate}
+      className="hover:bg-accent flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors"
     >
       {icon}
-      <span className="flex-1">{label}</span>
-      <ChevronDown
-        aria-hidden="true"
-        className={cn(
-          "text-muted-foreground size-4 transition-transform",
-          expanded && "rotate-180",
-        )}
-      />
-    </button>
-  );
-}
-
-function BookingsPanel({
-  booking,
-}: {
-  booking: NonNullable<MyBookings["latest"]>;
-}) {
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-xs">{booking.orderNo}</span>
-        <Badge variant="secondary">
-          {CUSTOMER_STATUS_LABEL[booking.status]}
-        </Badge>
-      </div>
-
-      <dl className="text-muted-foreground space-y-1 text-xs">
-        <div className="flex justify-between gap-2">
-          <dt>Pickup</dt>
-          <dd className="text-foreground font-medium">
-            {formatDate(booking.pickupDate)}
-          </dd>
-        </div>
-        <div className="flex justify-between gap-2">
-          <dt className="shrink-0">Address</dt>
-          <dd className="text-foreground truncate text-right font-medium">
-            {booking.address}
-          </dd>
-        </div>
-      </dl>
-
-      <OrderTimeline status={booking.status} history={booking.history} />
-
-      <Link
-        href={`/account/orders/${booking.orderId}`}
-        className="text-primary inline-block text-xs font-medium hover:underline"
-      >
-        Open full tracking
-      </Link>
-    </div>
+      {children}
+    </Link>
   );
 }

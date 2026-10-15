@@ -28,7 +28,6 @@ export default async function CustomerOrdersPage() {
     <PagePlaceholder
       title="My orders"
       description="Every order you have placed, newest first."
-      milestone="Milestone 3"
     >
       {orders.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">

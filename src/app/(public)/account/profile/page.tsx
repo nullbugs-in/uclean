@@ -30,7 +30,6 @@ export default async function ProfilePage() {
     <PagePlaceholder
       title="Profile"
       description="Your name, mobile number and saved addresses."
-      milestone="Milestone 3"
     >
       <Card>
         <CardHeader>
@@ -69,8 +68,7 @@ export default async function ProfilePage() {
         <CardContent className="space-y-3 text-sm">
           {addresses.length === 0 ? (
             <p className="text-[var(--muted-foreground)]">
-              No saved addresses. Addresses are saved during booking in
-              Milestone 3.
+              No saved addresses. Addresses are saved during booking.
             </p>
           ) : (
             addresses.map((address) => (
