@@ -41,6 +41,10 @@ type ServicesStepProps = {
  * than clearing it.
  *
  * The total shown here is indicative: the final bill is assessed at pickup.
+ *
+ * A service is picked by clicking its row. There is no tick box: a picked row
+ * is filled with the brand tint and barred down its left edge, so several picks
+ * read as a block of highlighted rows at a glance.
  */
 export function ServicesStep({
   category,
@@ -127,57 +131,83 @@ export function ServicesStep({
           const selected = qty > 0;
 
           return (
-            <li key={line.key} className="p-3 sm:p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <label className="flex min-w-0 flex-1 items-start gap-3">
-                  <input
-                    type="checkbox"
-                    className="mt-1"
-                    checked={selected}
-                    onChange={(event) =>
-                      setQty(line.key, event.target.checked ? 1 : 0)
-                    }
-                  />
-                  <span className="min-w-0">
-                    <span className="block font-medium">{line.item}</span>
+            <li
+              key={line.key}
+              className={cn(
+                "-ml-px border-l-[3px] px-3 transition-colors sm:px-4",
+                selected
+                  ? "border-l-[var(--primary)] bg-[var(--primary)]/12"
+                  : "border-l-transparent",
+              )}
+            >
+              <div className="py-3 sm:py-4">
+                {/*
+                 * The row is the selection control: there is no tick box.
+                 *
+                 * Deliberately not a button wrapping the whole row: the
+                 * quantity stepper below has its own controls, and nesting
+                 * those inside a button is invalid and collapses three
+                 * controls into one for a screen reader. So the tappable,
+                 * focusable target is the name and price, and the stepper sits
+                 * outside it. The selected state is announced through
+                 * `aria-pressed` and shown by the row tint and left bar.
+                 */}
+                <button
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setQty(line.key, selected ? 0 : 1)}
+                  className={cn(
+                    "flex w-full flex-wrap items-start justify-between gap-3 text-left",
+                    "focus-visible:ring-ring rounded-md focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+                  )}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span
+                      className={cn(
+                        "block font-medium",
+                        selected && "text-[var(--primary-foreground)]",
+                      )}
+                    >
+                      {line.item}
+                    </span>
                     {line.optionLabel ? (
                       <span className="text-muted-foreground block text-xs">
                         {line.optionLabel}
                       </span>
                     ) : null}
                   </span>
-                </label>
 
-                <span className="text-right whitespace-nowrap">
-                  {line.original > line.price ? (
-                    <span className="text-muted-foreground mr-2 text-sm line-through">
-                      {formatPrice(line.original)}
+                  <span className="text-right whitespace-nowrap">
+                    {line.original > line.price ? (
+                      <span className="text-muted-foreground mr-2 text-sm line-through">
+                        {formatPrice(line.original)}
+                      </span>
+                    ) : null}
+                    <span className="font-display text-lg font-bold">
+                      {formatPrice(line.price)}
                     </span>
-                  ) : null}
-                  <span className="font-display text-lg font-bold">
-                    {formatPrice(line.price)}
+                    <span className="text-muted-foreground text-xs">
+                      {" "}
+                      / {line.unit}
+                    </span>
                   </span>
-                  <span className="text-muted-foreground text-xs">
-                    {" "}
-                    / {line.unit}
-                  </span>
-                </span>
-              </div>
+                </button>
 
-              {selected ? (
-                <div className="mt-3 flex items-center gap-3 pl-7">
-                  <QuantityStepper
-                    qty={qty}
-                    label={`Quantity for ${line.item}${
-                      line.optionLabel ? ` (${line.optionLabel})` : ""
-                    }`}
-                    onChange={(next) => setQty(line.key, next)}
-                  />
-                  <span className="text-muted-foreground text-sm">
-                    {formatPrice(line.price * qty)}
-                  </span>
-                </div>
-              ) : null}
+                {selected ? (
+                  <div className="mt-3 flex items-center gap-3">
+                    <QuantityStepper
+                      qty={qty}
+                      label={`Quantity for ${line.item}${
+                        line.optionLabel ? ` (${line.optionLabel})` : ""
+                      }`}
+                      onChange={(next) => setQty(line.key, next)}
+                    />
+                    <span className="text-muted-foreground text-sm">
+                      {formatPrice(line.price * qty)}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
             </li>
           );
         })}
