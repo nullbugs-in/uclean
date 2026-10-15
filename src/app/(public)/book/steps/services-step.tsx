@@ -1,24 +1,35 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Minus, Plus } from "lucide-react";
+import { Clock3, MapPin, Minus, Plus, Zap } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import type { CategorySlug } from "@/data/pricing";
-import { formatPrice } from "@/lib/utils";
+import {
+  cheapestPrice,
+  getPricingCategory,
+  type CategorySlug,
+} from "@/data/pricing";
+import { cn, formatPrice } from "@/lib/utils";
 
+import type { DeliveryQuote } from "../delivery-charge";
+import {
+  DeliveryChargeRow,
+  FreeDeliveryNudge,
+  QuotedTotal,
+} from "./delivery-summary";
 import {
   groupsForCategory,
   linesForGroup,
   resolveSelection,
   selectionCount,
-  selectionTotal,
   type ServiceSelection,
 } from "../service-selection";
 
 type ServicesStepProps = {
   category: CategorySlug;
   selection: ServiceSelection;
+  /** Delivery quote for the current selection, computed by the wizard. */
+  delivery: DeliveryQuote;
   onCategoryChange: (category: CategorySlug) => void;
   onSelectionChange: (selection: ServiceSelection) => void;
   onBack: () => void;
@@ -38,6 +49,7 @@ type ServicesStepProps = {
 export function ServicesStep({
   category,
   selection,
+  delivery,
   onCategoryChange,
   onSelectionChange,
   onBack,
@@ -47,7 +59,6 @@ export function ServicesStep({
   const [activeGroup, setActiveGroup] = useState(groups[0]?.slug ?? "");
 
   const lines = resolveSelection(selection, category);
-  const total = selectionTotal(lines);
   const itemCount = selectionCount(lines);
 
   const visible = linesForGroup(category, activeGroup);
@@ -178,7 +189,7 @@ export function ServicesStep({
         })}
       </ul>
 
-      <div className="space-y-4 rounded-xl border border-[var(--border)] p-4">
+      <div className="border-border bg-muted/30 space-y-3 rounded-xl border p-4">
         <div className="flex items-baseline justify-between">
           <span className="text-sm">
             {itemCount === 0
@@ -186,9 +197,28 @@ export function ServicesStep({
               : `${itemCount} item${itemCount === 1 ? "" : "s"} selected`}
           </span>
           <span className="font-display text-xl font-bold">
-            {formatPrice(total)}
+            {formatPrice(delivery.subtotal)}
           </span>
         </div>
+
+        <div className="border-border space-y-2.5 border-t pt-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-muted-foreground text-sm">Service total</span>
+            <span className="text-sm font-medium">
+              {formatPrice(delivery.subtotal)}
+            </span>
+          </div>
+
+          <DeliveryChargeRow quote={delivery} />
+
+          <FreeDeliveryNudge quote={delivery} />
+
+          <QuotedTotal
+            quote={delivery}
+            className="border-border font-display border-t pt-3 text-2xl font-bold"
+          />
+        </div>
+
         <p className="text-muted-foreground text-xs">
           Indicative total. The final price is confirmed once we receive and
           assess your items.
@@ -205,7 +235,7 @@ export function ServicesStep({
           disabled={itemCount === 0}
           className="sm:min-w-40"
         >
-          <Check aria-hidden="true" />
+          <MapPin aria-hidden="true" />
           Continue to slots
         </Button>
       </div>
@@ -213,7 +243,14 @@ export function ServicesStep({
   );
 }
 
-/** Regular and Express, with Express priced at the derived multiple. */
+/**
+ * Regular and Express, as two full cards rather than a flat segmented strip.
+ *
+ * The choice is a real tradeoff - turnaround against price - so each side
+ * states its own turnaround and starting price instead of relying on the
+ * customer already knowing what Express costs. Switching keeps the selection,
+ * which is why the active card also says how many lines carry over.
+ */
 function CategoryToggle({
   category,
   onChange,
@@ -223,15 +260,19 @@ function CategoryToggle({
   onChange: (category: CategorySlug) => void;
   counts: Record<string, number>;
 }) {
+  const picked = Object.keys(counts).length;
+
   return (
     <div
       role="group"
       aria-label="Service speed"
-      className="bg-muted/60 flex gap-1 rounded-xl p-1"
+      className="grid gap-3 sm:grid-cols-2"
     >
       {(["regular", "express"] as const).map((value) => {
         const active = category === value;
-        const picked = Object.keys(counts).length;
+        const source = getPricingCategory(value);
+        const Icon = value === "express" ? Zap : Clock3;
+        const cheapest = source ? cheapestPrice(source) : null;
 
         return (
           <button
@@ -239,15 +280,63 @@ function CategoryToggle({
             type="button"
             aria-pressed={active}
             onClick={() => onChange(value)}
-            className={
+            className={cn(
+              "group relative flex flex-col items-start gap-1 rounded-xl border p-4 text-left transition-all",
+              "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
               active
-                ? "bg-background text-foreground flex-1 rounded-lg px-3 py-2 text-sm font-medium shadow-sm transition-colors"
-                : "text-muted-foreground hover:text-foreground flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
-            }
+                ? "border-[var(--primary)] bg-[var(--primary)]/8 shadow-[var(--primary)]/10 shadow-md"
+                : "bg-card hover:bg-accent/50 border-[var(--border)] hover:border-[var(--primary)]/40",
+            )}
           >
-            {value === "regular" ? "Regular" : "Express"}
+            {active ? (
+              <span
+                aria-hidden="true"
+                className="absolute top-3 right-3 size-2 rounded-full bg-[var(--primary)]"
+              />
+            ) : null}
+
+            <span className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "grid size-8 place-items-center rounded-lg transition-colors",
+                  active
+                    ? "bg-[var(--primary)] text-[var(--primary-foreground)]"
+                    : "bg-muted text-muted-foreground group-hover:text-foreground",
+                )}
+              >
+                <Icon className="size-4" aria-hidden="true" />
+              </span>
+              <span className="font-display text-base font-bold">
+                {value === "regular" ? "Regular" : "Express"}
+              </span>
+            </span>
+
+            <span className="text-muted-foreground text-xs">
+              Ready in {source?.turnaround ?? "a few days"}
+            </span>
+
+            <span className="text-muted-foreground mt-1 text-xs">
+              {value === "regular"
+                ? "Best value for everyday laundry"
+                : "Priority handling, same-day turnaround"}
+            </span>
+
+            <span className="mt-2 flex items-baseline gap-1">
+              {cheapest ? (
+                <>
+                  <span className="text-muted-foreground text-xs">From</span>
+                  <span className="font-display text-sm font-bold">
+                    {formatPrice(cheapest.price)}
+                  </span>
+                  <span className="text-muted-foreground text-xs">
+                    / {cheapest.unit}
+                  </span>
+                </>
+              ) : null}
+            </span>
+
             {active && picked > 0 ? (
-              <span className="text-muted-foreground ml-1.5 text-xs">
+              <span className="text-foreground mt-2 rounded-full bg-[var(--primary)]/15 px-2 py-0.5 text-xs font-medium">
                 {picked} kept
               </span>
             ) : null}

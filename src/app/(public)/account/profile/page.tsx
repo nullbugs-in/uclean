@@ -104,7 +104,8 @@ export default async function ProfilePage() {
             />
             <p className="font-medium">No saved addresses</p>
             <p className="text-muted-foreground mt-1 text-sm">
-              Addresses are saved for you while you book a pickup.
+              The pickup address you confirm while booking is saved here
+              automatically, so you never have to type it twice.
             </p>
           </GlassCard>
         ) : (

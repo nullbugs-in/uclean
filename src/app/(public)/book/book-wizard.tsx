@@ -5,6 +5,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 import { createBookingAction, listWeekSlotsAction } from "./actions";
+import { quoteDelivery } from "./delivery-charge";
 import {
   resolveSelection,
   selectionTotal,
@@ -24,6 +25,8 @@ type BookWizardProps = {
   maxRadiusKm: number;
   devTestCode: string | null;
   initialIdentity: { name: string; mobile: string } | null;
+  /** The customer's last saved address, so it can be prefilled. */
+  initialAddress?: string;
 };
 
 const STEP_LABELS: { id: WizardStep; label: string }[] = [
@@ -109,6 +112,7 @@ export function BookWizard({
   maxRadiusKm,
   devTestCode,
   initialIdentity,
+  initialAddress = "",
 }: BookWizardProps) {
   const [step, setStep] = React.useState<WizardStep>(
     initialIdentity ? "address" : "details",
@@ -118,7 +122,15 @@ export function BookWizard({
   );
   const verified = Boolean(initialIdentity) || identity.mobile !== "";
 
-  const [addressText, setAddressText] = React.useState("");
+  const [addressText, setAddressText] = React.useState(initialAddress);
+  // Tracked separately so the "saved address" hint disappears the moment the
+  // customer starts typing over it.
+  const [addressEdited, setAddressEdited] = React.useState(false);
+
+  function handleAddressText(value: string) {
+    setAddressEdited(true);
+    setAddressText(value);
+  }
   const [noticeAccepted, setNoticeAccepted] = React.useState(false);
   const [noticeAcceptedAt, setNoticeAcceptedAt] = React.useState<string | null>(
     null,
@@ -133,6 +145,13 @@ export function BookWizard({
   const selectedServices = React.useMemo(
     () => resolveSelection(serviceSelection, category),
     [serviceSelection, category],
+  );
+
+  // One quote, derived from the selection, shared by the services, review and
+  // confirmation screens so the three can never disagree about the charge.
+  const delivery = React.useMemo(
+    () => quoteDelivery(selectionTotal(selectedServices)),
+    [selectedServices],
   );
 
   const [weekDays, setWeekDays] = React.useState<SlotDay[] | null>(null);
@@ -243,6 +262,11 @@ export function BookWizard({
       orderNo: result.data.orderNo,
       slotDate,
       slotLabel: selectedSlot?.label ?? "",
+      subtotal: delivery.subtotal,
+      deliveryCharge: delivery.charge,
+      total: delivery.total,
+      isFreeDelivery: delivery.isFree,
+      addressText: addressText.trim(),
     });
     setStep("success");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -266,9 +290,10 @@ export function BookWizard({
           <AddressStep
             maxRadiusKm={maxRadiusKm}
             addressText={addressText}
+            prefilled={Boolean(initialAddress) && !addressEdited}
             noticeAccepted={noticeAccepted}
             notes={notes}
-            onAddressText={setAddressText}
+            onAddressText={handleAddressText}
             onNoticeAccepted={handleNoticeAccepted}
             onNotes={setNotes}
             onBack={() => setStep("details")}
@@ -280,6 +305,7 @@ export function BookWizard({
           <ServicesStep
             category={category}
             selection={serviceSelection}
+            delivery={delivery}
             onCategoryChange={setCategory}
             onSelectionChange={setServiceSelection}
             onBack={() => setStep("address")}
@@ -313,7 +339,7 @@ export function BookWizard({
             mobile={identity.mobile}
             addressText={addressText.trim()}
             services={selectedServices}
-            serviceTotal={selectionTotal(selectedServices)}
+            delivery={delivery}
             slotDate={slotDate ?? ""}
             slotLabel={selectedSlot?.label ?? ""}
             submitting={submitting}

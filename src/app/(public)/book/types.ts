@@ -3,12 +3,7 @@
 export type LatLng = { lat: number; lng: number };
 
 export type WizardStep =
-  | "details"
-  | "address"
-  | "services"
-  | "slot"
-  | "confirm"
-  | "success";
+  "details" | "address" | "services" | "slot" | "confirm" | "success";
 
 /**
  * The outcome of the 6 km check.
@@ -42,6 +37,13 @@ export type BookingSummary = {
   orderNo: string;
   slotDate: string;
   slotLabel: string;
+  /** Service subtotal, delivery charge and the quoted total, all in rupees. */
+  subtotal: number;
+  deliveryCharge: number;
+  total: number;
+  isFreeDelivery: boolean;
+  /** The address the booking was made against, shown back for reassurance. */
+  addressText: string;
 };
 
 export type ActionResult<T> =
