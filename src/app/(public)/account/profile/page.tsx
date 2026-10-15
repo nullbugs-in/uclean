@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Home, Mail, MessageCircle, Phone, UserRound } from "lucide-react";
+import { Home } from "lucide-react";
 
 import { GlassCard, initialsOf } from "@/components/account/glass";
+import { ProfileDetailsSection } from "@/components/account/profile-details-form";
 import { listAddresses } from "@/db/queries/profiles";
 import { createClient } from "@/db/server";
 import { formatDate, formatDateTime } from "@/lib/utils";
@@ -15,6 +16,9 @@ export const metadata: Metadata = { title: "Profile" };
  * Name and mobile are edited in exactly one place. Every other screen reads
  * them from here by user id, which is why an edit here shows up on the booking
  * form and notifications immediately.
+ *
+ * The details card swaps between a read view and an edit form; both live in
+ * `ProfileDetailsSection` so this page stays a server component.
  */
 export default async function ProfilePage() {
   const session = await requireRoleOrRedirect(
@@ -52,32 +56,7 @@ export default async function ProfilePage() {
           Details
         </h2>
 
-        <GlassCard className="uc-fade-up" style={{ animationDelay: "60ms" }}>
-          <dl className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-            <Detail
-              icon={<UserRound className="size-4" aria-hidden="true" />}
-              label="Full name"
-              value={profile.full_name}
-            />
-            <Detail
-              icon={<Phone className="size-4" aria-hidden="true" />}
-              label="Mobile"
-              value={profile.mobile}
-            />
-            <Detail
-              icon={<MessageCircle className="size-4" aria-hidden="true" />}
-              label="WhatsApp"
-              value={profile.whatsapp_number ?? "Not set"}
-              muted={!profile.whatsapp_number}
-            />
-            <Detail
-              icon={<Mail className="size-4" aria-hidden="true" />}
-              label="Email"
-              value={profile.email ?? "Not set"}
-              muted={!profile.email}
-            />
-          </dl>
-        </GlassCard>
+        <ProfileDetailsSection profile={profile} />
       </section>
 
       <section aria-labelledby="addresses-heading" className="space-y-4">
@@ -149,41 +128,6 @@ export default async function ProfilePage() {
       <p className="text-muted-foreground text-xs">
         Last updated {formatDateTime(profile.updated_at ?? profile.created_at)}.
       </p>
-    </div>
-  );
-}
-
-function Detail({
-  icon,
-  label,
-  value,
-  muted = false,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  muted?: boolean;
-}) {
-  return (
-    <div className="flex items-start gap-3">
-      <span
-        aria-hidden="true"
-        className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-[color-mix(in_oklab,var(--uc-lime-500),transparent_78%)] text-[var(--uc-green-800)]"
-      >
-        {icon}
-      </span>
-      <div className="min-w-0">
-        <dt className="text-muted-foreground text-xs tracking-wide uppercase">
-          {label}
-        </dt>
-        <dd
-          className={
-            muted ? "text-muted-foreground text-sm" : "truncate font-medium"
-          }
-        >
-          {value}
-        </dd>
-      </div>
     </div>
   );
 }
