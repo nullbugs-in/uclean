@@ -102,16 +102,6 @@ export function LoginForm({
       >
         {isPending ? "Sending code..." : "Send code"}
       </Button>
-
-      <p className="text-center text-sm text-[var(--muted-foreground)]">
-        New to UClean?{" "}
-        <a
-          className="font-medium text-[color-mix(in_oklab,var(--primary),black_35%)] underline-offset-4 hover:underline"
-          href={`/auth/signup?redirect=${encodeURIComponent(redirectTo)}`}
-        >
-          Create an account
-        </a>
-      </p>
     </form>
   );
 }

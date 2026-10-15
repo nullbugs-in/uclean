@@ -141,16 +141,6 @@ export function SignUpForm({
       >
         {isPending ? "Sending code..." : "Send code"}
       </Button>
-
-      <p className="text-center text-sm text-[var(--muted-foreground)]">
-        Already have an account?{" "}
-        <a
-          className="font-medium text-[color-mix(in_oklab,var(--primary),black_35%)] underline-offset-4 hover:underline"
-          href={`/auth/login?redirect=${encodeURIComponent(redirectTo)}`}
-        >
-          Sign in
-        </a>
-      </p>
     </form>
   );
 }
