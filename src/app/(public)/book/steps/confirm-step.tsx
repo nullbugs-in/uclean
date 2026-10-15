@@ -6,10 +6,17 @@ import { Button } from "@/components/ui/button";
 
 import { formatFullDate } from "../format";
 
+import { formatPrice } from "@/lib/utils";
+
+import type { SelectedService } from "../service-selection";
+
 type ConfirmStepProps = {
   name: string;
   mobile: string;
   addressText: string;
+  /** What the customer chose in the services step. */
+  services: SelectedService[];
+  serviceTotal: number;
   slotDate: string;
   slotLabel: string;
   submitting: boolean;
@@ -32,6 +39,8 @@ export function ConfirmStep({
   name,
   mobile,
   addressText,
+  services,
+  serviceTotal,
   slotDate,
   slotLabel,
   submitting,
@@ -49,6 +58,48 @@ export function ConfirmStep({
         <Row label="Pickup slot" value={slotLabel} />
         <Row label="Payment" value="Cash on delivery" />
       </dl>
+
+      {services.length > 0 ? (
+        <div className="space-y-3 rounded-xl border border-[var(--border)] p-4">
+          <div className="flex items-baseline justify-between">
+            <p className="font-semibold">Services</p>
+            <p className="font-display text-lg font-bold">
+              {formatPrice(serviceTotal)}
+            </p>
+          </div>
+
+          <ul className="space-y-1.5">
+            {services.map((service) => (
+              <li
+                key={service.key}
+                className="flex items-baseline justify-between gap-3 text-sm"
+              >
+                <span className="min-w-0">
+                  {service.item}
+                  {service.option ? (
+                    <span className="text-muted-foreground">
+                      {" "}
+                      ({service.option})
+                    </span>
+                  ) : null}
+                  <span className="text-muted-foreground">
+                    {" × "}
+                    {service.qty}
+                  </span>
+                </span>
+                <span className="shrink-0 font-medium">
+                  {formatPrice(service.unitPrice * service.qty)}
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          <p className="text-muted-foreground text-xs">
+            Indicative total. The final price is confirmed once we receive and
+            assess your items.
+          </p>
+        </div>
+      ) : null}
 
       {error ? (
         <p role="alert" className="text-sm text-[var(--destructive)]">

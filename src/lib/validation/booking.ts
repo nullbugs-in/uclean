@@ -50,6 +50,13 @@ export const bookPickupSchema = bookingDetailsSchema.extend({
 
 export type BookPickupInput = z.infer<typeof bookPickupSchema>;
 
+/** One service line the customer chose, as it will be stored on the order. */
+export const bookingItemSchema = z.object({
+  name: z.string().trim().min(1, "Name each service").max(160),
+  qty: z.number().positive().max(99),
+  unitPrice: z.number().min(0),
+});
+
 /**
  * The public `/book` wizard submit.
  *
@@ -66,6 +73,8 @@ export const pickupRequestSchema = z.object({
   slotDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a pickup date"),
   slotId: z.string().uuid("Choose a pickup slot"),
   zoneNoticeAcceptedAt: z.string().datetime(),
+  // Chosen in step 3. Capped so a crafted payload cannot flood the order.
+  items: z.array(bookingItemSchema).max(30, "Too many services selected"),
 });
 
 export type PickupRequestInput = z.infer<typeof pickupRequestSchema>;

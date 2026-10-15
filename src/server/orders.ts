@@ -22,6 +22,8 @@ export type CreatePickupInput = {
   slotDate: string;
   slotId: string;
   zoneNoticeAcceptedAt: string;
+  /** Services chosen in the wizard, written to order_items once the order exists. */
+  items?: Array<{ name: string; qty: number; unitPrice: number }>;
   source?: OrderSource;
   createdBy?: string | null;
 };
@@ -107,6 +109,36 @@ export async function createPickupOrder(
 
   if (error || !orderId) {
     throw new Error(`book_pickup failed: ${error?.message ?? "unknown error"}`);
+  }
+
+  /*
+   * The services the customer chose, recorded once the order row exists.
+   *
+   * order_items has no insert policy, so the service role is used here, as it
+   * is for the RPC call above. service_id is left null: these are price-list
+   * lines, not rows in `services`.
+   *
+   * Best effort on purpose. The booking is already committed at this point, and
+   * failing the whole request over a line item would leave the customer with a
+   * booking the site thought was rejected. Staff still see the order, and the
+   * items can be added from the admin side.
+   */
+  if (input.items?.length) {
+    const { error: itemsError } = await service.from("order_items").insert(
+      input.items.map((item) => ({
+        order_id: orderId,
+        // Price-list lines have no `services` row behind them. The column is
+        // nullable, but the generated insert type still requires the key.
+        service_id: null,
+        item_name: item.name,
+        qty: item.qty,
+        unit_price: item.unitPrice,
+      })),
+    );
+
+    if (itemsError) {
+      console.error("Could not record services on the order", itemsError);
+    }
   }
 
   const { data: order, error: orderError } = await service

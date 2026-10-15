@@ -2,7 +2,13 @@
 
 export type LatLng = { lat: number; lng: number };
 
-export type WizardStep = "details" | "address" | "slot" | "confirm" | "success";
+export type WizardStep =
+  | "details"
+  | "address"
+  | "services"
+  | "slot"
+  | "confirm"
+  | "success";
 
 /**
  * The outcome of the 6 km check.

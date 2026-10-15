@@ -87,6 +87,8 @@ export type CreateBookingInput = {
   slotDate: string;
   slotId: string;
   zoneNoticeAcceptedAt: string;
+  /** Services chosen in the wizard, written to the order's line items. */
+  items: Array<{ name: string; qty: number; unitPrice: number }>;
 };
 
 /**
@@ -129,6 +131,7 @@ export async function createBookingAction(
       slotDate: parsed.data.slotDate,
       slotId: parsed.data.slotId,
       zoneNoticeAcceptedAt: parsed.data.zoneNoticeAcceptedAt,
+      items: parsed.data.items,
     });
 
     return { ok: true, data: result };

@@ -5,11 +5,18 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 import { createBookingAction, listWeekSlotsAction } from "./actions";
+import {
+  resolveSelection,
+  selectionTotal,
+  type ServiceSelection,
+} from "./service-selection";
 import { AddressStep } from "./steps/address-step";
 import { ConfirmStep } from "./steps/confirm-step";
 import { DetailsStep } from "./steps/details-step";
+import { ServicesStep } from "./steps/services-step";
 import { SlotStep } from "./steps/slot-step";
 import { SuccessStep } from "./steps/success-step";
+import type { CategorySlug } from "@/data/pricing";
 import type { BookingSummary, LatLng, SlotDay, WizardStep } from "./types";
 
 type BookWizardProps = {
@@ -22,6 +29,7 @@ type BookWizardProps = {
 const STEP_LABELS: { id: WizardStep; label: string }[] = [
   { id: "details", label: "Your details" },
   { id: "address", label: "Address" },
+  { id: "services", label: "Services" },
   { id: "slot", label: "Pickup slot" },
   { id: "confirm", label: "Confirm" },
 ];
@@ -33,7 +41,13 @@ function Stepper({
   current: WizardStep;
   verified: boolean;
 }) {
-  const order: WizardStep[] = ["details", "address", "slot", "confirm"];
+  const order: WizardStep[] = [
+    "details",
+    "address",
+    "services",
+    "slot",
+    "confirm",
+  ];
   const visualStep = current === "success" ? "confirm" : current;
   const currentIndex = order.indexOf(visualStep);
 
@@ -111,6 +125,16 @@ export function BookWizard({
   );
   const [notes, setNotes] = React.useState("");
 
+  // Service choices, keyed by the stable "<group>/<item>/<option>" key so the
+  // customer can switch between Regular and Express without losing them.
+  const [category, setCategory] = React.useState<CategorySlug>("regular");
+  const [serviceSelection, setServiceSelection] =
+    React.useState<ServiceSelection>({});
+  const selectedServices = React.useMemo(
+    () => resolveSelection(serviceSelection, category),
+    [serviceSelection, category],
+  );
+
   const [weekDays, setWeekDays] = React.useState<SlotDay[] | null>(null);
   const [loadingSlots, setLoadingSlots] = React.useState(false);
   const [slotsError, setSlotsError] = React.useState<string | null>(null);
@@ -159,6 +183,11 @@ export function BookWizard({
     if (firstOpen) setSlotDate(firstOpen.dateKey);
   }
 
+  function goToServices() {
+    setStep("services");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   function goToSlots() {
     setStep("slot");
     if (!weekDays && !loadingSlots) void loadSlots();
@@ -170,6 +199,11 @@ export function BookWizard({
       setConfirmError(
         "Something is missing from your booking. Please step back and try again.",
       );
+      return;
+    }
+
+    if (selectedServices.length === 0) {
+      setConfirmError("Choose at least one service before confirming.");
       return;
     }
 
@@ -188,6 +222,13 @@ export function BookWizard({
       slotDate,
       slotId,
       zoneNoticeAcceptedAt: noticeAcceptedAt,
+      items: selectedServices.map((service) => ({
+        name: service.option
+          ? `${service.item} (${service.option})`
+          : service.item,
+        qty: service.qty,
+        unitPrice: service.unitPrice,
+      })),
     });
 
     setSubmitting(false);
@@ -231,6 +272,17 @@ export function BookWizard({
             onNoticeAccepted={handleNoticeAccepted}
             onNotes={setNotes}
             onBack={() => setStep("details")}
+            onContinue={goToServices}
+          />
+        ) : null}
+
+        {step === "services" ? (
+          <ServicesStep
+            category={category}
+            selection={serviceSelection}
+            onCategoryChange={setCategory}
+            onSelectionChange={setServiceSelection}
+            onBack={() => setStep("address")}
             onContinue={goToSlots}
           />
         ) : null}
@@ -260,6 +312,8 @@ export function BookWizard({
             name={identity.name}
             mobile={identity.mobile}
             addressText={addressText.trim()}
+            services={selectedServices}
+            serviceTotal={selectionTotal(selectedServices)}
             slotDate={slotDate ?? ""}
             slotLabel={selectedSlot?.label ?? ""}
             submitting={submitting}
