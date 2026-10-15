@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { PagePlaceholder } from "@/components/placeholder";
-import { OrderStatusActions } from "@/components/order-status-actions";
 import { OrderTimeline } from "@/components/order-timeline";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +9,8 @@ import { createClient } from "@/db/server";
 import { INTERNAL_STATUS_LABEL } from "@/lib/order-status";
 import { formatINR } from "@/lib/utils";
 import { requireRoleOrRedirect } from "@/server/auth";
+import { StaffPage } from "../../../_components/staff-page";
+import { StaffOrderStatusActions } from "./status-actions";
 
 export const metadata: Metadata = { title: "Order" };
 
@@ -40,7 +40,7 @@ export default async function StaffOrderPage({
   );
 
   return (
-    <PagePlaceholder
+    <StaffPage
       title={`Order ${order.order_no}`}
       description="Items, status and the transitions you are allowed to make."
     >
@@ -89,7 +89,10 @@ export default async function StaffOrderPage({
               <CardTitle className="text-base">Update status</CardTitle>
             </CardHeader>
             <CardContent>
-              <OrderStatusActions orderId={order.id} status={order.status} />
+              <StaffOrderStatusActions
+                orderId={order.id}
+                status={order.status}
+              />
               <p className="mt-3 text-xs text-[var(--muted-foreground)]">
                 Only the transitions the database permits are shown. The
                 orders_enforce_transition trigger rejects anything else.
@@ -110,6 +113,6 @@ export default async function StaffOrderPage({
           </Card>
         </div>
       </div>
-    </PagePlaceholder>
+    </StaffPage>
   );
 }
