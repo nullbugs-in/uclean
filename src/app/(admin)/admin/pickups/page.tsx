@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { PagePlaceholder } from "@/components/placeholder";
-import { AssignmentList } from "../../../(staff)/staff/pickups/assignment-list";
+import { AssignmentList } from "../../../(staff)/_components/assignment-list";
 
 export const metadata: Metadata = { title: "Pickup management" };
 

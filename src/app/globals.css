@@ -28,6 +28,22 @@
   /* Warm accent reserved for small highlights (badges, ratings). */
   --color-cta: var(--cta);
   --color-cta-foreground: var(--cta-foreground);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+
+  /* Exposes the chart series as Tailwind colours (bg-chart-1, text-chart-2)
+     as well as CSS variables, which is what chartConfig passes to Recharts. */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
 }
 
 /*
@@ -37,6 +53,11 @@
  */
 :root {
   --radius: 0.75rem;
+
+  /* Render native controls (scrollbars, autofill, date pickers) in the light
+     palette. The .dark block flips it. Without this the browser widgets stay
+     light on a dark surface and read as broken. */
+  color-scheme: light;
 
   --background: oklch(0.985 0.012 130);
   --foreground: oklch(0.26 0.025 152);
@@ -54,15 +75,42 @@
   --accent: oklch(0.94 0.06 130);
   --accent-foreground: oklch(0.28 0.03 152);
   --destructive: oklch(0.58 0.2 27);
+  /* Decorative only: card edges and section dividers. */
   --border: oklch(0.9 0.02 135);
-  --input: oklch(0.9 0.02 135);
-  --ring: oklch(0.7 0.16 131);
+  /* 3.6:1 on white, up from 1.3:1. --input outlines form fields, and on a
+     borderless field the border is the only thing identifying the control, so
+     it has to clear WCAG 1.4.11's 3:1 for non-text contrast. */
+  --input: oklch(0.62 0.02 148);
+  /* 3.8:1 on white, up from 2.5:1. A focus indicator below 3:1 fails
+     WCAG 2.4.11. */
+  --ring: oklch(0.6 0.15 131);
 
   --cta: oklch(0.7 0.17 38);
   --cta-foreground: oklch(0.99 0.01 80);
+
+  /* Panel sidebar. Shadcn ships this as slate; tuned to the brand instead. */
+  --sidebar: oklch(0.975 0.018 132);
+  --sidebar-foreground: oklch(0.3 0.03 152);
+  --sidebar-primary: oklch(0.77 0.19 131);
+  --sidebar-primary-foreground: oklch(0.24 0.03 152);
+  --sidebar-accent: oklch(0.94 0.06 130);
+  --sidebar-accent-foreground: oklch(0.26 0.03 152);
+  --sidebar-border: oklch(0.9 0.02 135);
+  --sidebar-ring: oklch(0.6 0.15 131);
+
+  /* Chart series, in the order the panels use them: lime, teal, sky, amber,
+     rose. Distinct hues rather than tints of one, so adjacent series stay
+     separable without relying on colour alone. */
+  --chart-1: oklch(0.77 0.19 131);
+  --chart-2: oklch(0.7 0.11 178);
+  --chart-3: oklch(0.66 0.12 235);
+  --chart-4: oklch(0.78 0.15 75);
+  --chart-5: oklch(0.62 0.2 20);
 }
 
 .dark {
+  color-scheme: dark;
+
   --background: oklch(0.19 0.02 150);
   --foreground: oklch(0.96 0.01 130);
   --card: oklch(0.23 0.02 150);
@@ -80,11 +128,28 @@
   --accent-foreground: oklch(0.96 0.01 130);
   --destructive: oklch(0.65 0.19 25);
   --border: oklch(0.32 0.02 150);
-  --input: oklch(0.32 0.02 150);
+  /* 3.5:1 on the dark card, up from 1.3:1. Kept lighter than --border on
+     purpose: a dark surface needs a lighter edge to register at all. */
+  --input: oklch(0.55 0.02 148);
   --ring: oklch(0.83 0.19 131);
 
   --cta: oklch(0.74 0.16 38);
   --cta-foreground: oklch(0.16 0.02 60);
+
+  --sidebar: oklch(0.22 0.02 150);
+  --sidebar-foreground: oklch(0.94 0.01 130);
+  --sidebar-primary: oklch(0.83 0.19 131);
+  --sidebar-primary-foreground: oklch(0.2 0.03 152);
+  --sidebar-accent: oklch(0.3 0.03 145);
+  --sidebar-accent-foreground: oklch(0.96 0.01 130);
+  --sidebar-border: oklch(0.32 0.02 150);
+  --sidebar-ring: oklch(0.83 0.19 131);
+
+  --chart-1: oklch(0.83 0.19 131);
+  --chart-2: oklch(0.76 0.11 178);
+  --chart-3: oklch(0.72 0.12 235);
+  --chart-4: oklch(0.82 0.15 75);
+  --chart-5: oklch(0.68 0.18 20);
 }
 
 @layer base {

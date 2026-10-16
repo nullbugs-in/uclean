@@ -2,9 +2,25 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Sparkles } from "lucide-react";
 
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarRail,
+} from "@/components/ui/sidebar";
 import type { Profile } from "@/db/types";
-import { cn } from "@/lib/utils";
+
+import { panelIcon } from "./icons";
+import { PanelUserMenu } from "./user-menu";
 
 export type PanelNavItem = {
   href: string;
@@ -18,57 +34,126 @@ export type PanelNavSection = {
   items: PanelNavItem[];
 };
 
+export type PanelUser = {
+  full_name: string;
+  role: Profile["role"];
+};
+
+/** First path segment of a href, e.g. "/staff/orders" -> "/staff". */
+function panelRoot(href: string | undefined) {
+  const segment = href?.split("/").filter(Boolean)[0];
+  return segment ? `/${segment}` : "/";
+}
+
 /**
- * Client component because it needs usePathname to mark the active link, which
- * a server layout cannot read. The session user is still resolved on the
- * server and passed in as a prop, so nothing about auth happens here.
+ * Collapsible panel sidebar.
+ *
+ * Client-side, but only for pathname and collapse state: the session user is
+ * resolved on the server and arrives as a prop, so nothing about auth happens
+ * here.
+ *
+ * Active highlighting picks the single longest href that prefixes the current
+ * path. A plain prefix test would light up both "/staff" and "/staff/pickups"
+ * while the pickups page is open, which is the kind of thing that makes a nav
+ * feel broken.
  */
 export function PanelSidebar({
   sections,
-  role,
+  user,
+  panelName,
 }: {
   sections: PanelNavSection[];
-  role: Profile["role"];
+  user: PanelUser;
+  panelName: string;
 }) {
   const pathname = usePathname() ?? "";
 
+  const visible = sections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(
+        (item) => !item.roles || item.roles.includes(user.role),
+      ),
+    }))
+    .filter((section) => section.items.length > 0);
+
+  const activeHref = visible
+    .flatMap((section) => section.items)
+    .reduce<string | undefined>((best, item) => {
+      const matches =
+        pathname === item.href || pathname.startsWith(`${item.href}/`);
+      if (!matches) return best;
+      return best === undefined || item.href.length > best.length
+        ? item.href
+        : best;
+    }, undefined);
+
+  const home = panelRoot(visible[0]?.items[0]?.href);
+
   return (
-    <nav
-      aria-label="Panel"
-      className="w-full shrink-0 space-y-6 border-b border-[var(--border)] p-4 md:w-56 md:border-r md:border-b-0"
-    >
-      {sections.map((section) => (
-        <div key={section.title} className="space-y-1">
-          <p className="px-2 pb-1 text-xs font-semibold tracking-wider text-[var(--muted-foreground)] uppercase">
-            {section.title}
-          </p>
-          <ul className="space-y-0.5">
-            {section.items
-              .filter((item) => !item.roles || item.roles.includes(role))
-              .map((item) => {
-                const active =
-                  pathname === item.href ||
-                  pathname.startsWith(`${item.href}/`);
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(
-                        "block rounded-md px-2 py-1.5 text-sm transition-colors",
-                        active
-                          ? "bg-[var(--accent)] font-medium text-[var(--accent-foreground)]"
-                          : "text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)]",
-                      )}
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                );
-              })}
-          </ul>
-        </div>
-      ))}
-    </nav>
+    <Sidebar collapsible="icon">
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" asChild>
+              <Link href={home}>
+                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+                  <Sparkles className="size-4" />
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-semibold">UClean</span>
+                  <span className="truncate text-xs opacity-80">
+                    {panelName}
+                  </span>
+                </div>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+
+      <SidebarContent>
+        {visible.map((section) => (
+          <SidebarGroup key={section.title}>
+            <SidebarGroupLabel>{section.title}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {section.items.map((item) => {
+                  const Icon = panelIcon(item.href);
+                  const active = item.href === activeHref;
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={active}
+                        tooltip={item.label}
+                      >
+                        <Link
+                          href={item.href}
+                          aria-current={active ? "page" : undefined}
+                        >
+                          {Icon ? <Icon /> : null}
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
+      </SidebarContent>
+
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <PanelUserMenu user={user} panelName={panelName} />
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+
+      <SidebarRail />
+    </Sidebar>
   );
 }

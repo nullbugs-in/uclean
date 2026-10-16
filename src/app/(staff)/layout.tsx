@@ -12,6 +12,7 @@ const SECTIONS: PanelNavSection[] = [
   {
     title: "Today",
     items: [
+      { href: "/staff", label: "Overview" },
       { href: "/staff/pickups", label: "My pickups" },
       { href: "/staff/deliveries", label: "My deliveries" },
     ],
@@ -35,10 +36,7 @@ const SECTIONS: PanelNavSection[] = [
 export default async function StaffLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const session = await requireRoleOrRedirect(
-    ["staff", "admin"],
-    "/staff/pickups",
-  );
+  const session = await requireRoleOrRedirect(["staff", "admin"], "/staff");
 
   return (
     <div className="flex min-h-dvh flex-col">

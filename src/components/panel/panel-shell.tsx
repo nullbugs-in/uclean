@@ -1,8 +1,8 @@
-import type { Profile } from "@/db/types";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
-import { SignOutButton } from "@/components/layout/sign-out-button";
-
-import { PanelSidebar, type PanelNavSection } from "./sidebar";
+import { PanelProviders } from "./panel-providers";
+import { PanelTopbar } from "./panel-topbar";
+import { PanelSidebar, type PanelNavSection, type PanelUser } from "./sidebar";
 
 export type { PanelNavSection, PanelNavItem } from "./sidebar";
 
@@ -10,8 +10,14 @@ export type { PanelNavSection, PanelNavItem } from "./sidebar";
  * Shared chrome for the three authenticated panels.
  *
  * A server component: the session user is resolved before it renders, so no
- * panel layout ever paints without a known role. Only the sidebar is a client
- * component, and only because it needs the current path.
+ * panel layout ever paints without a known role. The interactive pieces
+ * (sidebar, topbar, theme, command palette) are client components nested
+ * inside, which keeps the auth decision on the server where it belongs.
+ *
+ * The props are deliberately unchanged from the hand-rolled shell this
+ * replaces. The customer account panel lives in a route group this branch does
+ * not own, and keeping the contract identical means it picks up the new chrome
+ * without anyone having to touch that file.
  */
 export function PanelShell({
   panelName,
@@ -21,34 +27,31 @@ export function PanelShell({
 }: {
   panelName: string;
   sections: PanelNavSection[];
-  user: { full_name: string; role: Profile["role"] };
+  user: PanelUser;
   children: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col md:flex-row">
-      <div className="shrink-0">
-        <p className="px-4 pt-4 text-xs font-semibold tracking-wider text-[var(--muted-foreground)] uppercase md:hidden">
-          {panelName}
-        </p>
-        <PanelSidebar sections={sections} role={user.role} />
-      </div>
-      <main className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm text-[var(--muted-foreground)]">
-              Signed in as{" "}
-              <span className="text-foreground font-medium">
-                {user.full_name}
-              </span>
-            </p>
-            <span className="text-xs text-[var(--muted-foreground)]">
-              {user.role}
-            </span>
-          </div>
-          <SignOutButton />
-        </div>
-        {children}
-      </main>
-    </div>
+    <PanelProviders>
+      <SidebarProvider>
+        <PanelSidebar
+          sections={sections}
+          user={user}
+          panelName={panelName}
+        />
+        <SidebarInset>
+          <PanelTopbar
+            panelName={panelName}
+            sections={sections}
+            role={user.role}
+          />
+          <main className="min-w-0 flex-1">
+            {/* One shared width cap so every page lines up; padding stays with
+                the page, since an embedded table and a summary card want
+                different amounts of it. */}
+            <div className="mx-auto w-full max-w-7xl">{children}</div>
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    </PanelProviders>
   );
 }

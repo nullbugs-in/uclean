@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { PagePlaceholder } from "@/components/placeholder";
-import { OrderStatusActions } from "@/components/order-status-actions";
 import { OrderTimeline } from "@/components/order-timeline";
+import { CycleMeter } from "@/components/panel/cycle-meter";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getOrderDetail } from "@/db/queries/orders";
@@ -11,6 +10,8 @@ import { createClient } from "@/db/server";
 import { INTERNAL_STATUS_LABEL } from "@/lib/order-status";
 import { formatINR } from "@/lib/utils";
 import { requireRoleOrRedirect } from "@/server/auth";
+import { PanelPage } from "@/components/panel/panel-page";
+import { StaffOrderStatusActions } from "./status-actions";
 
 export const metadata: Metadata = { title: "Order" };
 
@@ -40,9 +41,10 @@ export default async function StaffOrderPage({
   );
 
   return (
-    <PagePlaceholder
+    <PanelPage
       title={`Order ${order.order_no}`}
       description="Items, status and the transitions you are allowed to make."
+      action={<CycleMeter status={order.status} className="w-full max-w-60" />}
     >
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <Card>
@@ -54,11 +56,12 @@ export default async function StaffOrderPage({
           </CardHeader>
           <CardContent className="space-y-3">
             {order.order_items.length === 0 ? (
-              <p className="text-sm text-[var(--muted-foreground)]">
-                No items recorded yet. Admin records items in Milestone 4.
+              <p className="text-muted-foreground text-sm">
+                No items recorded yet. Items are added when the order is
+                assessed.
               </p>
             ) : (
-              <ul className="divide-y divide-[var(--border)] text-sm">
+              <ul className="divide-border divide-y text-sm">
                 {order.order_items.map((item) => (
                   <li
                     key={item.id}
@@ -66,7 +69,7 @@ export default async function StaffOrderPage({
                   >
                     <span>
                       {item.item_name}
-                      <span className="text-[var(--muted-foreground)]">
+                      <span className="text-muted-foreground">
                         {" "}
                         x {item.qty}
                       </span>
@@ -89,8 +92,11 @@ export default async function StaffOrderPage({
               <CardTitle className="text-base">Update status</CardTitle>
             </CardHeader>
             <CardContent>
-              <OrderStatusActions orderId={order.id} status={order.status} />
-              <p className="mt-3 text-xs text-[var(--muted-foreground)]">
+              <StaffOrderStatusActions
+                orderId={order.id}
+                status={order.status}
+              />
+              <p className="text-muted-foreground mt-3 text-xs">
                 Only the transitions the database permits are shown. The
                 orders_enforce_transition trigger rejects anything else.
               </p>
@@ -110,6 +116,6 @@ export default async function StaffOrderPage({
           </Card>
         </div>
       </div>
-    </PagePlaceholder>
+    </PanelPage>
   );
 }
