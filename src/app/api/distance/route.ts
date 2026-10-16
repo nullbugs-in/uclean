@@ -10,9 +10,9 @@ import { checkDeliveryZone } from "@/server/maps";
  * Server-side delivery zone check for the booking wizard.
  *
  * The browser sends only coordinates, never a distance. The distance is
- * computed here with the IP-restricted server key, which is why the 6 km rule
- * cannot be bypassed by editing the request. book_pickup repeats the check
- * inside the transaction.
+ * computed here with the server-side key (restricted to the Routes API and
+ * never sent to a client), which is why the 6 km rule cannot be bypassed by
+ * editing the request. book_pickup repeats the check inside the transaction.
  */
 
 const bodySchema = z.object({

@@ -1,15 +1,34 @@
 "use client";
 
-import { Check, Loader2, MapPin } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  CheckCircle2,
+  Loader2,
+  MapPin,
+  XCircle,
+} from "lucide-react";
+import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { isUsableAddress } from "@/lib/address";
 import { cn } from "@/lib/utils";
 
+import { MapPicker } from "../map-picker";
+import type { LatLng, ZoneResult } from "../types";
+
 type AddressStepProps = {
+  /** Store location: the map's initial view and the point we measure from. */
+  center: LatLng;
   maxRadiusKm: number;
   addressText: string;
+  /** Coordinates from the map pin, or null until the customer places one. */
+  coords: LatLng | null;
+  /** The server's verdict on `coords`, or null before the first check. */
+  zone: ZoneResult | null;
+  /** True while a distance check is in flight. */
+  checking: boolean;
   /** True while the field still holds the address saved on the profile. */
   prefilled?: boolean;
   /** True while the saved address is still being fetched. */
@@ -17,6 +36,7 @@ type AddressStepProps = {
   noticeAccepted: boolean;
   notes: string;
   onAddressText: (value: string) => void;
+  onCoords: (value: LatLng) => void;
   onNoticeAccepted: (value: boolean) => void;
   onNotes: (value: string) => void;
   onBack: () => void;
@@ -24,30 +44,115 @@ type AddressStepProps = {
 };
 
 /**
- * Step 2: the pickup address.
+ * The outcome of the server-side distance check, rendered under the map.
  *
- * Only reachable once the mobile number is verified. The address is the one
- * thing the customer has to give us, so the step does no location work of its
- * own: no map, no lookup, no distance verdict. The delivery-area notice below
- * still applies and is still recorded on the order.
+ * `unconfigured` reads as an operational problem rather than "you are too far
+ * away", because that is what it is: the store coordinates have not been set.
+ */
+function ZoneFeedback({
+  zone,
+  checking,
+}: {
+  zone: ZoneResult | null;
+  checking: boolean;
+}) {
+  if (checking) {
+    return (
+      <div className="bg-muted/50 text-muted-foreground flex items-center gap-2 rounded-lg px-3 py-2 text-sm">
+        <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+        Checking your location...
+      </div>
+    );
+  }
+
+  if (!zone) return null;
+
+  if (zone.status === "within") {
+    return (
+      <div className="flex items-start gap-3 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100">
+        <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+        <p>
+          Great news, this address is inside our service area. It is about{" "}
+          <strong>{zone.distanceKm.toFixed(1)} km</strong> from the store.
+        </p>
+      </div>
+    );
+  }
+
+  if (zone.status === "outside") {
+    const excess = Math.max(0, zone.distanceKm - zone.maxRadiusKm);
+    return (
+      <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+        <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+        <div className="space-y-1">
+          <p>
+            This pin is about <strong>{zone.distanceKm.toFixed(1)} km</strong>{" "}
+            from the store, roughly <strong>{excess.toFixed(1)} km</strong>{" "}
+            beyond our {zone.maxRadiusKm} km pickup zone.
+          </p>
+          <p>
+            Move the pin closer, pick a nearby landmark, or message us on
+            WhatsApp and we will see what we can do.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (zone.status === "unconfigured") {
+    return (
+      <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+        <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+        <p>
+          Our service area is not set up yet, so we cannot check this address
+          automatically. Please contact us on WhatsApp to book.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-start gap-3 rounded-lg border border-[var(--destructive)]/40 bg-[var(--destructive)]/5 px-3 py-2 text-sm text-[var(--destructive)]">
+      <XCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+      <p>{zone.message}</p>
+    </div>
+  );
+}
+
+/**
+ * Step 2: the pickup address and map.
+ *
+ * Only reachable once the mobile number is verified. The customer places a pin
+ * (search, drag, tap the map, or "use my current location"); that pin is the
+ * coordinate the order is booked against. The distance verdict itself is always
+ * produced server side by the Routes API, never here — this step only displays
+ * it and gates Continue on an in-zone pin.
  *
  * Whatever is confirmed here is written to the customer's profile, so the next
  * booking can offer it back instead of asking again.
  */
 export function AddressStep({
+  center,
   maxRadiusKm,
   addressText,
+  coords,
+  zone,
+  checking,
   prefilled = false,
   loadingSaved = false,
   noticeAccepted,
   notes,
   onAddressText,
+  onCoords,
   onNoticeAccepted,
   onNotes,
   onBack,
   onContinue,
 }: AddressStepProps) {
-  const canContinue = isUsableAddress(addressText) && noticeAccepted;
+  const addressInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const canContinue =
+    isUsableAddress(addressText) && noticeAccepted && zone?.status === "within";
 
   return (
     <div className="space-y-6">
@@ -56,6 +161,7 @@ export function AddressStep({
         <Input
           id="address"
           name="address"
+          ref={addressInputRef}
           autoComplete="street-address"
           placeholder="Flat / house no, street, area, pin code"
           value={addressText}
@@ -73,11 +179,21 @@ export function AddressStep({
           </p>
         ) : (
           <p className="text-muted-foreground text-xs">
-            Type your full pickup address including the flat or house number,
-            area and pin code. We will save it for your next booking.
+            Start typing and pick your address from the suggestions, then fine
+            tune the pin on the map. We will save it for your next booking.
           </p>
         )}
       </div>
+
+      <MapPicker
+        center={center}
+        value={coords}
+        onChange={onCoords}
+        onAddressResolved={onAddressText}
+        inputRef={addressInputRef}
+      />
+
+      <ZoneFeedback zone={zone} checking={checking} />
 
       <div className="space-y-2">
         <Label htmlFor="notes">Notes for the pickup (optional)</Label>

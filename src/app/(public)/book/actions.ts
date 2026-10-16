@@ -189,8 +189,9 @@ export type CreateBookingInput = {
  *
  * `createPickupOrder` re-reads the name and mobile from the profile, so nothing
  * here is trusted from the browser beyond the chosen address, slot and notice
- * timestamp. The driving distance is not recomputed yet: the zone check is
- * switched off in `src/server/orders.ts` pending the real location flow.
+ * timestamp. The driving distance is recomputed there from the coordinates of
+ * the pin the customer placed, so the browser cannot widen its own delivery
+ * zone.
  */
 export async function createBookingAction(
   input: CreateBookingInput,

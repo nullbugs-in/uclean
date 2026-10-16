@@ -44,11 +44,12 @@ export async function listActiveHeroSlides(
 }
 
 /**
- * Store settings for the public site: address, hours, WhatsApp number.
+ * The contact-facing slice of store_settings: address, hours, WhatsApp number.
  *
- * Prefer this over fetching store_settings directly from a client component:
- * lat/lng are business sensitive and are only used by the server-side distance
- * check, so they have no business in the public bundle.
+ * Prefer this over the full row when a page only needs the contact block. The
+ * coordinates are left out not because they are secret -- the public contact map
+ * already points at the store -- but because this shape is what the marketing
+ * section reads, and fields it ignores only invite drift.
  */
 export async function getPublicStoreSettings(client: Client): Promise<{
   address: string | null;

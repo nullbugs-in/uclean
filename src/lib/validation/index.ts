@@ -27,3 +27,6 @@ export type {
   OrderItemInput,
   StatusChangeInput,
 } from "./billing";
+
+export { storeSettingsSchema } from "./store";
+export type { StoreSettingsInput, StoreSettingsValues } from "./store";

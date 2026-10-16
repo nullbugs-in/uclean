@@ -36,8 +36,8 @@ type RoutesResponse = {
  * with a minimal request and no waypoints or traffic.
  *
  * Runs server side by design. The architecture doc is explicit that the check
- * cannot be bypassed from the browser, and the key it uses is IP-restricted so
- * it cannot be called from a client at all.
+ * cannot be bypassed from the browser, and the key it uses is restricted to the
+ * Routes API and never sent to a client.
  */
 export async function getDrivingDistance(
   origin: { lat: number; lng: number },

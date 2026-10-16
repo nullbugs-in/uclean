@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { getStoreSettings } from "@/db/queries/catalog";
 import { listAddresses } from "@/db/queries/profiles";
 import { createClient } from "@/db/server";
 import { siteConfig } from "@/config/site";
@@ -16,6 +17,26 @@ export const metadata: Metadata = {
 
 export default async function BookPage() {
   const session = await getSessionUser().catch(() => null);
+  const supabase = await createClient();
+
+  /**
+   * The store point and radius come from `store_settings` when they are set,
+   * falling back to the public config otherwise.
+   *
+   * This matters because the server measures the 6 km zone from
+   * `store_settings`, so centering the map on anything else would show the
+   * customer one reference point while judging them against another. The
+   * coordinates are already public (the contact map pin and `siteConfig` carry
+   * them), so serving them here does not widen what is exposed.
+   */
+  const store = await getStoreSettings(supabase).catch(() => null);
+
+  const storeCenter =
+    store && store.lat !== null && store.lng !== null
+      ? { lat: store.lat, lng: store.lng }
+      : siteConfig.coordinates;
+
+  const maxRadiusKm = store?.max_radius_km ?? siteConfig.deliveryRadiusKm;
 
   /**
    * A returning customer should not have to retype the address they gave us
@@ -24,7 +45,7 @@ export default async function BookPage() {
    * over: the wizard still works, the field just starts empty.
    */
   const savedAddress = session
-    ? await listAddresses(await createClient(), session.profile.id)
+    ? await listAddresses(supabase, session.profile.id)
         .then((addresses) => addresses[0]?.address_text ?? "")
         .catch(() => "")
     : "";
@@ -43,8 +64,8 @@ export default async function BookPage() {
       </header>
 
       <BookWizard
-        storeCenter={siteConfig.coordinates}
-        maxRadiusKm={siteConfig.deliveryRadiusKm}
+        storeCenter={storeCenter}
+        maxRadiusKm={maxRadiusKm}
         devTestCode={devOtpCode()}
         initialAddress={savedAddress}
         initialIdentity={
