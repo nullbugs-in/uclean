@@ -16,6 +16,10 @@ export type DomainErrorCode =
   | "INVALID_TRANSITION"
   | "ZONE_NOTICE_NOT_ACCEPTED"
   | "OTP_RATE_LIMITED"
+  | "OTP_ATTEMPTS_EXCEEDED"
+  | "MOBILE_ALREADY_REGISTERED"
+  | "MOBILE_NOT_REGISTERED"
+  | "MOBILE_INVALID"
   | "UNAUTHENTICATED"
   | "FORBIDDEN"
   | "INVALID_PAYMENT_TOKEN"
@@ -87,6 +91,62 @@ export const otpRateLimited = (minutes: number) =>
   new DomainError(
     "OTP_RATE_LIMITED",
     `Too many code requests. Please try again in ${minutes} minute(s).`,
+    { status: 429 },
+  );
+
+/**
+ * Signup was attempted for a number that already has an account.
+ *
+ * Said plainly, because the person typing already knows their own number and is
+ * trying to register, not probe. Signup is the one place where this costs
+ * nothing: an attacker learns only that a number is taken, and the same fact is
+ * obtainable by attempting a login with it.
+ */
+export const mobileAlreadyRegistered = () =>
+  new DomainError(
+    "MOBILE_ALREADY_REGISTERED",
+    "This mobile number is already registered. Please log in to your existing account.",
+    { status: 409 },
+  );
+
+/**
+ * Login was attempted for a number with no account.
+ *
+ * Thrown by the server, but deliberately *not* sent to the browser at request
+ * time: the action answers with the same generic text it would give for a
+ * registered number, so the send endpoint cannot be used to enumerate customers.
+ * The browser only ever learns this after verification attempts run out.
+ */
+export const mobileNotRegistered = () =>
+  new DomainError(
+    "MOBILE_NOT_REGISTERED",
+    "No account was found for this mobile number. Please create a new account to continue.",
+    { status: 404 },
+  );
+
+/**
+ * The number cannot be canonicalised, so no code can be sent.
+ *
+ * Distinct from the two above on purpose: those are answers about an account,
+ * this is a complaint about the input, and the signup form keys off
+ * `MOBILE_ALREADY_REGISTERED` to decide whether to offer a login link. Sharing a
+ * code between them would make a typo look like an existing account.
+ */
+export const mobileInvalid = () =>
+  new DomainError("MOBILE_INVALID", "Enter a valid 10 digit mobile number.", {
+    status: 400,
+  });
+
+/**
+ * Too many wrong codes for one number.
+ *
+ * Also the point at which the login flow stops hiding whether a number is
+ * registered, so it doubles as the enumeration brake.
+ */
+export const otpAttemptsExceeded = (minutes: number) =>
+  new DomainError(
+    "OTP_ATTEMPTS_EXCEEDED",
+    `That code is not valid or has expired. Too many attempts. Please request a new code in ${minutes} minute(s).`,
     { status: 429 },
   );
 

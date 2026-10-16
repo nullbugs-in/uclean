@@ -15,27 +15,37 @@ import { verifyOtpSchema } from "@/lib/validation/auth";
  * there is one implementation of the verify call. The booking wizard has its own
  * equivalent inside `DetailsStep`, which additionally owns a resend cooldown.
  *
- * `fullName` matters in development only: `sendLoginOtp` creates nothing when
- * the dev code is active, so the auth user is created later here, at verify
- * time. Without the name the profile trigger falls back to the dev email prefix
- * and the account ends up called "dev-919876543210".
+ * `intent` is what keeps signup and login from being the same flow again. It is
+ * sent to the server, which re-checks it: login is refused for a number with no
+ * account, and signup is refused for a number that has one. The component itself
+ * does not branch on it, because the server is the only party that can be
+ * trusted to know which case this is.
+ *
+ * `fullName` matters in development only: with the dev code active nothing is
+ * created at request time, so the account is built at verify time here. Without
+ * the name the profile trigger has nothing to name it with.
  */
 export function OtpVerifyStage({
   mobile,
   fullName,
+  intent = "login",
   redirectTo,
   devTestCode,
   onChangeNumber,
   onResend,
+  onUnregistered,
 }: {
   mobile: string;
   fullName?: string;
+  intent?: "signup" | "login" | "auto";
   redirectTo: string;
   devTestCode?: string | null;
   /** Returns the flow to the mobile-number stage. */
   onChangeNumber?: () => void;
   /** Re-requests a code, when the caller has a cooldown or button for it. */
   onResend?: () => void;
+  /** Called once the server reports this number has no account. */
+  onUnregistered?: () => void;
 }) {
   const [token, setToken] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +55,7 @@ export function OtpVerifyStage({
     event.preventDefault();
     setError(null);
 
-    const parsed = verifyOtpSchema.safeParse({ mobile, token });
+    const parsed = verifyOtpSchema.safeParse({ mobile, token, intent });
 
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? "Enter the 6 digit code");
@@ -65,7 +75,19 @@ export function OtpVerifyStage({
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as {
           error?: string;
+          unregistered?: boolean;
         } | null;
+
+        /*
+         * The server only sets `unregistered` once the attempt limit is spent,
+         * so reaching here means this number has been tried against enough
+         * times that continuing to hide it helps nobody. Below the limit the
+         * message is identical for a wrong code and an unknown number.
+         */
+        if (body?.unregistered && onUnregistered) {
+          onUnregistered();
+        }
+
         setError(body?.error ?? "That code is not valid or has expired.");
         return;
       }

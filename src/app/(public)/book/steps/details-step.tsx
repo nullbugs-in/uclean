@@ -3,13 +3,11 @@
 import { Loader2, ShieldCheck } from "lucide-react";
 import * as React from "react";
 
-import { requestLoginOtpAction } from "@/app/(auth)/auth/actions";
+import { requestAutoOtpAction } from "@/app/(auth)/auth/actions";
 import { DevOtpHint } from "@/components/dev-otp-hint";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { signUpSchema } from "@/lib/validation";
-
-import { normalizeMobile } from "../format";
 
 type DetailsStepProps = {
   defaultName: string;
@@ -25,6 +23,11 @@ type DetailsStepProps = {
  * Verification is what creates the Supabase session the rest of the wizard
  * depends on, so this step is the gate: nothing after it renders until it
  * succeeds.
+ *
+ * This step asks for a name because most people arriving here are new, but it is
+ * not a signup form: it posts with `intent: "auto"` so the server signs a
+ * returning customer in instead of telling them to go and register. The name is
+ * only used when it turns out to be a new account.
  */
 export function DetailsStep({
   defaultName,
@@ -67,10 +70,21 @@ export function DetailsStep({
       return;
     }
 
-    const normalized = normalizeMobile(parsed.data.mobile);
+    /*
+     * Already canonical: `signUpSchema` transforms the number on the way
+     * through, so there is no second normalisation step here to disagree with
+     * the one the auth pages do.
+     */
+    const normalized = parsed.data.mobile;
 
     startTransition(async () => {
-      const result = await requestLoginOtpAction({
+      /*
+       * The wizard uses its own action with `intent: "auto"`. Most people
+       * reaching this step are new, but a returning customer must not be pushed
+       * through signup, and login must not sign them up either. The server
+       * decides which of the two this number needs.
+       */
+      const result = await requestAutoOtpAction({
         mobile: normalized,
         fullName: parsed.data.fullName,
       });
@@ -100,7 +114,12 @@ export function DetailsStep({
       const response = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mobile, token: token.trim(), fullName: name }),
+        body: JSON.stringify({
+          mobile,
+          token: token.trim(),
+          fullName: name,
+          intent: "auto",
+        }),
       });
 
       const body = (await response.json().catch(() => null)) as {

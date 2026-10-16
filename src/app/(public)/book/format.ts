@@ -1,25 +1,12 @@
 /** Small formatting helpers shared by the booking wizard steps. */
 
-/**
- * Normalises a typed mobile number to the E.164-ish form Supabase expects.
- *
- * Ten digits are assumed to be Indian and get a +91 prefix; a leading trunk 0
- * or a bare 91 country code is absorbed so the same number typed three ways
- * resolves to one value.
+/*
+ * Mobile normalisation used to live here as `normalizeMobile`, and the wizard
+ * applied it while `/auth/login` did not, so the same person could end up with
+ * two accounts depending on which page they used. It now lives in
+ * `@/lib/mobile` and runs inside the request schemas instead, on the server as
+ * well as in the browser. Nothing imports it from here any more.
  */
-export function normalizeMobile(input: string): string {
-  const trimmed = input.trim();
-  const digits = trimmed.replace(/\D/g, "");
-
-  if (!digits) return trimmed;
-  if (digits.length === 10) return `+91${digits}`;
-  if (digits.length === 11 && digits.startsWith("0")) {
-    return `+91${digits.slice(1)}`;
-  }
-  if (digits.length === 12 && digits.startsWith("91")) return `+${digits}`;
-
-  return trimmed.startsWith("+") ? `+${digits}` : digits;
-}
 
 /** Parses a YYYY-MM-DD key as local midnight, avoiding a UTC day shift. */
 function parseDateKey(dateKey: string): Date {
