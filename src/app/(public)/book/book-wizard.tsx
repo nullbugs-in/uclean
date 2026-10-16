@@ -5,10 +5,8 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 import { createBookingAction, listWeekSlotsAction } from "./actions";
-import { quoteDelivery } from "./delivery-charge";
 import {
   resolveSelection,
-  selectionTotal,
   type ServiceSelection,
 } from "./service-selection";
 import { AddressStep } from "./steps/address-step";
@@ -147,13 +145,6 @@ export function BookWizard({
     [serviceSelection, category],
   );
 
-  // One quote, derived from the selection, shared by the services, review and
-  // confirmation screens so the three can never disagree about the charge.
-  const delivery = React.useMemo(
-    () => quoteDelivery(selectionTotal(selectedServices)),
-    [selectedServices],
-  );
-
   const [weekDays, setWeekDays] = React.useState<SlotDay[] | null>(null);
   const [loadingSlots, setLoadingSlots] = React.useState(false);
   const [slotsError, setSlotsError] = React.useState<string | null>(null);
@@ -262,10 +253,6 @@ export function BookWizard({
       orderNo: result.data.orderNo,
       slotDate,
       slotLabel: selectedSlot?.label ?? "",
-      subtotal: delivery.subtotal,
-      deliveryCharge: delivery.charge,
-      total: delivery.total,
-      isFreeDelivery: delivery.isFree,
       addressText: addressText.trim(),
     });
     setStep("success");
@@ -305,7 +292,6 @@ export function BookWizard({
           <ServicesStep
             category={category}
             selection={serviceSelection}
-            delivery={delivery}
             onCategoryChange={setCategory}
             onSelectionChange={setServiceSelection}
             onBack={() => setStep("address")}
@@ -339,7 +325,6 @@ export function BookWizard({
             mobile={identity.mobile}
             addressText={addressText.trim()}
             services={selectedServices}
-            delivery={delivery}
             slotDate={slotDate ?? ""}
             slotLabel={selectedSlot?.label ?? ""}
             submitting={submitting}

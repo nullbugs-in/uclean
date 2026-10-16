@@ -6,14 +6,11 @@ import {
   MapPin,
   MessageCircle,
   Plus,
-  Receipt,
-  Truck,
 } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { siteConfig, whatsAppLink } from "@/config/site";
-import { formatPrice } from "@/lib/utils";
 
 import { formatFullDate } from "../format";
 import type { BookingSummary } from "../types";
@@ -23,9 +20,11 @@ import type { BookingSummary } from "../types";
  *
  * This is where the customer is left. There is no timed redirect, because
  * being moved to the home page four seconds after booking throws away the
- * order number, the quoted total and the address we just wrote down, all of
- * which people tend to want at exactly that moment. Every exit is a button the
- * customer presses on purpose.
+ * order number and the address we just wrote down, both of which people tend
+ * to want at exactly that moment. Every exit is a button the customer presses
+ * on purpose.
+ *
+ * No amount is quoted here either, for the same reason as the confirm step.
  */
 export function SuccessStep({ summary }: { summary: BookingSummary }) {
   return (
@@ -55,46 +54,12 @@ export function SuccessStep({ summary }: { summary: BookingSummary }) {
           </p>
         </div>
 
-        <dl className="border-border space-y-1.5 border-t pt-3 text-left">
-          <div className="flex items-baseline justify-between gap-3">
-            <dt className="text-muted-foreground">Service total</dt>
-            <dd className="font-medium">{formatPrice(summary.subtotal)}</dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-3">
-            <dt className="text-muted-foreground flex items-center gap-1.5">
-              <Truck className="size-3.5" aria-hidden="true" />
-              Pickup and delivery
-            </dt>
-            <dd className="font-medium">
-              {summary.isFreeDelivery ? (
-                <span className="bg-primary/20 text-foreground inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold tracking-wide uppercase">
-                  Free
-                </span>
-              ) : (
-                formatPrice(summary.deliveryCharge)
-              )}
-            </dd>
-          </div>
-          <div className="border-border flex items-baseline justify-between gap-3 border-t pt-1.5">
-            <dt className="font-semibold">Estimated total</dt>
-            <dd className="font-display text-base font-bold">
-              {formatPrice(summary.total)}
-            </dd>
-          </div>
-        </dl>
-
         <p className="text-muted-foreground flex items-start gap-1.5 border-t pt-3 text-left text-xs">
           <MapPin aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
           <span>
             Collecting from{" "}
             <span className="text-foreground">{summary.addressText}</span>
           </span>
-        </p>
-
-        <p className="text-muted-foreground flex items-start gap-1.5 text-left text-xs">
-          <Receipt aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
-          Indicative total. The final price is confirmed once we assess your
-          items at pickup.
         </p>
       </div>
 

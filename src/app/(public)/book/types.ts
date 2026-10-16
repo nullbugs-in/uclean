@@ -37,11 +37,6 @@ export type BookingSummary = {
   orderNo: string;
   slotDate: string;
   slotLabel: string;
-  /** Service subtotal, delivery charge and the quoted total, all in rupees. */
-  subtotal: number;
-  deliveryCharge: number;
-  total: number;
-  isFreeDelivery: boolean;
   /** The address the booking was made against, shown back for reassurance. */
   addressText: string;
 };
