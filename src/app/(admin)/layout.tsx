@@ -20,7 +20,7 @@ const SECTIONS: PanelNavSection[] = [
     title: "Operations",
     items: [
       { href: "/admin/pickups", label: "Pickups" },
-      { href: "/admin/orders", label: "Orders" },
+      { href: "/admin/bookings", label: "Bookings" },
       { href: "/admin/deliveries", label: "Deliveries" },
       { href: "/admin/walk-in", label: "Walk-ins" },
     ],

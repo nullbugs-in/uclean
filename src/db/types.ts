@@ -199,7 +199,12 @@ export type Agent = {
 export type PickupAssignment = {
   id: string;
   order_id: string;
-  agent_id: string;
+  /**
+   * Nullable: set to null when an agent is removed, so a departed agent's
+   * history does not block deletion of their account. Mirrors
+   * `order_status_history.changed_by` and `audit_logs.actor_id`.
+   */
+  agent_id: string | null;
   type: AssignmentType;
   status: AssignmentStatus;
   assigned_by_type: "auto" | "manual";
@@ -561,6 +566,21 @@ export type Database = {
       is_store_staff: { Args: Record<string, never>; Returns: boolean };
       is_assigned_to_order: { Args: { p_order_id: string }; Returns: boolean };
       refresh_agent_load: { Args: { p_agent_id: string }; Returns: undefined };
+      /**
+       * Added by migration 20260101000012_admin_booking_process.sql. Hand-written
+       * to match that migration; regenerate with `supabase gen types` if the
+       * function's signature ever changes.
+       */
+      admin_change_order_status: {
+        Args: {
+          p_order_id: string;
+          p_to_status: OrderStatus;
+          p_expected_status: OrderStatus;
+          p_note?: string | null;
+          p_reason?: string | null;
+        };
+        Returns: undefined;
+      };
     };
     Enums: {
       app_role: AppRole;

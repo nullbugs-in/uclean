@@ -25,16 +25,28 @@ export const ORDER_STATUSES = [
 
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
-/** Wording the customer sees, from the "Customer sees" column of section 7. */
+/**
+ * Wording the customer sees, from the "Customer sees" column of section 7.
+ *
+ * `under_analysis` and `in_process` used to share the label "In Process", which
+ * made the customer tracking timeline show two identical steps with no way to
+ * tell which one had happened. They are distinct operations: the first is the
+ * laundry being washed and pressed, the second is everything after the invoice
+ * being settled. So the labels now say which one is meant.
+ *
+ * Only these strings changed. The status values, the transition table and the
+ * SQL are untouched, so `order-status.test.ts`'s parity check still holds and
+ * every existing stored status keeps meaning exactly what it meant.
+ */
 export const CUSTOMER_STATUS_LABEL: Record<OrderStatus, string> = {
   pickup_requested: "Pickup Scheduled",
   agent_assigned: "Agent Assigned",
   picked_up: "Picked Up",
-  under_analysis: "In Process",
+  under_analysis: "Laundry Processing",
   invoice_sent: "Invoice Sent",
   payment_pending: "Payment Pending",
   paid: "Payment Received",
-  in_process: "In Process",
+  in_process: "Processing Complete",
   ready_for_delivery: "Ready",
   out_for_delivery: "Out for Delivery",
   delivered: "Delivered",
@@ -101,6 +113,33 @@ export const CUSTOMER_TIMELINE: readonly OrderStatus[] = [
   "picked_up",
   "under_analysis",
   "invoice_sent",
+  "in_process",
+  "ready_for_delivery",
+  "out_for_delivery",
+  "delivered",
+];
+
+/**
+ * Every stage an administrator sees, in order.
+ *
+ * `CUSTOMER_TIMELINE` deliberately hides `payment_pending` and `paid`: a customer
+ * has no business tracking which side of an invoice a booking is on. An admin
+ * does, so an admin timeline that reused the customer list would silently omit
+ * two real billing stages and jump from "Invoice Sent" straight to "Processing
+ * Complete".
+ *
+ * The order is the same as `CUSTOMER_TIMELINE` with the two payment states
+ * inserted after `invoice_sent`, which is where the state machine puts them:
+ * `invoice_sent -> payment_pending -> paid -> in_process`.
+ */
+export const ADMIN_TIMELINE: readonly OrderStatus[] = [
+  "pickup_requested",
+  "agent_assigned",
+  "picked_up",
+  "under_analysis",
+  "invoice_sent",
+  "payment_pending",
+  "paid",
   "in_process",
   "ready_for_delivery",
   "out_for_delivery",

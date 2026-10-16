@@ -40,6 +40,8 @@ const PANEL_ICONS: Record<string, LucideIcon> = {
   "/admin": LayoutDashboard,
   "/admin/sales": TrendingUp,
   "/admin/pickups": PackageCheck,
+  "/admin/bookings": ClipboardList,
+  // Still resolvable so the /admin/orders redirect keeps its breadcrumb label.
   "/admin/orders": ClipboardList,
   "/admin/deliveries": Truck,
   "/admin/walk-in": DoorOpen,
