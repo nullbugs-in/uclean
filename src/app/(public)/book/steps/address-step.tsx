@@ -1,9 +1,10 @@
 "use client";
 
-import { Check, MapPin } from "lucide-react";
+import { Check, Loader2, MapPin } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
+import { isUsableAddress } from "@/lib/address";
 import { cn } from "@/lib/utils";
 
 type AddressStepProps = {
@@ -11,6 +12,8 @@ type AddressStepProps = {
   addressText: string;
   /** True while the field still holds the address saved on the profile. */
   prefilled?: boolean;
+  /** True while the saved address is still being fetched. */
+  loadingSaved?: boolean;
   noticeAccepted: boolean;
   notes: string;
   onAddressText: (value: string) => void;
@@ -27,11 +30,15 @@ type AddressStepProps = {
  * thing the customer has to give us, so the step does no location work of its
  * own: no map, no lookup, no distance verdict. The delivery-area notice below
  * still applies and is still recorded on the order.
+ *
+ * Whatever is confirmed here is written to the customer's profile, so the next
+ * booking can offer it back instead of asking again.
  */
 export function AddressStep({
   maxRadiusKm,
   addressText,
   prefilled = false,
+  loadingSaved = false,
   noticeAccepted,
   notes,
   onAddressText,
@@ -40,8 +47,7 @@ export function AddressStep({
   onBack,
   onContinue,
 }: AddressStepProps) {
-  const trimmedAddress = addressText.trim();
-  const canContinue = trimmedAddress.length >= 10 && noticeAccepted;
+  const canContinue = isUsableAddress(addressText) && noticeAccepted;
 
   return (
     <div className="space-y-6">
@@ -55,7 +61,12 @@ export function AddressStep({
           value={addressText}
           onChange={(event) => onAddressText(event.target.value)}
         />
-        {prefilled ? (
+        {loadingSaved ? (
+          <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+            <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+            Looking for an address you have used before...
+          </p>
+        ) : prefilled ? (
           <p className="flex items-center gap-1.5 text-xs font-medium text-[var(--uc-green-800,var(--foreground))]">
             <MapPin aria-hidden="true" className="size-3.5" />
             Saved from your last booking - edit it if you have moved.

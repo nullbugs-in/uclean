@@ -9,6 +9,17 @@ import { mobileSchema } from "@/lib/validation/auth";
 
 import { requestLoginOtpAction } from "../actions";
 
+/**
+ * Login is mobile number and code, and nothing else.
+ *
+ * There is deliberately no name field: a returning customer must not be asked
+ * for one again, and accepting one is what would let a login overwrite the name
+ * on an existing profile.
+ *
+ * The confirmation shown after the code is requested is the same text whether or
+ * not the number is registered. Anything more specific here would turn this page
+ * into a way to list every customer who has an account.
+ */
 export function LoginForm({
   redirectTo,
   devTestCode,
@@ -20,12 +31,14 @@ export function LoginForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [sent, setSent] = useState<string | null>(null);
+  const [unregistered, setUnregistered] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrors({});
     setFormError(null);
+    setUnregistered(false);
 
     const data = new FormData(event.currentTarget);
     const parsed = mobileSchema.safeParse(data.get("mobile"));
@@ -39,6 +52,11 @@ export function LoginForm({
     }
 
     startTransition(async () => {
+      /*
+       * `parsed.data` is already canonical, because the schema transforms on
+       * the way through. This is the number the verify stage will use too, so
+       * the two halves cannot address different accounts for one person.
+       */
       const result = await requestLoginOtpAction({ mobile: parsed.data });
 
       if (result.ok) {
@@ -51,15 +69,37 @@ export function LoginForm({
 
   if (sent) {
     return (
-      <OtpVerifyStage
-        mobile={sent}
-        redirectTo={redirectTo}
-        devTestCode={devTestCode}
-        onChangeNumber={() => {
-          setSent(null);
-          setFormError(null);
-        }}
-      />
+      <>
+        <OtpVerifyStage
+          mobile={sent}
+          intent="login"
+          redirectTo={redirectTo}
+          devTestCode={devTestCode}
+          onChangeNumber={() => {
+            setSent(null);
+            setFormError(null);
+          }}
+          onUnregistered={() => setUnregistered(true)}
+        />
+
+        {/*
+         * Shown only once the verify route reports that the number has no
+         * account, which it does after the attempt limit rather than on the
+         * request. Reaching this state has cost the person real attempts, so
+         * telling them to sign up is worth the enumeration it permits.
+         */}
+        {unregistered ? (
+          <div className="bg-muted/40 mt-4 space-y-3 rounded-xl border border-[var(--border)] p-4">
+            <p className="text-sm">
+              No account was found for this mobile number. Please create a new
+              account to continue.
+            </p>
+            <Button asChild variant="outline" className="w-full">
+              <a href="/auth/signup">Create an account</a>
+            </Button>
+          </div>
+        ) : null}
+      </>
     );
   }
 

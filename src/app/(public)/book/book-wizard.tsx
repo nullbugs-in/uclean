@@ -2,15 +2,16 @@
 
 import * as React from "react";
 
+import { isUsableAddress } from "@/lib/address";
 import { cn } from "@/lib/utils";
 
-import { createBookingAction, listWeekSlotsAction } from "./actions";
-import { quoteDelivery } from "./delivery-charge";
 import {
-  resolveSelection,
-  selectionTotal,
-  type ServiceSelection,
-} from "./service-selection";
+  createBookingAction,
+  getSavedAddressAction,
+  listUpcomingSlotsAction,
+  saveAddressAction,
+} from "./actions";
+import { resolveSelection, type ServiceSelection } from "./service-selection";
 import { AddressStep } from "./steps/address-step";
 import { ConfirmStep } from "./steps/confirm-step";
 import { DetailsStep } from "./steps/details-step";
@@ -18,7 +19,13 @@ import { ServicesStep } from "./steps/services-step";
 import { SlotStep } from "./steps/slot-step";
 import { SuccessStep } from "./steps/success-step";
 import type { CategorySlug } from "@/data/pricing";
-import type { BookingSummary, LatLng, SlotDay, WizardStep } from "./types";
+import type {
+  AddressSaveState,
+  BookingSummary,
+  LatLng,
+  SlotDay,
+  WizardStep,
+} from "./types";
 
 type BookWizardProps = {
   storeCenter: LatLng;
@@ -126,6 +133,14 @@ export function BookWizard({
   // Tracked separately so the "saved address" hint disappears the moment the
   // customer starts typing over it.
   const [addressEdited, setAddressEdited] = React.useState(false);
+  // Whether the saved address is still on its way. Only true for someone who
+  // verified their number during this wizard; an already-signed-in customer was
+  // given theirs during the server render.
+  const [addressLoading, setAddressLoading] = React.useState(false);
+  // Outcome of writing the address to the profile, surfaced on the success step
+  // so a customer is never told an address was saved when it was not.
+  const [addressSaveState, setAddressSaveState] =
+    React.useState<AddressSaveState>("idle");
 
   function handleAddressText(value: string) {
     setAddressEdited(true);
@@ -147,14 +162,9 @@ export function BookWizard({
     [serviceSelection, category],
   );
 
-  // One quote, derived from the selection, shared by the services, review and
-  // confirmation screens so the three can never disagree about the charge.
-  const delivery = React.useMemo(
-    () => quoteDelivery(selectionTotal(selectedServices)),
-    [selectedServices],
+  const [upcomingDays, setUpcomingDays] = React.useState<SlotDay[] | null>(
+    null,
   );
-
-  const [weekDays, setWeekDays] = React.useState<SlotDay[] | null>(null);
   const [loadingSlots, setLoadingSlots] = React.useState(false);
   const [slotsError, setSlotsError] = React.useState<string | null>(null);
   const [slotDate, setSlotDate] = React.useState<string | null>(null);
@@ -165,17 +175,45 @@ export function BookWizard({
   const [summary, setSummary] = React.useState<BookingSummary | null>(null);
 
   const selectedSlot = React.useMemo(() => {
-    if (!weekDays || !slotDate || !slotId) return null;
+    if (!upcomingDays || !slotDate || !slotId) return null;
     return (
-      weekDays
+      upcomingDays
         .find((day) => day.dateKey === slotDate)
         ?.slots.find((slot) => slot.id === slotId) ?? null
     );
-  }, [weekDays, slotDate, slotId]);
+  }, [upcomingDays, slotDate, slotId]);
+
+  /**
+   * Fetches the saved address now that there is a session to fetch it for.
+   *
+   * This is what makes the prefill work for the common case. `/book` is
+   * rendered when someone clicks Book Now, which is usually before they have
+   * verified anything, so the server render had no session and offered no
+   * address. Verifying their number does not re-render the page, so without this
+   * the address they gave us last time only ever came back to someone who
+   * happened to already be signed in.
+   *
+   * Only fills an empty field. If they have started typing, or were already
+   * given an address, whatever is on screen is what they meant.
+   */
+  async function prefillSavedAddress() {
+    setAddressLoading(true);
+
+    const result = await getSavedAddressAction();
+
+    setAddressLoading(false);
+
+    if (!result.ok || !result.data.addressText) return;
+
+    setAddressText((current) =>
+      current.trim() ? current : result.data.addressText,
+    );
+  }
 
   function handleVerified(next: { name: string; mobile: string }) {
     setIdentity(next);
     setStep("address");
+    void prefillSavedAddress();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -184,11 +222,38 @@ export function BookWizard({
     setNoticeAcceptedAt(value ? new Date().toISOString() : null);
   }
 
+  /**
+   * Writes the address to the profile before moving on, so it is kept even if
+   * the customer abandons the wizard at the slot or confirm step.
+   *
+   * Deliberately does not block the transition. Saving an address is a
+   * convenience, and making someone wait on it to reach the services list would
+   * be trading a real speedup for a background write nobody is watching. The
+   * outcome is recorded and reported on the success step instead.
+   */
+  function persistAddress() {
+    const trimmed = addressText.trim();
+
+    if (!isUsableAddress(trimmed)) return;
+
+    setAddressSaveState("saving");
+
+    void saveAddressAction({
+      addressText: trimmed,
+      lat: storeCenter.lat,
+      lng: storeCenter.lng,
+    }).then((result) => {
+      // A later success supersedes an earlier failure: the post-booking save is
+      // a backstop and may well succeed after this one did not.
+      setAddressSaveState(result.ok ? "saved" : "failed");
+    });
+  }
+
   async function loadSlots() {
     setLoadingSlots(true);
     setSlotsError(null);
 
-    const result = await listWeekSlotsAction();
+    const result = await listUpcomingSlotsAction();
 
     setLoadingSlots(false);
 
@@ -197,19 +262,20 @@ export function BookWizard({
       return;
     }
 
-    setWeekDays(result.data);
+    setUpcomingDays(result.data);
     const firstOpen = result.data.find((day) => day.slots.length > 0);
     if (firstOpen) setSlotDate(firstOpen.dateKey);
   }
 
   function goToServices() {
+    persistAddress();
     setStep("services");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function goToSlots() {
     setStep("slot");
-    if (!weekDays && !loadingSlots) void loadSlots();
+    if (!upcomingDays && !loadingSlots) void loadSlots();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -262,10 +328,6 @@ export function BookWizard({
       orderNo: result.data.orderNo,
       slotDate,
       slotLabel: selectedSlot?.label ?? "",
-      subtotal: delivery.subtotal,
-      deliveryCharge: delivery.charge,
-      total: delivery.total,
-      isFreeDelivery: delivery.isFree,
       addressText: addressText.trim(),
     });
     setStep("success");
@@ -290,7 +352,8 @@ export function BookWizard({
           <AddressStep
             maxRadiusKm={maxRadiusKm}
             addressText={addressText}
-            prefilled={Boolean(initialAddress) && !addressEdited}
+            prefilled={Boolean(addressText) && !addressEdited}
+            loadingSaved={addressLoading}
             noticeAccepted={noticeAccepted}
             notes={notes}
             onAddressText={handleAddressText}
@@ -305,7 +368,6 @@ export function BookWizard({
           <ServicesStep
             category={category}
             selection={serviceSelection}
-            delivery={delivery}
             onCategoryChange={setCategory}
             onSelectionChange={setServiceSelection}
             onBack={() => setStep("address")}
@@ -315,7 +377,7 @@ export function BookWizard({
 
         {step === "slot" ? (
           <SlotStep
-            weekDays={weekDays}
+            upcomingDays={upcomingDays}
             loading={loadingSlots}
             error={slotsError}
             selectedDate={slotDate}
@@ -339,7 +401,6 @@ export function BookWizard({
             mobile={identity.mobile}
             addressText={addressText.trim()}
             services={selectedServices}
-            delivery={delivery}
             slotDate={slotDate ?? ""}
             slotLabel={selectedSlot?.label ?? ""}
             submitting={submitting}
@@ -350,7 +411,7 @@ export function BookWizard({
         ) : null}
 
         {step === "success" && summary ? (
-          <SuccessStep summary={summary} />
+          <SuccessStep summary={summary} addressSaveState={addressSaveState} />
         ) : null}
       </div>
     </section>

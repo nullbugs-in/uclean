@@ -1,13 +1,30 @@
 import { z } from "zod";
 
+import { MAX_ADDRESS_LENGTH, MIN_ADDRESS_LENGTH } from "@/lib/address";
+
 import { mobileSchema } from "./auth";
+
+/**
+ * A pickup address, long enough that it is worth sending someone to.
+ *
+ * The length rule lives in `@/lib/address` so the schema, the address step's
+ * Continue button and the save path all agree on it. They used to state the
+ * number separately in three places, which is exactly the kind of duplication
+ * that ends with a customer told their address is fine by one screen and too
+ * short by another.
+ */
+export const addressSchema = z
+  .string()
+  .trim()
+  .min(MIN_ADDRESS_LENGTH, "Enter your full pickup address")
+  .max(MAX_ADDRESS_LENGTH, "That address is too long");
 
 /**
  * Step 1 of the booking wizard (section 6.2). Name and mobile are prefilled
  * from the profile rather than typed, so they are not part of this schema.
  */
 export const bookingDetailsSchema = z.object({
-  address: z.string().trim().min(10, "Enter your full pickup address").max(500),
+  address: addressSchema,
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
   email: z
@@ -66,7 +83,7 @@ export const bookingItemSchema = z.object({
  * that conversion in the first place.
  */
 export const pickupRequestSchema = z.object({
-  address: z.string().trim().min(10, "Enter your full pickup address").max(500),
+  address: addressSchema,
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
   notes: z.string().trim().max(500).optional().or(z.literal("")),

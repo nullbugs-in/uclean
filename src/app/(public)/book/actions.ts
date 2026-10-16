@@ -1,13 +1,13 @@
 "use server";
 
 import { createClient } from "@/db/server";
-import type { Address, DbClient } from "@/db/types";
 import { pickupRequestSchema } from "@/lib/validation";
+import { getPrefillAddress, saveDefaultAddress } from "@/server/addresses";
 import { getAuthUser } from "@/server/auth";
 import { DomainError } from "@/server/errors";
 import { createPickupOrder } from "@/server/orders";
 import {
-  getSlotAvailability,
+  getSlotsForRange,
   selectableSlots,
   toDateKey,
   type SlotAvailability,
@@ -15,8 +15,17 @@ import {
 
 import type { ActionResult, SlotDay, SlotOption } from "./types";
 
-/** How many days ahead the slot picker offers. */
-const SLOT_WINDOW_DAYS = 7;
+/**
+ * How many days ahead the slot picker offers.
+ *
+ * This is the whole bookable horizon, not the width of the quick-pick strip:
+ * the strip renders the first seven of these and the calendar icon renders all
+ * of them. Availability exists for any future date, because `time_slots`
+ * describes recurring slots rather than dated ones, so this number is a product
+ * decision about how far ahead a customer may book rather than a limit of the
+ * data. Reading it costs the same three queries at any width.
+ */
+const SLOT_WINDOW_DAYS = 60;
 
 function toOption(entry: SlotAvailability): SlotOption {
   return {
@@ -28,53 +37,137 @@ function toOption(entry: SlotAvailability): SlotOption {
   };
 }
 
-async function buildDay(supabase: DbClient, date: Date): Promise<SlotDay> {
-  const dateKey = toDateKey(date);
+/** Today plus the next {@link SLOT_WINDOW_DAYS} date keys, oldest first. */
+function upcomingDateKeys(count: number): string[] {
+  const today = new Date();
 
-  try {
-    const availability = await getSlotAvailability(supabase, date);
-    return {
-      dateKey,
-      isBlocked: false,
-      slots: selectableSlots(availability).map(toOption),
-    };
-  } catch (error) {
-    // A blocked date is a normal state the picker renders, not a failure.
-    if (error instanceof DomainError && error.code === "DATE_BLOCKED") {
-      return { dateKey, isBlocked: true, slots: [] };
-    }
-    throw error;
-  }
+  return Array.from({ length: count }, (_, offset) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() + offset);
+    return toDateKey(date);
+  });
 }
 
 /**
- * The next seven days of pickup availability, fetched once after sign-in.
+ * Pickup availability for the whole bookable horizon, fetched once.
  *
- * One action rather than seven: Server Actions dispatch sequentially from the
- * client, so a per-day call would waterfall. The authoritative capacity check
- * still happens under a row lock inside book_pickup, so this read may briefly
- * disagree with a concurrent booking.
+ * One action rather than one per date: Server Actions dispatch sequentially from
+ * the client, so a per-day call would waterfall. One ranged read also costs the
+ * same three queries however far ahead it reaches.
+ *
+ * The authoritative capacity check still happens under a row lock inside
+ * book_pickup, so this read may briefly disagree with a concurrent booking.
  */
-export async function listWeekSlotsAction(): Promise<ActionResult<SlotDay[]>> {
+export async function listUpcomingSlotsAction(): Promise<
+  ActionResult<SlotDay[]>
+> {
   try {
     const supabase = await createClient();
-    const today = new Date();
+    const dateKeys = upcomingDateKeys(SLOT_WINDOW_DAYS);
+    const availability = await getSlotsForRange(supabase, dateKeys);
 
-    const days = await Promise.all(
-      Array.from({ length: SLOT_WINDOW_DAYS }, (_, offset) => {
-        const date = new Date(today);
-        date.setDate(today.getDate() + offset);
-        return buildDay(supabase, date);
+    return {
+      ok: true,
+      data: dateKeys.map((dateKey) => {
+        const day = availability.get(dateKey);
+
+        return {
+          dateKey,
+          // A blocked date is a state the picker renders, not a failure, so it
+          // arrives here as data rather than as a thrown error.
+          isBlocked: day?.isBlocked ?? false,
+          slots: selectableSlots(day?.slots ?? []).map(toOption),
+        };
       }),
-    );
-
-    return { ok: true, data: days };
+    };
   } catch (error) {
     console.error("Could not load pickup slots", error);
     return {
       ok: false,
       message: "We could not load the available slots. Please try again.",
     };
+  }
+}
+
+/**
+ * Stores the pickup address on the customer's profile.
+ *
+ * Called from two places, deliberately. The wizard calls it as soon as the
+ * customer leaves the address step, so the address is kept even if they abandon
+ * the booking at the slot or confirm step. `createBookingAction` calls it again
+ * after the booking commits, as a backstop for the case where that earlier write
+ * failed or did not happen. Both go through `saveDefaultAddress`, which reuses
+ * an equivalent row rather than inserting, so running it twice is harmless.
+ *
+ * Exported because the wizard calls it; every other write lives in
+ * `src/server/addresses.ts`.
+ */
+export async function saveAddressAction(input: {
+  addressText: string;
+  lat: number;
+  lng: number;
+}): Promise<ActionResult<{ addressId: string }>> {
+  const user = await getAuthUser();
+
+  if (!user) {
+    return {
+      ok: false,
+      message:
+        "Your session has expired. Please verify your mobile number again.",
+    };
+  }
+
+  try {
+    const supabase = await createClient();
+    const saved = await saveDefaultAddress(supabase, user.id, {
+      addressText: input.addressText,
+      lat: input.lat,
+      lng: input.lng,
+    });
+
+    return { ok: true, data: { addressId: saved.id } };
+  } catch (error) {
+    console.error("Could not save the pickup address", error);
+
+    return {
+      ok: false,
+      message: "We could not save this address. You can still book a pickup.",
+    };
+  }
+}
+
+/**
+ * The saved pickup address, for the wizard to prefill once the customer is known.
+ *
+ * This exists because of a sequencing problem rather than a missing feature.
+ * `/book` renders on arrival, and someone arriving to book a pickup is usually
+ * signed out at that point, so the server render had no session and could offer
+ * no address. Verifying their number afterwards does not re-render the page, so
+ * without this the prefill only ever worked for someone who happened to already
+ * be signed in when they clicked Book Now.
+ *
+ * Returns an empty string rather than null when nothing is saved, which is the
+ * ordinary first-time case.
+ */
+export async function getSavedAddressAction(): Promise<
+  ActionResult<{ addressText: string }>
+> {
+  const user = await getAuthUser();
+
+  if (!user) {
+    return { ok: false, message: "Please verify your mobile number first." };
+  }
+
+  try {
+    const supabase = await createClient();
+    const address = await getPrefillAddress(supabase, user.id);
+
+    return { ok: true, data: { addressText: address?.address_text ?? "" } };
+  } catch (error) {
+    // A failed read is not worth failing the wizard over: the address step still
+    // works, the field just starts empty.
+    console.warn("Could not load the saved pickup address", error);
+    return { ok: true, data: { addressText: "" } };
   }
 }
 
@@ -91,137 +184,13 @@ export type CreateBookingInput = {
   items: Array<{ name: string; qty: number; unitPrice: number }>;
 };
 
-/** Shortest address the wizard accepts, mirrored from the address step. */
-const MIN_ADDRESS_LENGTH = 10;
-
-/**
- * Stores the pickup address on the customer's profile.
- *
- * Called after the booking succeeds so the address the customer actually
- * confirmed is the one saved. The customer's first saved address becomes their
- * default; afterwards the newest booking's address is the default, since that
- * is the one they most recently told us to collect from.
- *
- * Written through the request-scoped client so the `addresses_all_owner` RLS
- * policy is the only thing standing between the customer and the table.
- */
-export async function saveAddressAction(input: {
-  addressText: string;
-  lat: number;
-  lng: number;
-}): Promise<ActionResult<{ addressId: string }>> {
-  const addressText = input.addressText.trim();
-
-  if (addressText.length < MIN_ADDRESS_LENGTH) {
-    return {
-      ok: false,
-      message: "Please enter your full pickup address before saving it.",
-    };
-  }
-
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return {
-        ok: false,
-        message:
-          "Your session has expired. Please verify your mobile number again.",
-      };
-    }
-
-    const saved = await upsertDefaultAddress(
-      supabase,
-      user.id,
-      addressText,
-      input.lat,
-      input.lng,
-    );
-
-    return { ok: true, data: { addressId: saved.id } };
-  } catch (error) {
-    console.error("Could not save the pickup address", error);
-    return {
-      ok: false,
-      message: "We could not save this address. You can still book a pickup.",
-    };
-  }
-}
-
-/**
- * Saves the address, keeping exactly one default per customer.
- *
- * The `addresses_one_default_per_user` partial unique index means a second
- * default would be rejected outright, so any existing default is cleared
- * first. An identical saved address is reused rather than duplicated, so
- * booking from the same flat ten times does not fill the profile with copies.
- */
-async function upsertDefaultAddress(
-  supabase: DbClient,
-  userId: string,
-  addressText: string,
-  lat: number,
-  lng: number,
-): Promise<Address> {
-  const { data: existing, error: listError } = await supabase
-    .from("addresses")
-    .select("*")
-    .eq("user_id", userId);
-
-  if (listError) throw new Error(listError.message);
-
-  const addresses = existing ?? [];
-  const same = addresses.find(
-    (entry) => entry.address_text.trim() === addressText,
-  );
-
-  const { error: clearError } = await supabase
-    .from("addresses")
-    .update({ is_default: false })
-    .eq("user_id", userId)
-    .eq("is_default", true);
-
-  if (clearError) throw new Error(clearError.message);
-
-  if (same) {
-    const { data: updated, error: updateError } = await supabase
-      .from("addresses")
-      .update({ is_default: true, lat, lng })
-      .eq("id", same.id)
-      .select("*")
-      .single();
-
-    if (updateError) throw new Error(updateError.message);
-    return updated;
-  }
-
-  const { data: inserted, error: insertError } = await supabase
-    .from("addresses")
-    .insert({
-      user_id: userId,
-      label: "Pickup address",
-      address_text: addressText,
-      lat,
-      lng,
-      is_default: true,
-    })
-    .select("*")
-    .single();
-
-  if (insertError) throw new Error(insertError.message);
-  return inserted;
-}
-
 /**
  * Confirms a pickup booking for the signed-in customer.
  *
- * `createPickupOrder` re-reads the name and mobile from the profile and
- * recomputes the driving distance server side, so nothing here is trusted from
- * the browser beyond the chosen address, slot and notice timestamp.
+ * `createPickupOrder` re-reads the name and mobile from the profile, so nothing
+ * here is trusted from the browser beyond the chosen address, slot and notice
+ * timestamp. The driving distance is not recomputed yet: the zone check is
+ * switched off in `src/server/orders.ts` pending the real location flow.
  */
 export async function createBookingAction(
   input: CreateBookingInput,

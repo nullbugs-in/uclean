@@ -3,7 +3,16 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Package, UserRound, Menu, X } from "lucide-react";
+import {
+  Bell,
+  Info,
+  MapPin,
+  Package,
+  Tag,
+  UserRound,
+  Menu,
+  X,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { notificationLabel } from "@/db/queries/notifications";
@@ -14,9 +23,9 @@ import { formatDateTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
-  { label: "About", href: "/#about" },
-  { label: "Pricing", href: "/pricing" },
-  { label: "Contact", href: "/#contact" },
+  { label: "About", href: "/#about", icon: Info },
+  { label: "Pricing", href: "/pricing", icon: Tag },
+  { label: "Contact", href: "/#contact", icon: MapPin },
 ] as const;
 
 /** Soft lime glow cast by the primary CTAs. */
@@ -77,16 +86,45 @@ export function Navbar({ user = null }: { user?: NavbarUser | null }) {
       />
 
       {/*
-        The three-zone row only appears from `lg`. At `md` the logo, the pill nav
-        and the auth controls together measure ~784px, which overflows the
-        ~736px available at 768px. Tablets therefore get the compact cluster
-        below instead, which still offers a CTA without risking a horizontal
-        scrollbar.
+        The account icon cluster is in the row at every width; only the centred
+        text nav is desktop-only, moving into the panel below `lg`. The logo
+        steps down a size below `sm` to keep logo + four icons + hamburger
+        inside 320px.
       */}
-      <div className="relative mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4 sm:px-6 lg:grid lg:grid-cols-[1fr_auto_1fr]">
+      {/*
+        One `minmax(0,1fr) auto minmax(0,1fr)` grid serves every breakpoint,
+        which is what centres the logo. The equal side columns mean the middle
+        column sits on the viewport's centre line rather than the centre of the
+        gap between two unequal clusters, so a wide control on the right cannot
+        drag the logo off-centre.
+
+        The `minmax(0,...)` is load-bearing. A bare `1fr` is `minmax(auto,1fr)`,
+        and that `auto` minimum means a track cannot shrink below its content -
+        so an unequal left and right column would resolve to unequal tracks and
+        push the logo sideways. Measured, that put the logo 32px off-centre at
+        320px. Zeroing the minimum forces the columns equal at every width.
+
+        The children are ordered hamburger, logo, nav, cluster. Below `lg` the
+        hamburger is visible and the nav is hidden, giving
+        [hamburger][logo][icons]. At `lg` the hamburger drops out and the logo
+        slides into column 1, giving [logo][nav][icons] - the same markup, no
+        duplicated row and no JS media query.
+      */}
+      <div className="relative mx-auto grid h-16 w-full max-w-6xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-4 sm:gap-3 sm:px-6">
+        <button
+          type="button"
+          className="border-border text-foreground hover:bg-accent grid size-9 shrink-0 place-items-center justify-self-start rounded-full border transition-colors sm:size-10 lg:hidden"
+          aria-expanded={open}
+          aria-controls="mobile-menu"
+          aria-label={open ? "Close menu" : "Open menu"}
+          onClick={() => setOpen((value) => !value)}
+        >
+          {open ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
+        </button>
+
         <Link
           href="/"
-          className="group flex items-center rounded-md"
+          className="group flex items-center justify-self-center rounded-md lg:justify-self-start"
           aria-label={`${siteConfig.name} home`}
         >
           {/*
@@ -101,13 +139,13 @@ export function Navbar({ user = null }: { user?: NavbarUser | null }) {
             width={siteConfig.logo.width}
             height={siteConfig.logo.height}
             priority
-            className="h-10 w-auto transition-transform duration-200 group-hover:scale-[1.03] sm:h-12"
+            className="h-8 w-auto transition-transform duration-200 group-hover:scale-[1.03] sm:h-10 lg:h-12"
           />
         </Link>
 
         <nav
           aria-label="Primary"
-          className="bg-secondary/60 hidden items-center gap-1 rounded-full p-1 lg:flex"
+          className="bg-secondary/60 hidden items-center gap-1 justify-self-center rounded-full p-1 lg:flex"
         >
           {NAV_LINKS.map((link) => {
             const active = isActive(link.href);
@@ -129,26 +167,16 @@ export function Navbar({ user = null }: { user?: NavbarUser | null }) {
           })}
         </nav>
 
-        <div className="hidden items-center justify-end gap-2 lg:flex">
-          <AuthControls user={user} />
-        </div>
-
         {/*
-          Compact row for phones and tablets. There is no CTA here, so the
-          hamburger is the only control beside the logo; navigation and the auth
-          controls live in the panel below.
+          Right-hand icons.
+
+          Below `lg` this is notifications plus My bookings; sign out and the
+          profile avatar are in the panel instead, so they are hidden here and
+          that pair is hidden at `lg` in turn. Exactly one copy of each is ever
+          focusable, because the other is display:none.
         */}
-        <div className="flex items-center gap-2 lg:hidden">
-          <button
-            type="button"
-            className="border-border text-foreground hover:bg-accent grid size-10 place-items-center rounded-full border transition-colors"
-            aria-expanded={open}
-            aria-controls="mobile-menu"
-            aria-label={open ? "Close menu" : "Open menu"}
-            onClick={() => setOpen((value) => !value)}
-          >
-            {open ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
-          </button>
+        <div className="flex items-center gap-1 justify-self-end sm:gap-2">
+          <AuthControls user={user} />
         </div>
       </div>
 
@@ -163,6 +191,8 @@ export function Navbar({ user = null }: { user?: NavbarUser | null }) {
         >
           {NAV_LINKS.map((link) => {
             const active = isActive(link.href);
+            const Icon = link.icon;
+
             return (
               <Link
                 key={link.href}
@@ -170,38 +200,37 @@ export function Navbar({ user = null }: { user?: NavbarUser | null }) {
                 aria-current={active ? "page" : undefined}
                 onClick={() => setOpen(false)}
                 className={cn(
-                  "rounded-md px-3 py-3 text-sm font-medium transition-colors",
+                  "flex h-12 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors",
                   active
                     ? "bg-primary/15 text-foreground"
                     : "text-foreground hover:bg-accent",
                 )}
               >
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "grid size-8 shrink-0 place-items-center rounded-lg transition-colors",
+                    active
+                      ? "bg-[var(--primary)] text-[var(--primary-foreground)]"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  <Icon className="size-4" />
+                </span>
                 {link.label}
               </Link>
             );
           })}
 
           {user ? (
-            <div className="mt-3 flex flex-col gap-2">
-              <Button asChild className="h-11 w-full">
-                <Link
-                  href="/account/profile"
-                  onClick={() => setOpen(false)}
-                  className="justify-center"
-                >
-                  Profile details
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="h-11 w-full">
-                <Link
-                  href="/account/orders"
-                  onClick={() => setOpen(false)}
-                  className="justify-center"
-                >
-                  My bookings
-                </Link>
-              </Button>
-              <SignOutLink className="[&_button]:h-11 [&_button]:w-full" />
+            <div className="border-border mt-3 flex items-center gap-2 border-t pt-3">
+              {/*
+                Left-aligned to line up with the nav links above the divider.
+                The profile avatar has moved up into the header row, so My
+                bookings takes the slot it vacated; sign out stays put.
+              */}
+              <BookingsIcon className="size-10" />
+              <SignOutLink variant="icon" className="size-10" />
             </div>
           ) : (
             <div className="mt-3 flex flex-col gap-2">
@@ -234,7 +263,18 @@ function AuthControls({ user }: { user: NavbarUser | null }) {
   if (!user) {
     return (
       <>
-        <Button asChild variant="outline" size="sm">
+        {/*
+          Two labelled buttons measure ~164px together, which does not fit a
+          side column of a centre-locked grid below about 430px. So below `md`
+          the row shows the single primary CTA and Log in drops to the panel,
+          which already offers both at full width. Nothing is unreachable.
+        */}
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="hidden md:inline-flex"
+        >
           {/*
             No `?redirect=` here. A present param overrides the page's own
             default, so hardcoding "/" pinned every sign-in to the bare home
@@ -256,12 +296,49 @@ function AuthControls({ user }: { user: NavbarUser | null }) {
 
   return (
     <>
-      {/* Sign out first, then bookings, notifications and the profile menu. */}
-      <SignOutLink variant="icon" />
-      <BookingsIcon />
+      {/*
+        Desktop keeps its four-icon order: sign out, bookings, notifications,
+        profile. Below `lg` the row shows only the bell and the profile avatar -
+        My bookings and sign out live in the panel instead - so the phone row
+        stays to two icons and leaves the centred logo room.
+
+        The `hidden lg:block` wrappers are what keep exactly one copy of each
+        control focusable at any width.
+      */}
+      <div className="hidden lg:block">
+        <SignOutLink variant="icon" />
+      </div>
+      <div className="hidden lg:block">
+        <BookingsIcon />
+      </div>
       <NotificationsBell notifications={user.notifications} />
-      <UserMenu user={user} />
+      <div className="lg:hidden">
+        <ProfileAvatarLink user={user} />
+      </div>
+      <div className="hidden lg:block">
+        <UserMenu user={user} />
+      </div>
     </>
+  );
+}
+
+/**
+ * The profile avatar as a plain link, for the phone row.
+ *
+ * A link rather than the `UserMenu` dropdown: that menu is `absolute right-0`
+ * against its own container, which in the row would hang off the avatar fine,
+ * but the panel version is a link too and one control doing both jobs keeps the
+ * two breakpoints behaving identically.
+ */
+function ProfileAvatarLink({ user }: { user: NavbarUser }) {
+  return (
+    <Link
+      href="/account/profile"
+      aria-label={`Profile details for ${user.fullName}`}
+      className="ring-primary/40 bg-primary/20 grid size-9 shrink-0 place-items-center rounded-full text-xs font-semibold transition-shadow hover:ring-2 focus-visible:ring-2 focus-visible:outline-none"
+    >
+      <span aria-hidden="true">{initialsOf(user.fullName)}</span>
+    </Link>
   );
 }
 
@@ -356,14 +433,21 @@ function NotificationsBell({
  * action, so an empty list is something worth navigating to rather than a dead
  * end - and the customer who has just signed up can see where their bookings
  * will appear.
+ *
+ * `className` exists so the panel can render it at the 40px touch size used by
+ * the other panel controls; `cn` resolves the clash against the `size-9`
+ * default rather than emitting both.
  */
-function BookingsIcon() {
+function BookingsIcon({ className }: { className?: string }) {
   return (
     <Link
       href="/account/orders"
       aria-label="My bookings"
       title="My bookings"
-      className="border-border text-foreground hover:bg-accent grid size-9 place-items-center rounded-full border transition-colors focus-visible:ring-2 focus-visible:outline-none"
+      className={cn(
+        "border-border text-foreground hover:bg-accent grid size-9 place-items-center rounded-full border transition-colors focus-visible:ring-2 focus-visible:outline-none",
+        className,
+      )}
     >
       <Package className="size-4" aria-hidden="true" />
     </Link>
@@ -449,7 +533,7 @@ function UserMenu({ user }: { user: NavbarUser }) {
             icon={<UserRound className="size-4" aria-hidden="true" />}
             onNavigate={() => setOpen(false)}
           >
-            Profile details
+            Profile
           </MenuLink>
 
           <MenuLink

@@ -1,18 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { MapPin, Minus, Plus } from "lucide-react";
+import { MapPin } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { CategorySlug } from "@/data/pricing";
-import { cn, formatPrice } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
-import type { DeliveryQuote } from "../delivery-charge";
-import {
-  DeliveryChargeRow,
-  FreeDeliveryNudge,
-  QuotedTotal,
-} from "./delivery-summary";
 import {
   groupsForCategory,
   linesForGroup,
@@ -24,8 +18,6 @@ import {
 type ServicesStepProps = {
   category: CategorySlug;
   selection: ServiceSelection;
-  /** Delivery quote for the current selection, computed by the wizard. */
-  delivery: DeliveryQuote;
   onCategoryChange: (category: CategorySlug) => void;
   onSelectionChange: (selection: ServiceSelection) => void;
   onBack: () => void;
@@ -35,21 +27,25 @@ type ServicesStepProps = {
 /**
  * Step 3: choose services.
  *
- * Prices come from `src/data/pricing.ts`, the same list the pricing pages use,
- * so there is nothing to fetch. Express is that file's derived list at twice the
- * regular price, which is why switching category re-prices the selection rather
- * than clearing it.
+ * No prices are shown here, by design. The customer picks what needs cleaning
+ * and nothing else; every figure, including the delivery charge, is assessed by
+ * the team once the items are received. The price list in `src/data/pricing.ts`
+ * still backs the selection behind the scenes, because the booking has to be
+ * saved with a unit price for the team's own records, but none of it is
+ * surfaced to the customer.
  *
- * The total shown here is indicative: the final bill is assessed at pickup.
+ * Express is that same list priced differently, which is why switching category
+ * re-prices the saved selection rather than clearing it.
  *
  * A service is picked by clicking its row. There is no tick box: a picked row
  * is filled with the brand tint and barred down its left edge, so several picks
- * read as a block of highlighted rows at a glance.
+ * read as a block of highlighted rows at a glance. There is no quantity
+ * stepper either, so a selection is simply present or absent and is always one
+ * unit.
  */
 export function ServicesStep({
   category,
   selection,
-  delivery,
   onCategoryChange,
   onSelectionChange,
   onBack,
@@ -63,12 +59,17 @@ export function ServicesStep({
 
   const visible = linesForGroup(category, activeGroup);
 
-  function setQty(key: string, qty: number) {
+  /**
+   * Selecting a service stores a quantity of one; tapping it again drops it.
+   * The map is kept as a quantity map rather than a set so that the selection
+   * shape handed to `resolveSelection` and the booking action is unchanged.
+   */
+  function toggle(key: string, selected: boolean) {
     const next = { ...selection };
-    if (qty < 1) {
+    if (selected) {
       delete next[key];
     } else {
-      next[key] = Math.min(99, qty);
+      next[key] = 1;
     }
     onSelectionChange(next);
   }
@@ -144,108 +145,48 @@ export function ServicesStep({
                 {/*
                  * The row is the selection control: there is no tick box.
                  *
-                 * Deliberately not a button wrapping the whole row: the
-                 * quantity stepper below has its own controls, and nesting
-                 * those inside a button is invalid and collapses three
-                 * controls into one for a screen reader. So the tappable,
-                 * focusable target is the name and price, and the stepper sits
-                 * outside it. The selected state is announced through
-                 * `aria-pressed` and shown by the row tint and left bar.
+                 * The whole row is a button now that the quantity stepper is
+                 * gone, so name and option sit inside it and a picked row is
+                 * filled with the brand tint and barred down its left edge. The
+                 * selected state is announced through `aria-pressed`.
                  */}
                 <button
                   type="button"
                   aria-pressed={selected}
-                  onClick={() => setQty(line.key, selected ? 0 : 1)}
+                  onClick={() => toggle(line.key, selected)}
                   className={cn(
-                    "flex w-full flex-wrap items-start justify-between gap-3 text-left",
-                    "focus-visible:ring-ring rounded-md focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+                    "block w-full rounded-md text-left",
+                    "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
                   )}
                 >
-                  <span className="min-w-0 flex-1">
-                    <span
-                      className={cn(
-                        "block font-medium",
-                        selected && "text-[var(--primary-foreground)]",
-                      )}
-                    >
-                      {line.item}
-                    </span>
-                    {line.optionLabel ? (
-                      <span className="text-muted-foreground block text-xs">
-                        {line.optionLabel}
-                      </span>
-                    ) : null}
+                  <span
+                    className={cn(
+                      "block font-medium",
+                      selected && "text-[var(--primary-foreground)]",
+                    )}
+                  >
+                    {line.item}
                   </span>
-
-                  <span className="text-right whitespace-nowrap">
-                    {line.original > line.price ? (
-                      <span className="text-muted-foreground mr-2 text-sm line-through">
-                        {formatPrice(line.original)}
-                      </span>
-                    ) : null}
-                    <span className="font-display text-lg font-bold">
-                      {formatPrice(line.price)}
+                  {line.optionLabel ? (
+                    <span className="text-muted-foreground block text-xs">
+                      {line.optionLabel}
                     </span>
-                    <span className="text-muted-foreground text-xs">
-                      {" "}
-                      / {line.unit}
-                    </span>
-                  </span>
+                  ) : null}
                 </button>
-
-                {selected ? (
-                  <div className="mt-3 flex items-center gap-3">
-                    <QuantityStepper
-                      qty={qty}
-                      label={`Quantity for ${line.item}${
-                        line.optionLabel ? ` (${line.optionLabel})` : ""
-                      }`}
-                      onChange={(next) => setQty(line.key, next)}
-                    />
-                    <span className="text-muted-foreground text-sm">
-                      {formatPrice(line.price * qty)}
-                    </span>
-                  </div>
-                ) : null}
               </div>
             </li>
           );
         })}
       </ul>
 
-      <div className="border-border bg-muted/30 space-y-3 rounded-xl border p-4">
-        <div className="flex items-baseline justify-between">
-          <span className="text-sm">
-            {itemCount === 0
-              ? "No services selected yet"
-              : `${itemCount} item${itemCount === 1 ? "" : "s"} selected`}
-          </span>
-          <span className="font-display text-xl font-bold">
-            {formatPrice(delivery.subtotal)}
-          </span>
-        </div>
-
-        <div className="border-border space-y-2.5 border-t pt-3">
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="text-muted-foreground text-sm">Service total</span>
-            <span className="text-sm font-medium">
-              {formatPrice(delivery.subtotal)}
-            </span>
-          </div>
-
-          <DeliveryChargeRow quote={delivery} />
-
-          <FreeDeliveryNudge quote={delivery} />
-
-          <QuotedTotal
-            quote={delivery}
-            className="border-border font-display border-t pt-3 text-2xl font-bold"
-          />
-        </div>
-
-        <p className="text-muted-foreground text-xs">
-          Indicative total. The final price is confirmed once we receive and
-          assess your items.
+      <div className="border-border bg-muted/30 rounded-xl border p-4">
+        <p className="text-sm">
+          {itemCount === 0
+            ? "No services selected yet"
+            : `${itemCount} service${itemCount === 1 ? "" : "s"} selected`}
+        </p>
+        <p className="text-muted-foreground mt-1.5 text-xs">
+          Pricing is assessed by our team once we receive and inspect your items.
         </p>
       </div>
 
@@ -270,11 +211,11 @@ export function ServicesStep({
 /**
  * Regular and Express, as a capsule pill.
  *
- * Deliberately labels only. The two options differ by a multiple on every line
- * rather than by a fixed price, so any "from Rs X" figure would be the price of
- * one unrelated item and would quietly mislead about the one being chosen. The
- * customer sees the real difference immediately in the line prices and the
- * total once they pick, so the control itself only has to name the choice.
+ * Deliberately labels only, and now that no prices are shown anywhere in the
+ * wizard it has to stay that way: the two options differ by a multiple on every
+ * line rather than by a fixed price, so any "from Rs X" figure would be the
+ * price of one unrelated item and would quietly mislead about the one being
+ * chosen. The control only has to name the choice.
  *
  * Sized to its content rather than the card, and centred, so it reads as a
  * compact control over the list instead of a full-width bar competing with it.
@@ -322,42 +263,6 @@ function CategoryToggle({
           </button>
         );
       })}
-    </div>
-  );
-}
-
-function QuantityStepper({
-  qty,
-  label,
-  onChange,
-}: {
-  qty: number;
-  label: string;
-  onChange: (qty: number) => void;
-}) {
-  return (
-    <div className="border-border inline-flex items-center rounded-full border">
-      <button
-        type="button"
-        aria-label={`Decrease ${label}`}
-        disabled={qty <= 1}
-        onClick={() => onChange(qty - 1)}
-        className="hover:bg-accent grid size-8 place-items-center rounded-full transition-colors disabled:opacity-40"
-      >
-        <Minus className="size-3.5" aria-hidden="true" />
-      </button>
-      <span className="w-8 text-center text-sm font-medium" aria-live="polite">
-        {qty}
-      </span>
-      <button
-        type="button"
-        aria-label={`Increase ${label}`}
-        disabled={qty >= 99}
-        onClick={() => onChange(qty + 1)}
-        className="hover:bg-accent grid size-8 place-items-center rounded-full transition-colors disabled:opacity-40"
-      >
-        <Plus className="size-3.5" aria-hidden="true" />
-      </button>
     </div>
   );
 }

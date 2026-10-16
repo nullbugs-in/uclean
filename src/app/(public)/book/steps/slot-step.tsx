@@ -8,8 +8,11 @@ import { cn } from "@/lib/utils";
 import { formatDayNumber, formatFullDate, formatWeekday } from "../format";
 import type { SlotDay } from "../types";
 
+import { DatePicker } from "./date-picker";
+
 type SlotStepProps = {
-  weekDays: SlotDay[] | null;
+  /** Every bookable day in the window, oldest first. */
+  upcomingDays: SlotDay[] | null;
   loading: boolean;
   error: string | null;
   selectedDate: string | null;
@@ -20,15 +23,23 @@ type SlotStepProps = {
   onContinue: () => void;
 };
 
+/** How many days the quick-pick strip shows. The rest live in the calendar. */
+const STRIP_DAYS = 7;
+
 /**
- * Step 3: pickup day and hourly slot.
+ * Step 4: pickup day and hourly slot.
+ *
+ * Two ways to choose the day, reading the same list: the strip for the next week
+ * and the calendar icon for anything up to the two-month horizon. Both can only
+ * offer a day the server said has a bookable slot, so neither can select
+ * something the other would reject.
  *
  * Slots that are full or already past have been filtered out server side, so
  * every button here is actually bookable. The final capacity check still runs
  * inside book_pickup under a row lock.
  */
 export function SlotStep({
-  weekDays,
+  upcomingDays,
   loading,
   error,
   selectedDate,
@@ -47,7 +58,7 @@ export function SlotStep({
     );
   }
 
-  if (error || !weekDays) {
+  if (error || !upcomingDays) {
     return (
       <div className="space-y-4">
         <p role="alert" className="text-sm text-[var(--destructive)]">
@@ -61,18 +72,28 @@ export function SlotStep({
   }
 
   const activeDay =
-    weekDays.find((day) => day.dateKey === selectedDate) ?? null;
-  const hasAnySlot = weekDays.some((day) => day.slots.length > 0);
+    upcomingDays.find((day) => day.dateKey === selectedDate) ?? null;
+  const hasAnySlot = upcomingDays.some((day) => day.slots.length > 0);
+  const stripDays = upcomingDays.slice(0, STRIP_DAYS);
 
   return (
     <div className="space-y-6">
       <div className="space-y-3">
-        <p className="flex items-center gap-2 text-sm font-medium">
-          <CalendarClock className="size-4" aria-hidden="true" />
-          Choose a pickup day
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="flex items-center gap-2 text-sm font-medium">
+            <CalendarClock className="size-4" aria-hidden="true" />
+            Choose a pickup day
+          </p>
+
+          <DatePicker
+            days={upcomingDays}
+            selectedDate={selectedDate}
+            onSelectDate={onSelectDate}
+          />
+        </div>
+
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
-          {weekDays.map((day) => {
+          {stripDays.map((day) => {
             const disabled = day.isBlocked || day.slots.length === 0;
             const selected = day.dateKey === selectedDate;
 
@@ -102,12 +123,17 @@ export function SlotStep({
             );
           })}
         </div>
+
+        <p className="text-muted-foreground text-xs">
+          Showing the next {stripDays.length} days. Use the calendar icon to
+          book further ahead.
+        </p>
       </div>
 
       {!hasAnySlot ? (
         <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
-          No pickup slots are open in the next week. Please contact us on
-          WhatsApp and we will arrange a pickup.
+          No pickup slots are open at the moment. Please contact us on WhatsApp
+          and we will arrange a pickup.
         </p>
       ) : activeDay ? (
         <div className="space-y-3">

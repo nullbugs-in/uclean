@@ -57,8 +57,10 @@ for (const route of ROUTES) {
 }
 
 test("the navbar switches to its compact row below lg", async ({ page }) => {
-  // At 768px the logo, the pill nav and the three auth buttons together are too
-  // wide, so the tablet gets the Book Now + hamburger row instead.
+  // The centred text nav is what does not fit a tablet, not the auth controls:
+  // the pill nav plus the logo plus the icon cluster overflowed 768px, while
+  // the logo and icon cluster alone come to roughly 350px. So at 768px the
+  // links move into the panel and the auth cluster stays in the row.
   await page.setViewportSize({ width: 768, height: 800 });
   await page.goto("/");
 
