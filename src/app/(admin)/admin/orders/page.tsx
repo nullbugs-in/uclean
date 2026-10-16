@@ -1,25 +1,12 @@
-import type { Metadata } from "next";
-
-import { PagePlaceholder } from "@/components/placeholder";
-import { AssignmentList } from "../../../(staff)/_components/assignment-list";
-
-export const metadata: Metadata = { title: "Orders" };
+import { redirect } from "next/navigation";
 
 /**
- * Order updates (section 8.6).
+ * Moved to /admin/bookings.
  *
- * Manual status changes from these buttons go through the same
- * orders_enforce_transition trigger as automatic ones, so an admin cannot make
- * an invalid jump either.
+ * Kept as a redirect rather than deleted so an old bookmark, a pasted link, or
+ * a browser back-button entry does not land on a 404. The admin module is
+ * called "Bookings" to match what the customer is told on their own page.
  */
-export default function AdminOrdersPage() {
-  return (
-    <PagePlaceholder
-      title="Orders"
-      description="Every order, with manual status changes and automatic events."
-      milestone="Milestone 4"
-    >
-      <AssignmentList type="pickup" />
-    </PagePlaceholder>
-  );
+export default function AdminOrdersRedirect() {
+  redirect("/admin/bookings");
 }

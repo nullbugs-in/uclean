@@ -28,29 +28,6 @@ export async function getProfile(
   );
 }
 
-/** Customer list for the admin panel (section 8.2). */
-export async function listCustomers(
-  client: Client,
-  options: { search?: string; limit?: number } = {},
-): Promise<Profile[]> {
-  let query = client
-    .from("profiles")
-    .select("*")
-    .eq("role", "customer")
-    .order("created_at", { ascending: false })
-    .limit(options.limit ?? 100);
-
-  if (options.search) {
-    // Escape the wildcards so a customer name containing % or _ cannot turn
-    // the search into a full table scan.
-    const safe = options.search.replace(/[%_]/g, "");
-    if (safe)
-      query = query.or(`full_name.ilike.%${safe}%,mobile.ilike.%${safe}%`);
-  }
-
-  return unwrap(await query);
-}
-
 export async function listStaffAndAdmins(client: Client): Promise<Profile[]> {
   return unwrap(
     await client

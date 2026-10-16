@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ADMIN_TIMELINE,
   allowedTransitions,
   canTransition,
   CUSTOMER_STATUS_LABEL,
@@ -128,6 +129,87 @@ describe("order state machine", () => {
     for (const status of ORDER_STATUSES) {
       expect(CUSTOMER_STATUS_LABEL[status]).toBeTruthy();
       expect(INTERNAL_STATUS_LABEL[status]).toBeTruthy();
+    }
+  });
+});
+
+/**
+ * The customer tracking timeline used to show two steps both labelled "In
+ * Process", because `under_analysis` and `in_process` shared a customer label
+ * while being distinct operations. These lock the fix in place.
+ */
+describe("customer labels", () => {
+  it("distinguishes the two processing stages", () => {
+    expect(CUSTOMER_STATUS_LABEL.under_analysis).not.toBe(
+      CUSTOMER_STATUS_LABEL.in_process,
+    );
+  });
+
+  it("keeps every customer label distinct across the timeline", () => {
+    // A duplicate anywhere in the visible timeline is the bug being guarded.
+    const labels = CUSTOMER_TIMELINE.map(
+      (status) => CUSTOMER_STATUS_LABEL[status],
+    );
+
+    expect(new Set(labels).size).toBe(labels.length);
+  });
+
+  it("still distinguishes every internal label", () => {
+    const labels = ORDER_STATUSES.map(
+      (status) => INTERNAL_STATUS_LABEL[status],
+    );
+
+    expect(new Set(labels).size).toBe(labels.length);
+  });
+});
+
+describe("ADMIN_TIMELINE", () => {
+  it("includes the two payment states the customer timeline hides", () => {
+    // Without these, an admin timeline jumps from Invoice Sent to Processing
+    // Complete and never shows where the booking actually is on payment.
+    expect(ADMIN_TIMELINE).toContain("payment_pending");
+    expect(ADMIN_TIMELINE).toContain("paid");
+    expect(CUSTOMER_TIMELINE).not.toContain("payment_pending");
+    expect(CUSTOMER_TIMELINE).not.toContain("paid");
+  });
+
+  it("starts at pickup and ends at delivery", () => {
+    expect(ADMIN_TIMELINE[0]).toBe("pickup_requested");
+    expect(ADMIN_TIMELINE[ADMIN_TIMELINE.length - 1]).toBe("delivered");
+  });
+
+  it("orders the payment states where the state machine puts them", () => {
+    expect(ADMIN_TIMELINE.indexOf("invoice_sent")).toBeLessThan(
+      ADMIN_TIMELINE.indexOf("payment_pending"),
+    );
+    expect(ADMIN_TIMELINE.indexOf("payment_pending")).toBeLessThan(
+      ADMIN_TIMELINE.indexOf("paid"),
+    );
+    expect(ADMIN_TIMELINE.indexOf("paid")).toBeLessThan(
+      ADMIN_TIMELINE.indexOf("in_process"),
+    );
+  });
+
+  it("covers every non-cancelled status exactly once", () => {
+    const expected = ORDER_STATUSES.filter((status) => status !== "cancelled");
+
+    expect([...ADMIN_TIMELINE].sort()).toEqual([...expected].sort());
+  });
+
+  /**
+   * The timeline is only useful if it does not contain jumps the database would
+   * reject. If a step here is not a legal successor of the one before it, the
+   * admin would be shown a progress bar implying a path that does not exist.
+   */
+  it("never places a step the state machine cannot reach from the previous one", () => {
+    for (let index = 1; index < ADMIN_TIMELINE.length; index += 1) {
+      const previous = ADMIN_TIMELINE[index - 1] as OrderStatus;
+      const current = ADMIN_TIMELINE[index] as OrderStatus;
+
+      expect(
+        allowedTransitions(previous),
+        `${previous} -> ${current} is not an allowed transition`,
+      ).toContain(current);
     }
   });
 });
