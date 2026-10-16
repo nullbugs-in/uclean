@@ -25,6 +25,17 @@ export type SlotOption = {
   remaining: number;
 };
 
+/**
+ * Whether the customer's address reached their profile.
+ *
+ * `idle` before they have left the address step, `saving` while the write is in
+ * flight, then a settled outcome. `failed` is the one that matters: it is shown
+ * on the success step, because a customer who believes their address was saved
+ * and finds nothing on their profile next time is worse than being told it did
+ * not stick.
+ */
+export type AddressSaveState = "idle" | "saving" | "saved" | "failed";
+
 export type SlotDay = {
   /** YYYY-MM-DD */
   dateKey: string;

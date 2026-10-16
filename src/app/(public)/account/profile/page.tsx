@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { Home } from "lucide-react";
 
-import { GlassCard, initialsOf } from "@/components/account/glass";
+import { AddressManager } from "@/components/account/address-manager";
+import { initialsOf } from "@/components/account/glass";
 import { ProfileDetailsSection } from "@/components/account/profile-details-form";
 import { listAddresses } from "@/db/queries/profiles";
 import { createClient } from "@/db/server";
@@ -72,57 +72,21 @@ export default async function ProfilePage() {
           </p>
         </div>
 
-        {addresses.length === 0 ? (
-          <GlassCard
-            className="uc-fade-up text-center"
-            style={{ animationDelay: "120ms" }}
-          >
-            <Home
-              className="mx-auto mb-3 size-7 text-[var(--uc-lime-600)]"
-              aria-hidden="true"
-            />
-            <p className="font-medium">No saved addresses</p>
-            <p className="text-muted-foreground mt-1 text-sm">
-              The pickup address you confirm while booking is saved here
-              automatically, so you never have to type it twice.
-            </p>
-          </GlassCard>
-        ) : (
-          <ul className="grid gap-4 sm:grid-cols-2">
-            {addresses.map((address, index) => (
-              <li key={address.id}>
-                <GlassCard
-                  hover
-                  className="uc-fade-up h-full"
-                  style={{ animationDelay: `${120 + index * 60}ms` }}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="font-medium">
-                      {address.label}
-                      {address.is_default ? (
-                        <span className="ml-2 rounded-full bg-[color-mix(in_oklab,var(--uc-lime-500),transparent_75%)] px-2 py-0.5 text-xs font-semibold text-[var(--uc-green-800)]">
-                          Default
-                        </span>
-                      ) : null}
-                    </p>
-                  </div>
-                  <p className="text-muted-foreground mt-2 flex items-start gap-2 text-sm">
-                    <Home
-                      className="mt-0.5 size-4 shrink-0"
-                      aria-hidden="true"
-                    />
-                    <span>{address.address_text}</span>
-                  </p>
-                  {address.distance_km !== null ? (
-                    <p className="text-muted-foreground mt-2 text-xs">
-                      {address.distance_km} km from the store
-                    </p>
-                  ) : null}
-                </GlassCard>
-              </li>
-            ))}
-          </ul>
-        )}
+        {/*
+         * Editable rather than read-only. The only way to change what is
+         * prefilled at booking time used to be completing another booking, which
+         * is a poor way to fix a typo and impossible for someone who has moved
+         * and does not want to book yet.
+         *
+         * The per-card animation delays are gone with the cards; the manager
+         * renders its own layout and the stagger was cosmetic.
+         *
+         * Note what is not here: a distance from the store. `distance_km` is
+         * never populated, because the address step does no location work yet,
+         * so the branch that would have shown it could never run. It comes back
+         * when geocoding does.
+         */}
+        <AddressManager addresses={addresses} />
       </section>
 
       <p className="text-muted-foreground text-xs">

@@ -2,10 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 
-import { createServiceClient } from "@/db/server";
-import { mobileSchema } from "@/lib/validation/auth";
-import { requireRoleOrRedirect } from "@/server/auth";
+import { createClient, createServiceClient } from "@/db/server";
+import {
+  AddressError,
+  deleteAddress,
+  setDefaultAddress,
+  updateAddress,
+} from "@/server/addresses";
+import { getAuthUser, requireRoleOrRedirect } from "@/server/auth";
 import { DomainError } from "@/server/errors";
+import { addressSchema } from "@/lib/validation/booking";
+import { mobileSchema } from "@/lib/validation/auth";
 
 import { z } from "zod";
 
@@ -123,5 +130,153 @@ export async function updateProfileAction(
       ok: false,
       message: "We could not save your details. Please try again shortly.",
     };
+  }
+}
+
+export type AddressActionResult =
+  | { ok: true }
+  | { ok: false; message: string; fieldErrors?: Record<string, string> };
+
+/**
+ * What a customer may change about one of their own addresses.
+ *
+ * The id is a uuid because it comes straight back from the browser, and an
+ * unvalidated id in an `.eq()` is not a risk on its own but there is no reason
+ * to let an arbitrary string reach a query builder. The text goes through the
+ * same `addressSchema` the booking form uses, so an address that would be
+ * rejected at booking time cannot be stored here either.
+ *
+ * Coordinates are not editable: they are the store point placeholder described
+ * in the booking wizard, and accepting them from the browser would mean storing
+ * a location nobody chose.
+ */
+const editableAddressSchema = z.object({
+  id: z.string().uuid("That address could not be found"),
+  addressText: addressSchema,
+  label: z.string().trim().max(40).optional(),
+});
+
+/**
+ * Maps a failure from the address server layer onto something a customer can
+ * read, without letting a database message through.
+ */
+function toAddressResult(error: unknown): { ok: false; message: string } {
+  if (error instanceof AddressError) {
+    return { ok: false, message: error.userMessage };
+  }
+
+  console.error("Address change failed", error);
+  return {
+    ok: false,
+    message: "We could not update your addresses. Please try again shortly.",
+  };
+}
+
+/** Edits one of the signed-in customer's addresses. */
+export async function updateAddressAction(
+  input: z.input<typeof editableAddressSchema>,
+): Promise<AddressActionResult> {
+  const parsed = editableAddressSchema.safeParse(input);
+
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      const key = String(issue.path[0] ?? "form");
+      fieldErrors[key] ??= issue.message;
+    }
+
+    return {
+      ok: false,
+      message: parsed.error.issues[0]?.message ?? "Please check the address",
+      fieldErrors,
+    };
+  }
+
+  try {
+    const user = await getAuthUser();
+    if (!user) {
+      return {
+        ok: false,
+        message: "Your session has expired. Please sign in again.",
+      };
+    }
+
+    const supabase = await createClient();
+    await updateAddress(supabase, user.id, parsed.data);
+
+    // The booking page reads the default address on every render, so it has to
+    // be refreshed too or the next booking offers the old one.
+    revalidatePath("/account/profile");
+    revalidatePath("/book", "layout");
+
+    return { ok: true };
+  } catch (error) {
+    return toAddressResult(error);
+  }
+}
+
+const addressIdSchema = z.object({
+  id: z.string().uuid("That address could not be found"),
+});
+
+/** Promotes one of the customer's addresses to be the one offered at booking. */
+export async function setDefaultAddressAction(
+  input: z.input<typeof addressIdSchema>,
+): Promise<AddressActionResult> {
+  const parsed = addressIdSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { ok: false, message: "That address could not be found" };
+  }
+
+  try {
+    const user = await getAuthUser();
+    if (!user) {
+      return {
+        ok: false,
+        message: "Your session has expired. Please sign in again.",
+      };
+    }
+
+    const supabase = await createClient();
+    await setDefaultAddress(supabase, user.id, parsed.data.id);
+
+    revalidatePath("/account/profile");
+    revalidatePath("/book", "layout");
+
+    return { ok: true };
+  } catch (error) {
+    return toAddressResult(error);
+  }
+}
+
+/** Removes one of the customer's addresses. */
+export async function deleteAddressAction(
+  input: z.input<typeof addressIdSchema>,
+): Promise<AddressActionResult> {
+  const parsed = addressIdSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { ok: false, message: "That address could not be found" };
+  }
+
+  try {
+    const user = await getAuthUser();
+    if (!user) {
+      return {
+        ok: false,
+        message: "Your session has expired. Please sign in again.",
+      };
+    }
+
+    const supabase = await createClient();
+    await deleteAddress(supabase, user.id, parsed.data.id);
+
+    revalidatePath("/account/profile");
+    revalidatePath("/book", "layout");
+
+    return { ok: true };
+  } catch (error) {
+    return toAddressResult(error);
   }
 }

@@ -2,9 +2,15 @@
 
 import * as React from "react";
 
+import { isUsableAddress } from "@/lib/address";
 import { cn } from "@/lib/utils";
 
-import { createBookingAction, listUpcomingSlotsAction } from "./actions";
+import {
+  createBookingAction,
+  getSavedAddressAction,
+  listUpcomingSlotsAction,
+  saveAddressAction,
+} from "./actions";
 import { resolveSelection, type ServiceSelection } from "./service-selection";
 import { AddressStep } from "./steps/address-step";
 import { ConfirmStep } from "./steps/confirm-step";
@@ -13,7 +19,13 @@ import { ServicesStep } from "./steps/services-step";
 import { SlotStep } from "./steps/slot-step";
 import { SuccessStep } from "./steps/success-step";
 import type { CategorySlug } from "@/data/pricing";
-import type { BookingSummary, LatLng, SlotDay, WizardStep } from "./types";
+import type {
+  AddressSaveState,
+  BookingSummary,
+  LatLng,
+  SlotDay,
+  WizardStep,
+} from "./types";
 
 type BookWizardProps = {
   storeCenter: LatLng;
@@ -121,6 +133,14 @@ export function BookWizard({
   // Tracked separately so the "saved address" hint disappears the moment the
   // customer starts typing over it.
   const [addressEdited, setAddressEdited] = React.useState(false);
+  // Whether the saved address is still on its way. Only true for someone who
+  // verified their number during this wizard; an already-signed-in customer was
+  // given theirs during the server render.
+  const [addressLoading, setAddressLoading] = React.useState(false);
+  // Outcome of writing the address to the profile, surfaced on the success step
+  // so a customer is never told an address was saved when it was not.
+  const [addressSaveState, setAddressSaveState] =
+    React.useState<AddressSaveState>("idle");
 
   function handleAddressText(value: string) {
     setAddressEdited(true);
@@ -163,15 +183,70 @@ export function BookWizard({
     );
   }, [upcomingDays, slotDate, slotId]);
 
+  /**
+   * Fetches the saved address now that there is a session to fetch it for.
+   *
+   * This is what makes the prefill work for the common case. `/book` is
+   * rendered when someone clicks Book Now, which is usually before they have
+   * verified anything, so the server render had no session and offered no
+   * address. Verifying their number does not re-render the page, so without this
+   * the address they gave us last time only ever came back to someone who
+   * happened to already be signed in.
+   *
+   * Only fills an empty field. If they have started typing, or were already
+   * given an address, whatever is on screen is what they meant.
+   */
+  async function prefillSavedAddress() {
+    setAddressLoading(true);
+
+    const result = await getSavedAddressAction();
+
+    setAddressLoading(false);
+
+    if (!result.ok || !result.data.addressText) return;
+
+    setAddressText((current) =>
+      current.trim() ? current : result.data.addressText,
+    );
+  }
+
   function handleVerified(next: { name: string; mobile: string }) {
     setIdentity(next);
     setStep("address");
+    void prefillSavedAddress();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function handleNoticeAccepted(value: boolean) {
     setNoticeAccepted(value);
     setNoticeAcceptedAt(value ? new Date().toISOString() : null);
+  }
+
+  /**
+   * Writes the address to the profile before moving on, so it is kept even if
+   * the customer abandons the wizard at the slot or confirm step.
+   *
+   * Deliberately does not block the transition. Saving an address is a
+   * convenience, and making someone wait on it to reach the services list would
+   * be trading a real speedup for a background write nobody is watching. The
+   * outcome is recorded and reported on the success step instead.
+   */
+  function persistAddress() {
+    const trimmed = addressText.trim();
+
+    if (!isUsableAddress(trimmed)) return;
+
+    setAddressSaveState("saving");
+
+    void saveAddressAction({
+      addressText: trimmed,
+      lat: storeCenter.lat,
+      lng: storeCenter.lng,
+    }).then((result) => {
+      // A later success supersedes an earlier failure: the post-booking save is
+      // a backstop and may well succeed after this one did not.
+      setAddressSaveState(result.ok ? "saved" : "failed");
+    });
   }
 
   async function loadSlots() {
@@ -193,6 +268,7 @@ export function BookWizard({
   }
 
   function goToServices() {
+    persistAddress();
     setStep("services");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -276,7 +352,8 @@ export function BookWizard({
           <AddressStep
             maxRadiusKm={maxRadiusKm}
             addressText={addressText}
-            prefilled={Boolean(initialAddress) && !addressEdited}
+            prefilled={Boolean(addressText) && !addressEdited}
+            loadingSaved={addressLoading}
             noticeAccepted={noticeAccepted}
             notes={notes}
             onAddressText={handleAddressText}
@@ -334,7 +411,7 @@ export function BookWizard({
         ) : null}
 
         {step === "success" && summary ? (
-          <SuccessStep summary={summary} />
+          <SuccessStep summary={summary} addressSaveState={addressSaveState} />
         ) : null}
       </div>
     </section>

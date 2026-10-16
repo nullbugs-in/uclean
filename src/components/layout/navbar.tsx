@@ -533,7 +533,7 @@ function UserMenu({ user }: { user: NavbarUser }) {
             icon={<UserRound className="size-4" aria-hidden="true" />}
             onNavigate={() => setOpen(false)}
           >
-            Profile details
+            Profile
           </MenuLink>
 
           <MenuLink

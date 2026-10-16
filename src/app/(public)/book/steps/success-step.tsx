@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { siteConfig, whatsAppLink } from "@/config/site";
 
 import { formatFullDate } from "../format";
-import type { BookingSummary } from "../types";
+import type { AddressSaveState, BookingSummary } from "../types";
 
 /**
  * Step 6: the confirmation.
@@ -26,7 +26,14 @@ import type { BookingSummary } from "../types";
  *
  * No amount is quoted here either, for the same reason as the confirm step.
  */
-export function SuccessStep({ summary }: { summary: BookingSummary }) {
+export function SuccessStep({
+  summary,
+  addressSaveState,
+}: {
+  summary: BookingSummary;
+  /** Whether their address reached their profile, so we can say so honestly. */
+  addressSaveState?: AddressSaveState;
+}) {
   return (
     <div className="space-y-6 text-center">
       <div className="flex flex-col items-center gap-3">
@@ -62,6 +69,26 @@ export function SuccessStep({ summary }: { summary: BookingSummary }) {
           </span>
         </p>
       </div>
+
+      {/*
+       * Only when the save actually failed. Saying nothing would leave a
+       * customer believing their address is on their profile when it is not, and
+       * the next booking would then ask for it all over again with no
+       * explanation.
+       */}
+      {addressSaveState === "failed" ? (
+        <p className="mx-auto max-w-sm rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-left text-xs text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+          Your pickup is booked, but we could not save this address to your
+          profile. You can add it any time from{" "}
+          <Link
+            href="/account/profile"
+            className="underline underline-offset-2"
+          >
+            your profile
+          </Link>
+          .
+        </p>
+      ) : null}
 
       <div className="flex flex-col justify-center gap-3 sm:flex-row">
         <Button asChild size="lg" className="sm:min-w-52">
