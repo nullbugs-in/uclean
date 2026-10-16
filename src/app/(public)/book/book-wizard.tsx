@@ -4,11 +4,8 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-import { createBookingAction, listWeekSlotsAction } from "./actions";
-import {
-  resolveSelection,
-  type ServiceSelection,
-} from "./service-selection";
+import { createBookingAction, listUpcomingSlotsAction } from "./actions";
+import { resolveSelection, type ServiceSelection } from "./service-selection";
 import { AddressStep } from "./steps/address-step";
 import { ConfirmStep } from "./steps/confirm-step";
 import { DetailsStep } from "./steps/details-step";
@@ -145,7 +142,9 @@ export function BookWizard({
     [serviceSelection, category],
   );
 
-  const [weekDays, setWeekDays] = React.useState<SlotDay[] | null>(null);
+  const [upcomingDays, setUpcomingDays] = React.useState<SlotDay[] | null>(
+    null,
+  );
   const [loadingSlots, setLoadingSlots] = React.useState(false);
   const [slotsError, setSlotsError] = React.useState<string | null>(null);
   const [slotDate, setSlotDate] = React.useState<string | null>(null);
@@ -156,13 +155,13 @@ export function BookWizard({
   const [summary, setSummary] = React.useState<BookingSummary | null>(null);
 
   const selectedSlot = React.useMemo(() => {
-    if (!weekDays || !slotDate || !slotId) return null;
+    if (!upcomingDays || !slotDate || !slotId) return null;
     return (
-      weekDays
+      upcomingDays
         .find((day) => day.dateKey === slotDate)
         ?.slots.find((slot) => slot.id === slotId) ?? null
     );
-  }, [weekDays, slotDate, slotId]);
+  }, [upcomingDays, slotDate, slotId]);
 
   function handleVerified(next: { name: string; mobile: string }) {
     setIdentity(next);
@@ -179,7 +178,7 @@ export function BookWizard({
     setLoadingSlots(true);
     setSlotsError(null);
 
-    const result = await listWeekSlotsAction();
+    const result = await listUpcomingSlotsAction();
 
     setLoadingSlots(false);
 
@@ -188,7 +187,7 @@ export function BookWizard({
       return;
     }
 
-    setWeekDays(result.data);
+    setUpcomingDays(result.data);
     const firstOpen = result.data.find((day) => day.slots.length > 0);
     if (firstOpen) setSlotDate(firstOpen.dateKey);
   }
@@ -200,7 +199,7 @@ export function BookWizard({
 
   function goToSlots() {
     setStep("slot");
-    if (!weekDays && !loadingSlots) void loadSlots();
+    if (!upcomingDays && !loadingSlots) void loadSlots();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -301,7 +300,7 @@ export function BookWizard({
 
         {step === "slot" ? (
           <SlotStep
-            weekDays={weekDays}
+            upcomingDays={upcomingDays}
             loading={loadingSlots}
             error={slotsError}
             selectedDate={slotDate}

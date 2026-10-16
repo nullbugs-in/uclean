@@ -7,7 +7,7 @@ import { getAuthUser } from "@/server/auth";
 import { DomainError } from "@/server/errors";
 import { createPickupOrder } from "@/server/orders";
 import {
-  getSlotAvailability,
+  getSlotsForRange,
   selectableSlots,
   toDateKey,
   type SlotAvailability,
@@ -15,8 +15,17 @@ import {
 
 import type { ActionResult, SlotDay, SlotOption } from "./types";
 
-/** How many days ahead the slot picker offers. */
-const SLOT_WINDOW_DAYS = 7;
+/**
+ * How many days ahead the slot picker offers.
+ *
+ * This is the whole bookable horizon, not the width of the quick-pick strip:
+ * the strip renders the first seven of these and the calendar icon renders all
+ * of them. Availability exists for any future date, because `time_slots`
+ * describes recurring slots rather than dated ones, so this number is a product
+ * decision about how far ahead a customer may book rather than a limit of the
+ * data. Reading it costs the same three queries at any width.
+ */
+const SLOT_WINDOW_DAYS = 60;
 
 function toOption(entry: SlotAvailability): SlotOption {
   return {
@@ -28,47 +37,49 @@ function toOption(entry: SlotAvailability): SlotOption {
   };
 }
 
-async function buildDay(supabase: DbClient, date: Date): Promise<SlotDay> {
-  const dateKey = toDateKey(date);
+/** Today plus the next {@link SLOT_WINDOW_DAYS} date keys, oldest first. */
+function upcomingDateKeys(count: number): string[] {
+  const today = new Date();
 
-  try {
-    const availability = await getSlotAvailability(supabase, date);
-    return {
-      dateKey,
-      isBlocked: false,
-      slots: selectableSlots(availability).map(toOption),
-    };
-  } catch (error) {
-    // A blocked date is a normal state the picker renders, not a failure.
-    if (error instanceof DomainError && error.code === "DATE_BLOCKED") {
-      return { dateKey, isBlocked: true, slots: [] };
-    }
-    throw error;
-  }
+  return Array.from({ length: count }, (_, offset) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() + offset);
+    return toDateKey(date);
+  });
 }
 
 /**
- * The next seven days of pickup availability, fetched once after sign-in.
+ * Pickup availability for the whole bookable horizon, fetched once.
  *
- * One action rather than seven: Server Actions dispatch sequentially from the
- * client, so a per-day call would waterfall. The authoritative capacity check
- * still happens under a row lock inside book_pickup, so this read may briefly
- * disagree with a concurrent booking.
+ * One action rather than one per date: Server Actions dispatch sequentially from
+ * the client, so a per-day call would waterfall. One ranged read also costs the
+ * same three queries however far ahead it reaches.
+ *
+ * The authoritative capacity check still happens under a row lock inside
+ * book_pickup, so this read may briefly disagree with a concurrent booking.
  */
-export async function listWeekSlotsAction(): Promise<ActionResult<SlotDay[]>> {
+export async function listUpcomingSlotsAction(): Promise<
+  ActionResult<SlotDay[]>
+> {
   try {
     const supabase = await createClient();
-    const today = new Date();
+    const dateKeys = upcomingDateKeys(SLOT_WINDOW_DAYS);
+    const availability = await getSlotsForRange(supabase, dateKeys);
 
-    const days = await Promise.all(
-      Array.from({ length: SLOT_WINDOW_DAYS }, (_, offset) => {
-        const date = new Date(today);
-        date.setDate(today.getDate() + offset);
-        return buildDay(supabase, date);
+    return {
+      ok: true,
+      data: dateKeys.map((dateKey) => {
+        const day = availability.get(dateKey);
+
+        return {
+          dateKey,
+          // A blocked date is a state the picker renders, not a failure, so it
+          // arrives here as data rather than as a thrown error.
+          isBlocked: day?.isBlocked ?? false,
+          slots: selectableSlots(day?.slots ?? []).map(toOption),
+        };
       }),
-    );
-
-    return { ok: true, data: days };
+    };
   } catch (error) {
     console.error("Could not load pickup slots", error);
     return {
