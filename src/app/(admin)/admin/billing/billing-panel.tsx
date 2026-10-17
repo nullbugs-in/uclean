@@ -3,7 +3,7 @@
 import { Loader2, ReceiptText, Send, Wallet } from "lucide-react";
 import * as React from "react";
 
-import { Badge } from "@/components/ui/badge";
+import { InvoiceStatusBadge } from "@/components/panel/invoice-status-badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,7 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { BillableOrder, InvoiceRow } from "@/db/queries/billing";
-import type { InvoiceStatus, Service } from "@/db/types";
+import type { Service } from "@/db/types";
 import { formatDate, formatINR } from "@/lib/utils";
 
 import { recordCodAction, sendInvoiceAction } from "./actions";
@@ -339,13 +339,4 @@ export function BillingPanel({
       </Dialog>
     </div>
   );
-}
-
-/** The invoice stage as a badge. */
-function InvoiceStatusBadge({ status }: { status: InvoiceStatus }) {
-  if (status === "paid") return <Badge variant="success">Paid</Badge>;
-  if (status === "sent") return <Badge variant="warning">Sent</Badge>;
-  if (status === "void") return <Badge variant="outline">Void</Badge>;
-
-  return <Badge variant="secondary">Draft</Badge>;
 }
