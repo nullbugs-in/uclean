@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import { getStoreSettings, listActiveServices } from "@/db/queries/catalog";
 import { createClient } from "@/db/server";
-import { addDays, toDateKey } from "@/lib/dates";
+import { addDays, storeNow, toDateKey } from "@/lib/dates";
 import { requireAdmin } from "@/server/auth";
 import { getSlotsForRange, selectableSlots } from "@/server/slots";
 
@@ -34,7 +34,10 @@ export const metadata: Metadata = { title: "Walk-in customers" };
 const SLOT_WINDOW_DAYS = 60;
 
 function upcomingDateKeys(count: number): string[] {
-  const today = new Date();
+  // The store's today, not the server's: a function running in UTC would
+  // otherwise start the window on the wrong day for the first five and a half
+  // hours of every store day.
+  const today = storeNow();
 
   return Array.from({ length: count }, (_, offset) =>
     toDateKey(addDays(today, offset)),

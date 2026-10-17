@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/db/server";
+import { storeNow } from "@/lib/dates";
 import { pickupRequestSchema } from "@/lib/validation";
 import { getPrefillAddress, saveDefaultAddress } from "@/server/addresses";
 import { getAuthUser } from "@/server/auth";
@@ -39,7 +40,10 @@ function toOption(entry: SlotAvailability): SlotOption {
 
 /** Today plus the next {@link SLOT_WINDOW_DAYS} date keys, oldest first. */
 function upcomingDateKeys(count: number): string[] {
-  const today = new Date();
+  // The store's today, not the server's: a function running in UTC would
+  // otherwise start the window on the wrong day for the first five and a half
+  // hours of every store day.
+  const today = storeNow();
 
   return Array.from({ length: count }, (_, offset) => {
     const date = new Date(today);

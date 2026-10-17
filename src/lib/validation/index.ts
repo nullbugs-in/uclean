@@ -28,10 +28,16 @@ export type {
   StatusChangeInput,
 } from "./billing";
 
-export { blockedDateSchema, slotSettingsSchema } from "./slot";
+export {
+  blockedDateSchema,
+  bookingRulesSchema,
+  slotSettingsSchema,
+} from "./slot";
 export type {
   BlockedDateInput,
   BlockedDateValues,
+  BookingRulesInput,
+  BookingRulesValues,
   SlotSettingsInput,
   SlotSettingsValues,
 } from "./slot";

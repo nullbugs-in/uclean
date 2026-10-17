@@ -36,6 +36,26 @@ export const slotSettingsSchema = z.object({
 export type SlotSettingsInput = z.input<typeof slotSettingsSchema>;
 export type SlotSettingsValues = z.output<typeof slotSettingsSchema>;
 
+/**
+ * The booking cut-off, as the admin Slots page submits it.
+ *
+ * 0 is a real value rather than "missing": it means a pickup may be booked right
+ * up to the minute its slot starts. The upper bound is a sanity bound and not a
+ * business rule -- anything past half a day is the wrong number, and the same
+ * pair of bounds is on the column, so a value this accepts is one the database
+ * will store.
+ */
+export const bookingRulesSchema = z.object({
+  cutoffMinutes: z
+    .number({ invalid_type_error: "Enter the cut-off in whole minutes" })
+    .int("The cut-off must be a whole number of minutes")
+    .min(0, "The cut-off cannot be negative")
+    .max(720, "A cut-off longer than 12 hours would close the whole day"),
+});
+
+export type BookingRulesInput = z.input<typeof bookingRulesSchema>;
+export type BookingRulesValues = z.output<typeof bookingRulesSchema>;
+
 /** True for a real YYYY-MM-DD calendar date, rejecting things like 2026-02-31. */
 function isCalendarDate(value: string): boolean {
   const [year, month, day] = value.split("-").map(Number);

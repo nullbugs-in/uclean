@@ -1,7 +1,12 @@
 import "server-only";
 
-import { listActiveTimeSlots, listBlockedDates } from "@/db/queries/catalog";
+import {
+  getStoreSettings,
+  listActiveTimeSlots,
+  listBlockedDates,
+} from "@/db/queries/catalog";
 import type { DbClient, TimeSlot } from "@/db/types";
+import { fromDateKey, storeNow, toDateKey } from "@/lib/dates";
 
 import { dateBlocked } from "./errors";
 
@@ -11,14 +16,54 @@ export type SlotAvailability = {
   remaining: number;
   isFull: boolean;
   isPast: boolean;
+  /** Inside the booking cut-off, so `book_pickup` would refuse it (section 8.10). */
+  isTooSoon: boolean;
 };
 
-/** YYYY-MM-DD in the server's timezone, avoiding a UTC date roll mismatch. */
-export function toDateKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+// Re-exported rather than moved: `book/actions.ts` and the walk-in page both
+// read this from here, and `src/lib/dates.ts` owns the single definition now that
+// slots.ts needs the store-aware clock anyway.
+export { toDateKey };
+
+/**
+ * The cut-off used when the store row is missing or unreadable.
+ *
+ * Falling back to the documented rule rather than to zero is the point: zero
+ * means "up to the minute", so a missing settings row would quietly switch the
+ * rule off instead of degrading to what the brief asks for.
+ */
+export const DEFAULT_BOOKING_CUTOFF_MINUTES = 60;
+
+const MINUTES_PER_DAY = 24 * 60;
+const MS_PER_DAY = MINUTES_PER_DAY * 60_000;
+
+/**
+ * Whether `book_pickup` would refuse this slot for being inside the cut-off.
+ *
+ * Pure and exported so the rule can be pinned by a test. The wizard and the
+ * database have to agree exactly, because a slot the wizard offers and the
+ * database then rejects is a customer who filled in a whole form, placed a pin,
+ * accepted a notice, and was still told no.
+ *
+ * Compared as a minute index rather than as a time of day so a cut-off that runs
+ * past midnight still catches the next morning's early slots, instead of
+ * wrapping around and freeing them by accident.
+ */
+export function isSlotTooSoon(
+  dateKey: string,
+  startMinutes: number,
+  todayKey: string,
+  nowMinutes: number,
+  cutoffMinutes: number,
+): boolean {
+  const dayOffset = Math.round(
+    (fromDateKey(dateKey).getTime() - fromDateKey(todayKey).getTime()) /
+      MS_PER_DAY,
+  );
+
+  return (
+    dayOffset * MINUTES_PER_DAY + startMinutes <= nowMinutes + cutoffMinutes
+  );
 }
 
 /**
@@ -27,44 +72,25 @@ export function toDateKey(date: Date): string {
  * Past slots for today are hidden rather than shown as full (section 6.2), and
  * a capacity of 0 means an admin has not configured the slot yet, so it reads
  * as unavailable instead of silently accepting bookings.
+ *
+ * A thin wrapper over the range read below, deliberately. The single-day and the
+ * multi-day view used to compute availability twice, and the two only had to
+ * disagree about one rule for the wizard to offer a slot the database refuses.
  */
 export async function getSlotAvailability(
   client: DbClient,
   date: Date,
 ): Promise<SlotAvailability[]> {
   const dateKey = toDateKey(date);
-  const isToday = dateKey === toDateKey(new Date());
-  const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+  const day = (await getSlotsForRange(client, [dateKey])).get(dateKey);
 
-  const [slots, bookings, blocked] = await Promise.all([
-    listActiveTimeSlots(client),
-    client.from("slot_bookings").select("slot_id").eq("slot_date", dateKey),
-    listBlockedDates(client, dateKey, dateKey),
-  ]);
+  if (!day) return [];
 
-  if (bookings.error) throw new Error(bookings.error.message);
+  // A blocked date is a verdict on the whole day rather than a state of one
+  // slot, so the range view reports it as a flag and this one has to throw it.
+  if (day.isBlocked) throw dateBlocked(dateKey);
 
-  if (blocked.includes(dateKey)) {
-    throw dateBlocked(dateKey);
-  }
-
-  const counts = new Map<string, number>();
-  for (const row of bookings.data ?? []) {
-    counts.set(row.slot_id, (counts.get(row.slot_id) ?? 0) + 1);
-  }
-
-  return slots.map((slot) => {
-    const booked = counts.get(slot.id) ?? 0;
-    const slotStart = toMinutes(slot.start_time);
-
-    return {
-      slot,
-      booked,
-      remaining: Math.max(0, slot.capacity - booked),
-      isFull: slot.capacity === 0 || booked >= slot.capacity,
-      isPast: isToday && slotStart <= nowMinutes,
-    };
-  });
+  return day.slots;
 }
 
 function toMinutes(time: string): number {
@@ -76,7 +102,9 @@ function toMinutes(time: string): number {
 export function selectableSlots(
   availability: SlotAvailability[],
 ): SlotAvailability[] {
-  return availability.filter((entry) => !entry.isFull && !entry.isPast);
+  return availability.filter(
+    (entry) => !entry.isFull && !entry.isPast && !entry.isTooSoon,
+  );
 }
 
 /** One row of `slot_bookings`, as far as availability is concerned. */
@@ -103,7 +131,7 @@ export type DayAvailability = {
 export type RangeAvailability = Map<string, DayAvailability>;
 
 /**
- * Turns three raw reads into per-date availability for an explicit list of days.
+ * Turns the raw reads into per-date availability for an explicit list of days.
  *
  * The days are passed in rather than inferred. A date with no bookings at all is
  * the normal case, not an absent one: inferring the key set from the rows would
@@ -112,7 +140,8 @@ export type RangeAvailability = Map<string, DayAvailability>;
  *
  * Pure and exported so it can be tested without a database, and so the range
  * read and the single-day read above cannot drift apart: both call this, and so
- * both agree on what is full, what is past and what is blocked.
+ * both agree on what is full, what is past, what is too soon and what is
+ * blocked.
  */
 export function buildRangeAvailability(
   dateKeys: string[],
@@ -121,6 +150,7 @@ export function buildRangeAvailability(
   blockedDates: string[],
   todayKey: string,
   nowMinutes: number,
+  cutoffMinutes: number,
 ): RangeAvailability {
   const blocked = new Set(blockedDates);
 
@@ -146,13 +176,21 @@ export function buildRangeAvailability(
       isBlocked: false,
       slots: slots.map((slot) => {
         const booked = counts.get(`${dateKey}/${slot.id}`) ?? 0;
+        const startMinutes = toMinutes(slot.start_time);
 
         return {
           slot,
           booked,
           remaining: Math.max(0, slot.capacity - booked),
           isFull: slot.capacity === 0 || booked >= slot.capacity,
-          isPast: isToday && toMinutes(slot.start_time) <= nowMinutes,
+          isPast: isToday && startMinutes <= nowMinutes,
+          isTooSoon: isSlotTooSoon(
+            dateKey,
+            startMinutes,
+            todayKey,
+            nowMinutes,
+            cutoffMinutes,
+          ),
         };
       }),
     });
@@ -162,13 +200,16 @@ export function buildRangeAvailability(
 }
 
 /**
- * Availability across a range in three queries, however wide the range is.
+ * Availability across a range in four queries, however wide the range is.
  *
- * The single-date read above spends three queries per date, which is why the
- * wizard historically only ever fetched a week. A range costs the same three no
+ * The single-date read above spends one query batch per date, which is why the
+ * wizard historically only ever fetched a week. A range costs the same four no
  * matter how far ahead it reaches, because the active slots and the blocked
  * dates are both range-independent: `time_slots` describes recurring slots
  * rather than dated ones, and `slot_bookings` is the only dated table involved.
+ *
+ * The fourth query is the store row, for the booking cut-off. It is a singleton
+ * read, so it costs the width of one row rather than the width of the range.
  */
 export async function getSlotsForRange(
   client: DbClient,
@@ -179,7 +220,7 @@ export async function getSlotsForRange(
 
   if (!fromKey || !toKey) return new Map();
 
-  const [slots, bookings, blocked] = await Promise.all([
+  const [slots, bookings, blocked, store] = await Promise.all([
     listActiveTimeSlots(client),
     client
       .from("slot_bookings")
@@ -187,11 +228,14 @@ export async function getSlotsForRange(
       .gte("slot_date", fromKey)
       .lte("slot_date", toKey),
     listBlockedDates(client, fromKey, toKey),
+    getStoreSettings(client),
   ]);
 
   if (bookings.error) throw new Error(bookings.error.message);
 
-  const now = new Date();
+  // The store's clock, not the process's: a mismatch here is what would let the
+  // wizard offer a slot the database has already closed.
+  const now = storeNow();
 
   return buildRangeAvailability(
     dateKeys,
@@ -200,6 +244,7 @@ export async function getSlotsForRange(
     blocked,
     toDateKey(now),
     now.getHours() * 60 + now.getMinutes(),
+    store?.booking_cutoff_minutes ?? DEFAULT_BOOKING_CUTOFF_MINUTES,
   );
 }
 

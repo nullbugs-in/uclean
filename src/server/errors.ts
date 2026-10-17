@@ -11,6 +11,7 @@ export type DomainErrorCode =
   | "OUTSIDE_DELIVERY_ZONE"
   | "STORE_NOT_CONFIGURED"
   | "SLOT_FULL"
+  | "SLOT_TOO_SOON"
   | "SLOT_UNAVAILABLE"
   | "DATE_BLOCKED"
   | "INVALID_TRANSITION"
@@ -64,6 +65,20 @@ export const slotFull = () =>
   new DomainError(
     "SLOT_FULL",
     "That pickup slot is already full. Please choose another.",
+  );
+
+/**
+ * The requested slot starts inside the booking cut-off.
+ *
+ * The wizard already hides these, so reaching it means the clock moved while the
+ * form was open rather than that the customer did anything wrong. Said without
+ * the number, because the number does not change the fix and the slots to pick
+ * from are on the screen behind this message.
+ */
+export const slotTooSoon = () =>
+  new DomainError(
+    "SLOT_TOO_SOON",
+    "That pickup slot starts too soon. Please choose a later slot.",
   );
 
 export const slotUnavailable = () =>
@@ -210,6 +225,7 @@ export function fromDatabaseError(error: {
     return storeNotConfigured();
   }
   if (message.includes("slot is full")) return slotFull();
+  if (message.includes("too soon")) return slotTooSoon();
   if (
     message.includes("slot is not active") ||
     message.includes("slot not found")

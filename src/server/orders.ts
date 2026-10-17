@@ -8,6 +8,7 @@ import * as orderStatus from "@/lib/order-status";
 import { googleServerKey } from "./env";
 import {
   forbidden,
+  fromDatabaseError,
   invalidTransition,
   unauthenticated,
   zoneNoticeNotAccepted,
@@ -124,6 +125,17 @@ export async function createPickupOrder(
   });
 
   if (error || !orderId) {
+    /*
+     * `book_pickup` re-checks the zone, the cut-off, the capacity and the blocked
+     * dates under its row lock, and answers with a plain message. Recognising the
+     * ones a customer can actually act on is the difference between "pick another
+     * slot" and "we could not confirm your booking" -- the first is retried, the
+     * second is abandoned. Anything unrecognised is still thrown raw so it is not
+     * swallowed into a friendly lie.
+     */
+    const recognised = error ? fromDatabaseError(error) : null;
+    if (recognised) throw recognised;
+
     throw new Error(`book_pickup failed: ${error?.message ?? "unknown error"}`);
   }
 

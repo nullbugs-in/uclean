@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { DbClient, Json, StoreSettings } from "@/db/types";
 
-import { StoreSettingsError, updateStoreSettings } from "./store-settings";
+import {
+  StoreSettingsError,
+  updateBookingRules,
+  updateStoreSettings,
+} from "./store-settings";
 
 /**
  * `store_settings` and `audit_logs`, faked.
@@ -46,6 +50,7 @@ function makeStore(overrides: Partial<StoreSettings> = {}): StoreSettings {
     phone: null,
     whatsapp_number: null,
     max_radius_km: 6,
+    booking_cutoff_minutes: 60,
     opening_time: "10:00:00",
     closing_time: "19:00:00",
     break_start: "14:00:00",
@@ -163,6 +168,69 @@ describe("updateStoreSettings", () => {
     ).rejects.toBeInstanceOf(StoreSettingsError);
 
     // No dangling audit row for a change that never happened.
+    expect(audits).toHaveLength(0);
+  });
+});
+
+describe("updateBookingRules", () => {
+  it("writes the cut-off and returns the saved row", async () => {
+    const { client, getRow } = fakeClient(makeStore());
+
+    const saved = await updateBookingRules(client, "admin-1", {
+      cutoffMinutes: 90,
+    });
+
+    expect(saved.booking_cutoff_minutes).toBe(90);
+    expect(getRow()?.booking_cutoff_minutes).toBe(90);
+  });
+
+  it("leaves the other columns alone, and audits only its own field", async () => {
+    // The two writers share one row. A patch that carried the whole record would
+    // make saving the cut-off silently reset the coordinates the Settings page
+    // had just set, which is the failure this pins.
+    const { client, getRow, audits } = fakeClient(
+      makeStore({ lat: 12.3248091, lng: 76.6288967, max_radius_km: 6 }),
+    );
+
+    await updateBookingRules(client, "admin-1", { cutoffMinutes: 0 });
+
+    expect(getRow()?.lat).toBe(12.3248091);
+    expect(getRow()?.lng).toBe(76.6288967);
+    expect(getRow()?.max_radius_km).toBe(6);
+
+    expect(audits).toHaveLength(1);
+    expect(audits[0]).toMatchObject({
+      actor_id: "admin-1",
+      action: "store_settings.booking_rules_updated",
+      entity: "store_settings",
+      entity_id: "true",
+      before: { booking_cutoff_minutes: 60 },
+      after: { booking_cutoff_minutes: 0 },
+    });
+
+    // Only the cut-off, so a reviewer is not told the radius changed too.
+    expect(Object.keys(audits[0]?.after ?? {})).toEqual([
+      "booking_cutoff_minutes",
+    ]);
+  });
+
+  it("accepts 0, which means up to the minute", async () => {
+    const { client } = fakeClient(makeStore({ booking_cutoff_minutes: 60 }));
+
+    const saved = await updateBookingRules(client, "admin-1", {
+      cutoffMinutes: 0,
+    });
+
+    expect(saved.booking_cutoff_minutes).toBe(0);
+  });
+
+  it("refuses to write, and stays quiet, when the settings row is missing", async () => {
+    const { client, audits } = fakeClient(null);
+
+    await expect(
+      updateBookingRules(client, "admin-1", { cutoffMinutes: 30 }),
+    ).rejects.toBeInstanceOf(StoreSettingsError);
+
     expect(audits).toHaveLength(0);
   });
 });

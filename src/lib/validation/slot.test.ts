@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { blockedDateSchema, slotSettingsSchema } from "./slot";
+import {
+  blockedDateSchema,
+  bookingRulesSchema,
+  slotSettingsSchema,
+} from "./slot";
 
 /**
  * Guards the payloads the admin Slots page submits.
@@ -53,6 +57,40 @@ describe("slotSettingsSchema", () => {
     expect(parsed.success).toBe(false);
     if (!parsed.success) {
       expect(parsed.error.issues[0]?.message).toMatch(/no slots/i);
+    }
+  });
+});
+
+describe("bookingRulesSchema", () => {
+  it("accepts a whole number of minutes", () => {
+    const parsed = bookingRulesSchema.safeParse({ cutoffMinutes: 60 });
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.cutoffMinutes).toBe(60);
+  });
+
+  it("accepts 0, which means bookable up to the minute", () => {
+    expect(bookingRulesSchema.safeParse({ cutoffMinutes: 0 }).success).toBe(
+      true,
+    );
+  });
+
+  it("accepts the ceiling and rejects one past it", () => {
+    // The column carries the same bounds, so a value the form lets through is
+    // one the database will store rather than one it will bounce.
+    expect(bookingRulesSchema.safeParse({ cutoffMinutes: 720 }).success).toBe(
+      true,
+    );
+    expect(bookingRulesSchema.safeParse({ cutoffMinutes: 721 }).success).toBe(
+      false,
+    );
+  });
+
+  it("rejects a blank box, a fraction and a negative", () => {
+    for (const cutoffMinutes of [Number.NaN, 30.5, -1]) {
+      expect(bookingRulesSchema.safeParse({ cutoffMinutes }).success).toBe(
+        false,
+      );
     }
   });
 });

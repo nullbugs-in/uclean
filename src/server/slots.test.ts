@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { TimeSlot } from "@/db/types";
 
-import { buildRangeAvailability, selectableSlots } from "./slots";
+import { buildRangeAvailability, isSlotTooSoon, selectableSlots } from "./slots";
 
 /** 12:00 on 2026-03-10 is 720 minutes past midnight. */
 const TODAY = "2026-03-10";
@@ -32,6 +32,9 @@ function build(
   blockedDates: string[] = [],
   slots: TimeSlot[] = [MORNING, MIDDAY, EVENING],
   nowMinutes = NOON,
+  // A cut-off of 0 hides nothing on top of `isPast`, which is what the tests
+  // below are about. The cut-off has its own describe block.
+  cutoffMinutes = 0,
 ) {
   return buildRangeAvailability(
     DAYS,
@@ -40,6 +43,7 @@ function build(
     blockedDates,
     TODAY,
     nowMinutes,
+    cutoffMinutes,
   );
 }
 
@@ -134,5 +138,76 @@ describe("buildRangeAvailability", () => {
 
     expect(result.get(TODAY)?.slots).toEqual([]);
     expect(result.get(TODAY)?.isBlocked).toBe(false);
+  });
+});
+
+describe("isSlotTooSoon", () => {
+  it("leaves a slot further away than the cut-off", () => {
+    // 12:00 now, 13:30 slot, 60 minute cut-off.
+    expect(isSlotTooSoon(TODAY, 810, TODAY, NOON, 60)).toBe(false);
+  });
+
+  it("closes a slot sitting exactly on the cut-off, matching book_pickup", () => {
+    // The SQL comparison is `<=`, so a slot 60 minutes out under a 60 minute
+    // cut-off is refused. The screen has to agree with the database rather than
+    // with the friendlier of the two readings.
+    expect(isSlotTooSoon(TODAY, 780, TODAY, NOON, 60)).toBe(true);
+    expect(isSlotTooSoon(TODAY, 779, TODAY, NOON, 60)).toBe(true);
+  });
+
+  it("closes a slot that has already started, whatever the cut-off", () => {
+    expect(isSlotTooSoon(TODAY, 600, TODAY, NOON, 0)).toBe(true);
+  });
+
+  it("leaves the next minute alone when the cut-off is 0", () => {
+    expect(isSlotTooSoon(TODAY, 721, TODAY, NOON, 0)).toBe(false);
+  });
+
+  it("does not carry the cut-off into a later day", () => {
+    expect(isSlotTooSoon("2026-03-11", 540, TODAY, NOON, 60)).toBe(false);
+  });
+
+  it("carries a cut-off that reaches past midnight into the next morning", () => {
+    // 23:00 now with a two hour cut-off puts the boundary at 01:00 tomorrow.
+    // Comparing times of day instead of a minute index would wrap at midnight
+    // and let the whole night through.
+    const LATE = 23 * 60;
+
+    expect(isSlotTooSoon("2026-03-11", 30, TODAY, LATE, 120)).toBe(true);
+    expect(isSlotTooSoon("2026-03-11", 60, TODAY, LATE, 120)).toBe(true);
+    expect(isSlotTooSoon("2026-03-11", 61, TODAY, LATE, 120)).toBe(false);
+  });
+});
+
+describe("buildRangeAvailability and the booking cut-off", () => {
+  it("hides today's slots inside the cut-off and keeps the rest", () => {
+    // Midday now, two hour cut-off, so the boundary is 14:00: the 12:00 slot is
+    // on it and goes, the 18:00 slot stays.
+    const result = build([], [], [MORNING, MIDDAY, EVENING], NOON, 120);
+
+    expect(names(result, TODAY)).toEqual(["evening"]);
+  });
+
+  it("leaves every later day untouched", () => {
+    const result = build([], [], [MORNING, MIDDAY, EVENING], NOON, 120);
+
+    expect(names(result, "2026-03-11")).toEqual([
+      "morning",
+      "midday",
+      "evening",
+    ]);
+  });
+
+  it("records a hidden slot as too soon rather than as full", () => {
+    // The three flags tell a customer different things, so the cut-off must not
+    // arrive as "this slot is booked out".
+    const result = build([], [], [slot("afternoon", "13:00")], NOON, 120);
+    const afternoon = result.get(TODAY)?.slots[0];
+
+    expect(afternoon?.isTooSoon).toBe(true);
+    expect(afternoon?.isPast).toBe(false);
+    expect(afternoon?.isFull).toBe(false);
+    expect(afternoon?.remaining).toBe(2);
+    expect(names(result, TODAY)).toEqual([]);
   });
 });

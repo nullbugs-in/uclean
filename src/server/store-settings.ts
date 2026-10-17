@@ -116,3 +116,72 @@ export async function updateStoreSettings(
 
   return after;
 }
+
+/** The booking-window rules the admin Slots page owns. */
+export type BookingRulesUpdate = {
+  cutoffMinutes: number;
+};
+
+/**
+ * Writes the booking cut-off (section 8.10).
+ *
+ * On `store_settings` rather than on `time_slots` because it is a rule about the
+ * store: it applies to every slot equally. It is edited from the Slots page
+ * rather than from Settings because that is where the slots it governs are
+ * listed, so an admin changes it next to the thing it affects -- but this is the
+ * same row, so the two pages can never show different values.
+ *
+ * Same read-modify-write shape as `updateStoreSettings` above, and the same
+ * reason for it: the audit entry needs a real `before`, and a missing singleton
+ * row is an environment fault rather than a case to upsert around.
+ */
+export async function updateBookingRules(
+  client: DbClient,
+  actorId: string,
+  update: BookingRulesUpdate,
+): Promise<StoreSettings> {
+  const { data: before, error: readError } = await client
+    .from("store_settings")
+    .select("*")
+    .eq("id", true)
+    .maybeSingle();
+
+  if (readError) throw new Error(readError.message);
+
+  if (!before) {
+    throw new StoreSettingsError(
+      "store_settings row is missing",
+      "The store settings row is missing. Run the seed before saving.",
+    );
+  }
+
+  const { data: after, error } = await client
+    .from("store_settings")
+    .update({ booking_cutoff_minutes: update.cutoffMinutes })
+    .eq("id", true)
+    .select("*")
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+
+  if (!after) {
+    throw new StoreSettingsError(
+      "store_settings update returned no row",
+      "We could not save the booking cut-off. Please try again.",
+    );
+  }
+
+  await writeAudit(client, {
+    actorId,
+    action: "store_settings.booking_rules_updated",
+    entity: "store_settings",
+    entityId: "true",
+    // Only the field this function writes. The coordinates and the radius are
+    // someone else's edit, and repeating them here would make an unchanged
+    // setting look touched.
+    before: { booking_cutoff_minutes: before.booking_cutoff_minutes },
+    after: { booking_cutoff_minutes: after.booking_cutoff_minutes },
+  });
+
+  return after;
+}

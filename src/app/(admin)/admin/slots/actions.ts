@@ -3,8 +3,16 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/db/server";
-import { blockedDateSchema, slotSettingsSchema } from "@/lib/validation";
-import type { BlockedDateInput, SlotSettingsInput } from "@/lib/validation";
+import {
+  blockedDateSchema,
+  bookingRulesSchema,
+  slotSettingsSchema,
+} from "@/lib/validation";
+import type {
+  BlockedDateInput,
+  BookingRulesInput,
+  SlotSettingsInput,
+} from "@/lib/validation";
 import { requireAdmin } from "@/server/auth";
 import { DomainError } from "@/server/errors";
 import {
@@ -13,6 +21,7 @@ import {
   SlotSettingsError,
   updateTimeSlots,
 } from "@/server/slot-settings";
+import { StoreSettingsError, updateBookingRules } from "@/server/store-settings";
 
 /**
  * Admin slot-settings actions.
@@ -36,6 +45,7 @@ function describeFailure(
   log: string,
 ): string {
   if (error instanceof SlotSettingsError) return error.userMessage;
+  if (error instanceof StoreSettingsError) return error.userMessage;
   if (error instanceof DomainError) return error.userMessage;
 
   console.error(log, error);
@@ -83,6 +93,63 @@ export async function saveTimeSlotsAction(
         error,
         "We could not save the slots. Please try again.",
         "Could not save the time slots",
+      ),
+    };
+  }
+}
+
+/**
+ * The booking cut-off.
+ *
+ * Split from `saveTimeSlotsAction` because the two write different tables and
+ * fail for different reasons, and a shared Save button would have to report
+ * "three slots and the cut-off were saved" -- which is one more thing to read
+ * than the admin needs. The write itself goes through the same RLS-gated
+ * `store_settings_admin_write` policy as the Settings page.
+ */
+export async function saveBookingRulesAction(
+  input: BookingRulesInput,
+): Promise<SlotSettingsActionResult> {
+  const parsed = bookingRulesSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message:
+        parsed.error.issues[0]?.message ??
+        "Please check the cut-off and try again.",
+    };
+  }
+
+  try {
+    const admin = await requireAdmin();
+    const supabase = await createClient();
+
+    const saved = await updateBookingRules(supabase, admin.profile.id, {
+      cutoffMinutes: parsed.data.cutoffMinutes,
+    });
+
+    revalidatePath("/admin/slots");
+    revalidatePath("/book");
+
+    const minutes = saved.booking_cutoff_minutes;
+
+    return {
+      ok: true,
+      message:
+        minutes === 0
+          ? "Saved. Slots are bookable right up to the minute they start."
+          : `Saved. Slots starting within ${minutes} minute${
+              minutes === 1 ? "" : "s"
+            } are now hidden.`,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: describeFailure(
+        error,
+        "We could not save the cut-off. Please try again.",
+        "Could not save the booking cut-off",
       ),
     };
   }
