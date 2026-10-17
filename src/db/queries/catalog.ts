@@ -1,4 +1,5 @@
 import type {
+  BlockedDate,
   DbClient,
   HeroSlide,
   Service,
@@ -124,4 +125,22 @@ export async function listBlockedDates(
       .lte("date", to),
   );
   return rows.map((row) => row.date);
+}
+
+/**
+ * Every blocked date with its reason, for the admin Slots page.
+ *
+ * Distinct from `listBlockedDates` on purpose: availability only needs the
+ * dates and asks for a window, while the admin edits them one at a time and
+ * shows the reason, so this one is unbounded and carries the whole row.
+ */
+export async function listBlockedDateEntries(
+  client: Client,
+): Promise<BlockedDate[]> {
+  return unwrap(
+    await client
+      .from("blocked_dates")
+      .select("*")
+      .order("date", { ascending: true }),
+  );
 }

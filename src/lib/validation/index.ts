@@ -28,5 +28,13 @@ export type {
   StatusChangeInput,
 } from "./billing";
 
+export { blockedDateSchema, slotSettingsSchema } from "./slot";
+export type {
+  BlockedDateInput,
+  BlockedDateValues,
+  SlotSettingsInput,
+  SlotSettingsValues,
+} from "./slot";
+
 export { storeSettingsSchema } from "./store";
 export type { StoreSettingsInput, StoreSettingsValues } from "./store";
