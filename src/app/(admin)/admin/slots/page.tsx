@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { PagePlaceholder } from "@/components/placeholder";
+import { PanelPage } from "@/components/panel/panel-page";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { listBlockedDateEntries, listTimeSlots } from "@/db/queries/catalog";
 import { createClient } from "@/db/server";
@@ -33,7 +33,7 @@ export default async function AdminSlotsPage() {
   ]);
 
   return (
-    <PagePlaceholder
+    <PanelPage
       title="Time slots"
       description="Capacity per slot, whether a slot is offered, and blocked dates."
     >
@@ -54,6 +54,6 @@ export default async function AdminSlotsPage() {
           <BlockedDatesPanel dates={blockedDates} />
         </CardContent>
       </Card>
-    </PagePlaceholder>
+    </PanelPage>
   );
 }

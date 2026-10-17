@@ -20,6 +20,7 @@ export type DomainErrorCode =
   | "MOBILE_ALREADY_REGISTERED"
   | "MOBILE_NOT_REGISTERED"
   | "MOBILE_INVALID"
+  | "WALK_IN_MOBILE_IS_STAFF"
   | "UNAUTHENTICATED"
   | "FORBIDDEN"
   | "INVALID_PAYMENT_TOKEN"
@@ -136,6 +137,25 @@ export const mobileInvalid = () =>
   new DomainError("MOBILE_INVALID", "Enter a valid 10 digit mobile number.", {
     status: 400,
   });
+
+/**
+ * A walk-in was entered against a mobile number that belongs to staff.
+ *
+ * Its own code rather than `FORBIDDEN`, because it is a mistake in the field
+ * rather than a permissions problem: the person taking the order has every right
+ * to take it, they have just typed a colleague's number. The form shows this
+ * against the mobile input, which `FORBIDDEN` would not.
+ *
+ * The alternative - quietly creating an order under the staff member's own
+ * profile - would put a colleague's name on the customer's delivery and their
+ * account in the customer's order history.
+ */
+export const walkInMobileIsStaff = () =>
+  new DomainError(
+    "WALK_IN_MOBILE_IS_STAFF",
+    "That mobile number belongs to a staff account. Enter the customer's own number.",
+    { status: 409 },
+  );
 
 /**
  * Too many wrong codes for one number.

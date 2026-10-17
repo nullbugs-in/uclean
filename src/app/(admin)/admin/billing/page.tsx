@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { PagePlaceholder } from "@/components/placeholder";
+import { PanelPage } from "@/components/panel/panel-page";
 import { listActiveServices } from "@/db/queries/catalog";
 import { listBillableOrders, listInvoices } from "@/db/queries/billing";
 import { createClient } from "@/db/server";
@@ -30,7 +30,7 @@ export default async function AdminBillingPage() {
   ]);
 
   return (
-    <PagePlaceholder
+    <PanelPage
       title="Billing"
       description="Record items from the price list, generate invoices, and take payment."
     >
@@ -39,6 +39,6 @@ export default async function AdminBillingPage() {
         billableOrders={billableOrders}
         services={services}
       />
-    </PagePlaceholder>
+    </PanelPage>
   );
 }

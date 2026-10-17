@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { PagePlaceholder } from "@/components/placeholder";
+import { PanelPage } from "@/components/panel/panel-page";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { listServices } from "@/db/queries/catalog";
 import { createClient } from "@/db/server";
@@ -28,7 +28,7 @@ export default async function AdminServicesPage() {
   const services = await listServices(supabase).catch(() => []);
 
   return (
-    <PagePlaceholder
+    <PanelPage
       title="Services and prices"
       description="The billing catalogue that invoices price from."
     >
@@ -40,6 +40,6 @@ export default async function AdminServicesPage() {
           <ServicesPanel services={services} />
         </CardContent>
       </Card>
-    </PagePlaceholder>
+    </PanelPage>
   );
 }

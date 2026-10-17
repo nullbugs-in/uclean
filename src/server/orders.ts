@@ -25,7 +25,21 @@ export type CreatePickupInput = {
   slotId: string;
   zoneNoticeAcceptedAt: string;
   /** Services chosen in the wizard, written to order_items once the order exists. */
-  items?: Array<{ name: string; qty: number; unitPrice: number }>;
+  items?: Array<{
+    name: string;
+    qty: number;
+    unitPrice: number;
+    /**
+     * The `services` row this line came from, when there is one.
+     *
+     * The public wizard's price list has no row behind it, so this is null for an
+     * online booking. A walk-in is taken from the live catalogue at the counter,
+     * so it can carry the reference - which lets the sales report, the rate on the
+     * invoice and the catalogue all name the same service rather than three
+     * similar strings.
+     */
+    serviceId?: string | null;
+  }>;
   source?: OrderSource;
   createdBy?: string | null;
 };
@@ -116,9 +130,10 @@ export async function createPickupOrder(
   /*
    * The services the customer chose, recorded once the order row exists.
    *
-   * order_items has no insert policy, so the service role is used here, as it
-   * is for the RPC call above. service_id is left null: these are price-list
-   * lines, not rows in `services`.
+   * order_items has no insert policy, so the service role is used here, as it is
+   * for the RPC call above. `service_id` is whatever the caller knew: the public
+   * wizard's price-list lines have no `services` row behind them and pass null,
+   * while a walk-in taken from the catalogue passes the row it came from.
    *
    * Best effort on purpose. The booking is already committed at this point, and
    * failing the whole request over a line item would leave the customer with a
@@ -129,9 +144,7 @@ export async function createPickupOrder(
     const { error: itemsError } = await service.from("order_items").insert(
       input.items.map((item) => ({
         order_id: orderId,
-        // Price-list lines have no `services` row behind them. The column is
-        // nullable, but the generated insert type still requires the key.
-        service_id: null,
+        service_id: item.serviceId ?? null,
         item_name: item.name,
         qty: item.qty,
         unit_price: item.unitPrice,

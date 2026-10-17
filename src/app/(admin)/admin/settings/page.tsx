@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { PagePlaceholder } from "@/components/placeholder";
+import { PanelPage } from "@/components/panel/panel-page";
 import { StoreSettingsPanel } from "./store-settings-panel";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -17,11 +17,11 @@ export const metadata: Metadata = { title: "Settings" };
  */
 export default function AdminSettingsPage() {
   return (
-    <PagePlaceholder
+    <PanelPage
       title="Settings"
       description="Store location, delivery radius, address and contact details."
     >
       <StoreSettingsPanel />
-    </PagePlaceholder>
+    </PanelPage>
   );
 }
