@@ -2,6 +2,8 @@ import "server-only";
 
 import type { BlockedDate, DbClient, Json, TimeSlot } from "@/db/types";
 
+import { writeAudit } from "./audit";
+
 /**
  * Time slot and blocked date writes, for the admin Slots page.
  *
@@ -48,37 +50,6 @@ function auditableSlot(row: TimeSlot): Json {
     capacity: row.capacity,
     is_active: row.is_active,
   };
-}
-
-/**
- * Writes one admin change to the audit trail.
- *
- * Deliberately not thrown, matching `store-settings.ts`: an audit failure must
- * not roll back a change the admin believes they made, but it is loud rather
- * than silent.
- */
-async function audit(
-  client: DbClient,
-  input: {
-    actorId: string;
-    action: string;
-    entity: string;
-    entityId: string;
-    before: Json | null;
-    after: Json | null;
-  },
-): Promise<void> {
-  const { error } = await client.from("audit_logs").insert({
-    actor_id: input.actorId,
-    action: input.action,
-    entity: input.entity,
-    entity_id: input.entityId,
-    before: input.before,
-    after: input.after,
-  });
-
-  if (error)
-    console.error(`Could not write the ${input.action} audit row`, error);
 }
 
 /**
@@ -149,7 +120,7 @@ export async function updateTimeSlots(
       );
     }
 
-    await audit(client, {
+    await writeAudit(client, {
       actorId,
       action: SLOT_ACTION,
       entity: "time_slots",
@@ -201,7 +172,7 @@ export async function addBlockedDate(
     );
   }
 
-  await audit(client, {
+  await writeAudit(client, {
     actorId,
     action: BLOCKED_INSERT_ACTION,
     entity: "blocked_dates",
@@ -246,7 +217,7 @@ export async function removeBlockedDate(
 
   if (error) throw new Error(error.message);
 
-  await audit(client, {
+  await writeAudit(client, {
     actorId,
     action: BLOCKED_DELETE_ACTION,
     entity: "blocked_dates",

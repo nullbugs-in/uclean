@@ -2,6 +2,8 @@ import "server-only";
 
 import type { DbClient, Json, StoreSettings } from "@/db/types";
 
+import { writeAudit } from "./audit";
+
 /**
  * Store settings writes, for the admin Settings page.
  *
@@ -49,28 +51,6 @@ function auditable(row: StoreSettings): Json {
     whatsapp_number: row.whatsapp_number,
     gstin: row.gstin,
   };
-}
-
-/** Writes an admin settings change to the audit trail. */
-async function audit(
-  client: DbClient,
-  input: { actorId: string; before: Json; after: Json },
-): Promise<void> {
-  const { error } = await client.from("audit_logs").insert({
-    actor_id: input.actorId,
-    action: "store_settings.updated",
-    entity: "store_settings",
-    // `store_settings` is a singleton keyed by `id = true`, so the stringified
-    // key is the entity id.
-    entity_id: "true",
-    before: input.before,
-    after: input.after,
-  });
-
-  // Deliberately not thrown. An audit failure must not roll back a settings
-  // change the admin believes they made, but it is loud rather than silent.
-  if (error)
-    console.error("Could not write the store settings audit row", error);
 }
 
 /**
@@ -123,8 +103,13 @@ export async function updateStoreSettings(
     );
   }
 
-  await audit(client, {
+  await writeAudit(client, {
     actorId,
+    action: "store_settings.updated",
+    entity: "store_settings",
+    // `store_settings` is a singleton keyed by `id = true`, so the stringified
+    // key is the entity id.
+    entityId: "true",
     before: auditable(before),
     after: auditable(after),
   });
