@@ -36,5 +36,8 @@ export type {
   SlotSettingsValues,
 } from "./slot";
 
+export { serviceSchema } from "./service";
+export type { ServiceInput, ServiceValues } from "./service";
+
 export { storeSettingsSchema } from "./store";
 export type { StoreSettingsInput, StoreSettingsValues } from "./store";
