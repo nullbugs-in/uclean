@@ -29,9 +29,13 @@ export type PickupActionResult =
   | { ok: true; message?: string; agentName?: string | null }
   | { ok: false; message: string; fieldErrors?: Record<string, string> };
 
-/** Refreshes both the list and the dashboard counts the pickup feeds. */
+/**
+ * Refreshes the list, the dashboard counts the pickup feeds, and the agent
+ * roster - which is no longer only on this page.
+ */
 function revalidatePickupViews() {
   revalidatePath("/admin/pickups");
+  revalidatePath("/admin/agents");
   revalidatePath("/admin");
 }
 
