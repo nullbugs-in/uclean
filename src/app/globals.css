@@ -248,6 +248,32 @@
   }
 }
 
+/*
+ * The customer invoice is a document when it is printed (section 8.4).
+ *
+ * Phase 1 has no PDF step, so the pay page is the bill. Printing it should
+ * produce the bill and nothing else: no centring, no card chrome, and none of
+ * the checkout affordances - the pay button, the "pay in cash" line and the
+ * link-expiry note. The screen keeps every one of them.
+ */
+@media print {
+  .invoice-document {
+    display: block;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .invoice-sheet {
+    max-width: none;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .invoice-screen-only {
+    display: none !important;
+  }
+}
+
 @media (forced-colors: active) {
   .reveal-up {
     animation: none !important;

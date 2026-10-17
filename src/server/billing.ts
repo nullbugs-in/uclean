@@ -3,7 +3,7 @@ import "server-only";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { createClient, createServiceClient } from "@/db/server";
-import type { Invoice } from "@/db/types";
+import type { Invoice, OrderItem } from "@/db/types";
 import { BillingError, invoiceTotal, priceInvoiceLines } from "@/lib/invoice";
 import type { InvoiceLineInput } from "@/lib/invoice";
 
@@ -278,6 +278,27 @@ export async function recordCashOnDelivery(
     .from("invoices")
     .update({ status: "paid", paid_at: new Date().toISOString() })
     .eq("id", invoiceId);
+}
+
+/**
+ * The lines behind an invoice, for the customer's copy.
+ *
+ * Read with the service role because the pay page has no session: the signed
+ * token is the credential, and this only ever runs for the order that token
+ * already resolved to. A session check here would be theatre rather than a
+ * control.
+ */
+export async function listInvoiceLines(orderId: string): Promise<OrderItem[]> {
+  const service = createServiceClient();
+
+  const { data, error } = await service
+    .from("order_items")
+    .select("*")
+    .eq("order_id", orderId)
+    .order("created_at", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
 }
 
 // --- HMAC helpers ----------------------------------------------------------
