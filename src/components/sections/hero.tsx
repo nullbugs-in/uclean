@@ -131,47 +131,52 @@ export function Hero() {
       />
 
       {/*
-        Locally scoped legibility scrim. Deliberately light now - the photos are
-        the point - so it only needs to lift the left column enough for the
-        copy's own halo (below) to finish the job. Clears completely on the
-        right. Pointer-transparent so it never intercepts clicks.
+        Locally scoped legibility scrim. A light dark wash over the left column
+        only - the text's real protection is the tight halo behind it (below),
+        so this layer stays thin and lets the photo read through. Clears
+        completely on the right. Black rather than `--background` because that
+        token is near-white in light mode; the veil has to stay dark in both
+        themes. Pointer-transparent so it never intercepts clicks.
       */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[var(--background)]/60 via-[var(--background)]/20 to-transparent"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/45 via-black/15 to-transparent"
       />
 
       <div className="relative z-10 mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
         {/*
           Text-protection halo. Instead of veiling the whole photo (which
-          dulls the slideshow), a background-toned panel sits directly behind
-          the copy block and fades out toward its edges - near-solid where the
-          words are, transparent a short way beyond them. The wrapper's `z-10`
-          forms a stacking context, so `-z-10` parks it behind the text but
-          still above the photo layer. It stretches across most of the width on
-          phones, where the copy is full-bleed, and tightens to the text column
-          from `sm`.
+          dulls the slideshow), a black panel sits directly behind the copy
+          block and fades out toward its edges - near-solid where the words
+          are, transparent a short way beyond them. The falloff starts at 45%
+          of the panel's radius rather than 55%, so the photo opens up sooner
+          outside the text. Black rather than `--background` because that token
+          is near-white in light mode; the halo has to stay dark in both themes
+          to sit under white copy. The wrapper's `z-10` forms a stacking
+          context, so `-z-10` parks it behind the text but still above the
+          photo layer. It stretches across most of the width on phones, where
+          the copy is full-bleed, and tightens to the text column from `sm`.
         */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -top-20 right-0 -bottom-20 -left-20 -z-10 rounded-[4rem] bg-[radial-gradient(closest-side,color-mix(in_oklab,var(--background),transparent_3%),color-mix(in_oklab,var(--background),transparent_45%)_55%,transparent)] blur-2xl sm:right-1/4"
+          className="pointer-events-none absolute -top-20 right-0 -bottom-20 -left-20 -z-10 rounded-[4rem] bg-[radial-gradient(closest-side,color-mix(in_oklab,black,transparent_12%),color-mix(in_oklab,black,transparent_50%)_45%,transparent)] blur-2xl sm:right-1/4"
         />
         <div className="max-w-xl space-y-6">
-          <span className="border-primary/30 bg-primary/15 text-foreground inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/25 px-3 py-1 text-xs font-medium text-white">
             <span
               aria-hidden="true"
               className="bg-primary size-2 rounded-full"
             />
             Fresh laundry, picked up and delivered
           </span>
-          <h1 className="font-display text-3xl leading-tight font-bold tracking-tight text-balance sm:text-4xl lg:text-5xl">
+          <h1 className="font-display text-3xl leading-tight font-bold tracking-tight text-balance text-white sm:text-4xl lg:text-5xl">
             Laundry pickup and delivery, sorted.
             <span
               aria-hidden="true"
               className="mt-2 block h-1 w-24 rounded-full bg-gradient-to-r from-[var(--primary)] via-[var(--primary)] to-[var(--accent)]"
             />
           </h1>
-          <p className="text-foreground max-w-prose text-lg">
+          <p className="max-w-prose text-lg text-white">
             Book an hourly slot, we collect from your door and return everything
             fresh. Track every step from pickup to delivery.
           </p>
@@ -196,7 +201,7 @@ export function Hero() {
               <a href="#services">Services</a>
             </Button>
           </div>
-          <p className="text-foreground/80 text-sm">
+          <p className="text-sm text-white/80">
             Free pickup and delivery within {siteConfig.deliveryRadiusKm} km.
           </p>
         </div>
