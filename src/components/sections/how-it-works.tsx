@@ -1,6 +1,8 @@
 import {
   ClipboardList,
   PackageCheck,
+  ReceiptIndianRupee,
+  ScanSearch,
   Truck,
   WashingMachine,
   type LucideIcon,
@@ -20,13 +22,23 @@ const STEPS: Step[] = [
     body: "Our agent collects your items from your door.",
   },
   {
+    icon: ScanSearch,
+    title: "Product analysis",
+    body: "We check every item and confirm the fabric and stains.",
+  },
+  {
+    icon: ReceiptIndianRupee,
+    title: "Billing",
+    body: "You approve the itemised price before we start.",
+  },
+  {
     icon: WashingMachine,
     title: "We clean",
     body: "Everything is washed and finished with care.",
   },
   {
     icon: PackageCheck,
-    title: "Delivered",
+    title: "Delivery",
     body: "Fresh laundry returned in your chosen slot.",
   },
 ];
@@ -52,7 +64,7 @@ export function HowItWorks() {
             How it works
           </h2>
           <p className="text-muted-foreground">
-            Four steps from booking to fresh laundry back at your door.
+            Six steps from booking to fresh laundry back at your door.
           </p>
         </div>
 
@@ -60,29 +72,29 @@ export function HowItWorks() {
           Connected stepper. Each step renders its own connector segment rather
           than one shared line, so the line starts and ends exactly at the node
           centres and the chips' background-coloured rings cleanly mask the
-          joins. The segment is horizontal from `lg` (chips on top, text below)
+          joins. The segment is horizontal from `xl` (chips on top, text below)
           and vertical below that (chips left, text right); the last step has no
           segment so the run ends at the final node.
         */}
-        <ol className="mt-12 grid gap-10 lg:mt-16 lg:grid-cols-4 lg:gap-8">
+        <ol className="mt-12 grid gap-10 xl:mt-16 xl:grid-cols-6 xl:gap-6">
           {STEPS.map((step, stepIndex) => {
             const Icon = step.icon;
             const isLast = stepIndex === STEPS.length - 1;
             return (
               <li
                 key={step.title}
-                className="reveal-up reveal-step relative flex gap-4 lg:flex-col lg:items-center lg:gap-0 lg:text-center"
+                className="reveal-up reveal-step relative flex gap-4 xl:flex-col xl:items-center xl:gap-0 xl:text-center"
               >
                 {!isLast ? (
                   <span
                     aria-hidden="true"
-                    className="bg-border absolute top-6 left-[calc(50%+2rem)] hidden h-px w-[calc(100%-2rem)] lg:block"
+                    className="bg-border absolute top-6 left-[calc(50%+2rem)] hidden h-px w-[calc(100%-2rem)] xl:block"
                   />
                 ) : null}
                 {!isLast ? (
                   <span
                     aria-hidden="true"
-                    className="bg-border absolute top-14 -bottom-10 left-6 w-px lg:hidden"
+                    className="bg-border absolute top-14 -bottom-10 left-6 w-px xl:hidden"
                   />
                 ) : null}
 
@@ -96,7 +108,7 @@ export function HowItWorks() {
                   </span>
                 </span>
 
-                <div className="min-w-0 lg:mt-5">
+                <div className="min-w-0 xl:mt-5">
                   <h3 className="font-semibold">{step.title}</h3>
                   <p className="text-muted-foreground mt-1 text-sm">
                     {step.body}
