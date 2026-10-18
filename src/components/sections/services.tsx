@@ -1,7 +1,4 @@
-import Link from "next/link";
-
-import { CategoryCard } from "@/components/pricing/category-card";
-import { pricingCategories } from "@/data/pricing";
+import { PricingOverview } from "@/components/pricing/pricing-overview";
 
 export function Services() {
   return (
@@ -16,26 +13,11 @@ export function Services() {
           </h2>
           <p className="text-muted-foreground">
             Two ways to get your laundry done: our standard service, or express
-            when you need it back fast. Pick one to see every price.
+            when you need it back fast. Pick a category to see every price.
           </p>
         </div>
 
-        <ul className="mt-10 grid gap-5 sm:grid-cols-2">
-          {pricingCategories.map((category) => (
-            <li key={category.slug} className="reveal-up">
-              <CategoryCard category={category} />
-            </li>
-          ))}
-        </ul>
-
-        <p className="mt-8">
-          <Link
-            href="/pricing"
-            className="text-primary inline-flex items-center rounded text-sm font-medium hover:underline"
-          >
-            Compare both price lists side by side
-          </Link>
-        </p>
+        <PricingOverview />
       </div>
     </section>
   );

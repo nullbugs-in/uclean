@@ -5,6 +5,8 @@ import { useState } from "react";
 import { pricingCategories, type CategorySlug } from "@/data/pricing";
 import { cn, formatPrice } from "@/lib/utils";
 
+import { SpeedToggle } from "./speed-toggle";
+
 /**
  * The two long wear groups whose lists are capped to a self-scrolling box so
  * they do not stretch the page. Every other group - Household included - has
@@ -23,14 +25,26 @@ const SCROLLABLE_GROUPS: ReadonlySet<string> = new Set([
  * - except this one is the price list, so every line shows its figures. The
  * book step stays price-free on purpose; here the prices are the point.
  *
- * Both the speed and the sub-category are local state. The URL does not change,
- * so the page stays a single crawlable /pricing entry, and the per-category
- * pages at /pricing/[category] are left in place.
+ * Both the speed and the sub-category are local state, so browsing does not
+ * rewrite the URL. The optional `initialSpeed` / `initialGroup` props seed that
+ * state from a deep link (the home overview's category cards); with no props
+ * the page behaves exactly as it always has. The per-category pages at
+ * /pricing/[category] are left in place.
  */
-export function PricingBrowser() {
-  const [category, setCategory] = useState<CategorySlug>("regular");
+export function PricingBrowser({
+  initialSpeed,
+  initialGroup,
+}: {
+  /** Speed to open on, from `?speed=`. Falls back to Regular. */
+  initialSpeed?: CategorySlug;
+  /** Group to open on, from `?group=`. Falls back to the first group. */
+  initialGroup?: string;
+}) {
+  const [category, setCategory] = useState<CategorySlug>(
+    initialSpeed ?? "regular",
+  );
   const [activeGroup, setActiveGroup] = useState(
-    () => pricingCategories[0]?.groups[0]?.slug ?? "",
+    () => initialGroup ?? pricingCategories[0]?.groups[0]?.slug ?? "",
   );
 
   const activeCategory =
@@ -219,54 +233,6 @@ export function PricingBrowser() {
           </p>
         ) : null}
       </div>
-    </div>
-  );
-}
-
-/**
- * Regular and Express, as a capsule pill.
- *
- * Matches the control in the booking wizard so the two surfaces read as one
- * product: sized to its content and centred, with a solid fill for the active
- * option rather than a gradient that would wash the selected half out.
- */
-function SpeedToggle({
-  category,
-  onChange,
-}: {
-  category: CategorySlug;
-  onChange: (category: CategorySlug) => void;
-}) {
-  return (
-    <div
-      role="group"
-      aria-label="Service speed"
-      className={cn(
-        "ring-border bg-muted inline-flex w-auto rounded-full p-1 ring-1 ring-inset sm:w-64",
-      )}
-    >
-      {(["regular", "express"] as const).map((value) => {
-        const active = category === value;
-
-        return (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={active}
-            onClick={() => onChange(value)}
-            className={cn(
-              "rounded-full px-5 py-1.5 text-sm font-semibold sm:flex-1 sm:px-4",
-              "transition-all duration-200 ease-out",
-              "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
-              active
-                ? "text-primary-foreground bg-primary shadow-[0_2px_10px] shadow-[color-mix(in_oklab,var(--primary),transparent_60%)]"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {value === "regular" ? "Regular" : "Express"}
-          </button>
-        );
-      })}
     </div>
   );
 }

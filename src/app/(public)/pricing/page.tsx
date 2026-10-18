@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { PricingBrowser } from "@/components/pricing/pricing-browser";
 import { PricingNotes } from "@/components/pricing/pricing-notes";
-import { siteConfig } from "@/config/site";
+import { getPricingCategory, type CategorySlug } from "@/data/pricing";
 
 export const metadata: Metadata = {
   title: "Pricing",
@@ -10,7 +10,34 @@ export const metadata: Metadata = {
     "Our full laundry price list. Compare Regular and Express service across wash and fold, dry cleaning, ironing, shoe cleaning, household items and curtain cleaning.",
 };
 
-export default function PricingPage() {
+type PricingSearchParams = Promise<{ speed?: string; group?: string }>;
+
+/**
+ * The home overview deep-links here as `/pricing?speed=&group=`, so read the
+ * params and hand the browser its starting state. Both are validated against
+ * the price data, so an unknown or hand-typed value falls back to the same
+ * defaults the page has always opened on - and `/pricing` with no params is
+ * unchanged.
+ *
+ * Reading `searchParams` makes this route dynamically rendered instead of
+ * static; the prices still render into the HTML, so nothing is lost for
+ * crawlers.
+ */
+export default async function PricingPage({
+  searchParams,
+}: {
+  searchParams: PricingSearchParams;
+}) {
+  const { speed, group } = await searchParams;
+
+  const initialSpeed: CategorySlug | undefined =
+    speed === "regular" || speed === "express" ? speed : undefined;
+
+  const category = getPricingCategory(initialSpeed ?? "regular");
+  const initialGroup = category?.groups.some((entry) => entry.slug === group)
+    ? group
+    : undefined;
+
   return (
     <div className="mx-auto w-full max-w-5xl space-y-10 px-4 py-12 sm:px-6">
       <header className="space-y-2">
@@ -23,11 +50,9 @@ export default function PricingPage() {
         </p>
       </header>
 
-      <PricingBrowser />
+      <PricingBrowser initialSpeed={initialSpeed} initialGroup={initialGroup} />
 
       <PricingNotes />
-
-     
     </div>
   );
 }
