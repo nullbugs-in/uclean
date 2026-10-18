@@ -6,6 +6,16 @@ import { pricingCategories, type CategorySlug } from "@/data/pricing";
 import { cn, formatPrice } from "@/lib/utils";
 
 /**
+ * The two long wear groups whose lists are capped to a self-scrolling box so
+ * they do not stretch the page. Every other group - Household included - has
+ * few enough services to render at full height.
+ */
+const SCROLLABLE_GROUPS: ReadonlySet<string> = new Set([
+  "adult-wear",
+  "kids-wear",
+]);
+
+/**
  * The pricing view as an interactive browser.
  *
  * Same shape as the service step in the booking wizard - a Regular/Express
@@ -30,6 +40,8 @@ export function PricingBrowser() {
   const group = groups.find((entry) => entry.slug === activeGroup) ?? groups[0];
 
   if (!activeCategory || !group) return null;
+
+  const scrollable = SCROLLABLE_GROUPS.has(group.slug);
 
   return (
     <div className="space-y-6">
@@ -95,13 +107,31 @@ export function PricingBrowser() {
           and Steam Ironing) break out one labelled line each, so the two are
           never confused for each other.
         */}
-        <div className="border-border overflow-hidden rounded-2xl border shadow-sm">
+        <div className="border-border relative overflow-hidden rounded-2xl border shadow-sm">
           <div className="hidden grid-cols-[1fr_auto] gap-4 bg-[var(--primary)]/15 px-4 py-2.5 text-xs font-semibold tracking-wider uppercase sm:grid">
             <span>Service</span>
             <span className="text-right">Price</span>
           </div>
 
-          <ul>
+          {/*
+            Capped groups get a self-scrolling box so the page keeps its height;
+            the header row above stays put while rows scroll under it. The region
+            is focusable so it can be scrolled from the keyboard,
+            since the rows themselves hold no focusable controls.
+          */}
+          <ul
+            {...(scrollable
+              ? {
+                  tabIndex: 0,
+                  role: "region",
+                  "aria-label": `${group.name} prices, scroll to see all ${group.items.length} items`,
+                }
+              : {})}
+            className={cn(
+              scrollable &&
+                "focus-visible:outline-ring max-h-[26rem] [scrollbar-width:thin] [scrollbar-color:var(--primary)_transparent] overflow-y-auto overscroll-contain focus-visible:outline-2 focus-visible:outline-offset-[-2px]",
+            )}
+          >
             {group.items.map((item, itemIndex) => (
               <li
                 key={item.slug}
@@ -169,7 +199,25 @@ export function PricingBrowser() {
               </li>
             ))}
           </ul>
+
+          {/*
+            Fade hint: a soft background-coloured scrim over the last visible
+            rows, so a capped list reads as "there is more below" instead of
+            looking abruptly cut off.
+          */}
+          {scrollable ? (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[var(--background)] to-transparent"
+            />
+          ) : null}
         </div>
+
+        {scrollable ? (
+          <p className="text-muted-foreground text-center text-xs">
+            Scroll within the list to see all {group.items.length} items.
+          </p>
+        ) : null}
       </div>
     </div>
   );
