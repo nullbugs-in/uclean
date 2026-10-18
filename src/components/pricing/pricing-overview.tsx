@@ -82,7 +82,7 @@ export function PricingOverview() {
             <li key={group.slug}>
               <Link
                 href={`/pricing?speed=${category.slug}&group=${group.slug}`}
-                className="group focus-visible:ring-ring relative flex h-full flex-col gap-3 overflow-hidden rounded-2xl border border-[color-mix(in_oklab,var(--primary),transparent_72%)] bg-gradient-to-br from-[var(--accent)]/70 via-[var(--card)] to-[var(--card)] p-4 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-[var(--primary)] hover:shadow-[0_16px_40px_-20px_var(--primary)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:gap-4 sm:p-5"
+                className="group focus-visible:ring-ring relative flex h-full flex-col items-center gap-3 overflow-hidden rounded-2xl border border-[color-mix(in_oklab,var(--primary),transparent_72%)] bg-gradient-to-br from-[var(--accent)]/70 via-[var(--card)] to-[var(--card)] p-4 text-center shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-[var(--primary)] hover:shadow-[0_16px_40px_-20px_var(--primary)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:gap-4 sm:p-5"
               >
                 {/* Brand glow that blooms in from the corner on hover. */}
                 <span
@@ -90,26 +90,20 @@ export function PricingOverview() {
                   className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--primary),transparent_70%),transparent)] opacity-0 blur-2xl transition-opacity duration-200 group-hover:opacity-100"
                 />
 
-                <div className="relative flex items-start justify-between gap-3">
-                  <span
-                    aria-hidden="true"
-                    className="grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[var(--primary)] to-[color-mix(in_oklab,var(--primary),var(--primary-foreground)_20%)] text-[var(--primary-foreground)] shadow-[0_6px_18px_-8px_var(--primary)] transition-transform duration-200 group-hover:scale-105 sm:size-10"
-                  >
-                    <Icon className="size-4 sm:size-5" />
-                  </span>
-                  <ArrowRight
-                    aria-hidden="true"
-                    className="text-muted-foreground group-hover:text-foreground size-4 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5"
-                  />
-                </div>
+                <span
+                  aria-hidden="true"
+                  className="relative grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[var(--primary)] to-[color-mix(in_oklab,var(--primary),var(--primary-foreground)_20%)] text-[var(--primary-foreground)] shadow-[0_6px_18px_-8px_var(--primary)] transition-transform duration-200 group-hover:scale-105 sm:size-10"
+                >
+                  <Icon className="size-4 sm:size-5" />
+                </span>
 
-                <div className="relative flex-1">
+                <div className="relative w-full flex-1">
                   <p className="font-display text-lg font-bold tracking-tight">
                     {group.name}
                   </p>
                   <span
                     aria-hidden="true"
-                    className="mt-1.5 block h-0.5 w-8 rounded-full bg-gradient-to-r from-[var(--primary)] to-[var(--accent)] transition-all duration-200 group-hover:w-14 sm:mt-2"
+                    className="mx-auto mt-1.5 block h-0.5 w-8 rounded-full bg-gradient-to-r from-[var(--primary)] to-[var(--accent)] transition-all duration-200 group-hover:w-14 sm:mt-2"
                   />
                   <p className="text-muted-foreground mt-1.5 text-sm sm:mt-2">
                     {group.items.length} items
@@ -117,17 +111,25 @@ export function PricingOverview() {
                   </p>
                 </div>
 
-                {cheapest ? (
-                  <p className="text-foreground relative inline-flex w-fit flex-wrap items-baseline gap-x-2 self-start rounded-full bg-[var(--primary)]/15 px-2.5 py-1">
-                    <span className="text-muted-foreground text-xs">from</span>
-                    <span className="font-display text-lg font-bold sm:text-xl">
-                      {formatPrice(cheapest.price)}
-                    </span>
-                    <span className="text-muted-foreground text-sm">
-                      / {cheapest.unit}
-                    </span>
-                  </p>
-                ) : null}
+                <div className="relative flex w-full items-center justify-center gap-2">
+                  {cheapest ? (
+                    <p className="text-foreground inline-flex flex-wrap items-baseline gap-x-2 rounded-full bg-[var(--primary)]/15 px-2.5 py-1">
+                      <span className="text-muted-foreground text-xs">
+                        from
+                      </span>
+                      <span className="font-display text-lg font-bold sm:text-xl">
+                        {formatPrice(cheapest.price)}
+                      </span>
+                      <span className="text-muted-foreground text-sm">
+                        / {cheapest.unit}
+                      </span>
+                    </p>
+                  ) : null}
+                  <ArrowRight
+                    aria-hidden="true"
+                    className="text-muted-foreground group-hover:text-foreground size-4 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5"
+                  />
+                </div>
               </Link>
             </li>
           );
