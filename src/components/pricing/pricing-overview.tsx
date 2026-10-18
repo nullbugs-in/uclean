@@ -68,12 +68,12 @@ export function PricingOverview() {
   if (!category) return null;
 
   return (
-    <div className="mt-10 space-y-8">
+    <div className="mt-8 space-y-6 sm:mt-10 sm:space-y-8">
       <div className="flex justify-center">
         <SpeedToggle category={speed} onChange={setSpeed} />
       </div>
 
-      <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 lg:gap-5">
         {category.groups.map((group) => {
           const Icon = GROUP_ICONS[group.slug] ?? Sparkles;
           const cheapest = cheapestInGroup(group);
@@ -82,35 +82,45 @@ export function PricingOverview() {
             <li key={group.slug}>
               <Link
                 href={`/pricing?speed=${category.slug}&group=${group.slug}`}
-                className="group border-border bg-card focus-visible:ring-ring flex h-full flex-col gap-4 rounded-2xl border p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[var(--primary)] hover:shadow-md focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                className="group focus-visible:ring-ring relative flex h-full flex-col gap-3 overflow-hidden rounded-2xl border border-[color-mix(in_oklab,var(--primary),transparent_72%)] bg-gradient-to-br from-[var(--accent)]/70 via-[var(--card)] to-[var(--card)] p-4 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-[var(--primary)] hover:shadow-[0_16px_40px_-20px_var(--primary)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:gap-4 sm:p-5"
               >
-                <div className="flex items-start justify-between gap-3">
+                {/* Brand glow that blooms in from the corner on hover. */}
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--primary),transparent_70%),transparent)] opacity-0 blur-2xl transition-opacity duration-200 group-hover:opacity-100"
+                />
+
+                <div className="relative flex items-start justify-between gap-3">
                   <span
                     aria-hidden="true"
-                    className="bg-primary/15 text-primary grid size-10 shrink-0 place-items-center rounded-xl"
+                    className="grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[var(--primary)] to-[color-mix(in_oklab,var(--primary),var(--primary-foreground)_20%)] text-[var(--primary-foreground)] shadow-[0_6px_18px_-8px_var(--primary)] transition-transform duration-200 group-hover:scale-105 sm:size-10"
                   >
-                    <Icon className="size-5" />
+                    <Icon className="size-4 sm:size-5" />
                   </span>
                   <ArrowRight
                     aria-hidden="true"
-                    className="text-muted-foreground group-hover:text-foreground size-4 shrink-0 transition-colors"
+                    className="text-muted-foreground group-hover:text-foreground size-4 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5"
                   />
                 </div>
 
-                <div className="flex-1">
+                <div className="relative flex-1">
                   <p className="font-display text-lg font-bold tracking-tight">
                     {group.name}
                   </p>
-                  <p className="text-muted-foreground mt-1 text-sm">
+                  <span
+                    aria-hidden="true"
+                    className="mt-1.5 block h-0.5 w-8 rounded-full bg-gradient-to-r from-[var(--primary)] to-[var(--accent)] transition-all duration-200 group-hover:w-14 sm:mt-2"
+                  />
+                  <p className="text-muted-foreground mt-1.5 text-sm sm:mt-2">
                     {group.items.length} items
                     {group.turnaround ? ` · ready in ${group.turnaround}` : ""}
                   </p>
                 </div>
 
                 {cheapest ? (
-                  <p className="flex flex-wrap items-baseline gap-x-2">
+                  <p className="text-foreground relative inline-flex w-fit flex-wrap items-baseline gap-x-2 self-start rounded-full bg-[var(--primary)]/15 px-2.5 py-1">
                     <span className="text-muted-foreground text-xs">from</span>
-                    <span className="font-display text-xl font-bold">
+                    <span className="font-display text-lg font-bold sm:text-xl">
                       {formatPrice(cheapest.price)}
                     </span>
                     <span className="text-muted-foreground text-sm">
