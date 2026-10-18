@@ -1,19 +1,14 @@
 import {
   BadgeIndianRupee,
   CalendarClock,
-  CheckCircle2,
-  ClipboardList,
   HeartHandshake,
   MessageCircle,
-  PackageCheck,
   Radar,
   Truck,
-  WashingMachine,
   type LucideIcon,
 } from "lucide-react";
 
 type Benefit = { icon: LucideIcon; title: string; body: string };
-type Step = { icon: LucideIcon; title: string; body: string };
 
 const BENEFITS: Benefit[] = [
   {
@@ -45,29 +40,6 @@ const BENEFITS: Benefit[] = [
     icon: MessageCircle,
     title: "Easy WhatsApp support",
     body: "Questions? Message us on WhatsApp and we will sort it out.",
-  },
-];
-
-const STEPS: Step[] = [
-  {
-    icon: ClipboardList,
-    title: "Book",
-    body: "Pick a service and a pickup slot online.",
-  },
-  {
-    icon: Truck,
-    title: "Pickup",
-    body: "Our agent collects your items from your door.",
-  },
-  {
-    icon: WashingMachine,
-    title: "We clean",
-    body: "Everything is washed and finished with care.",
-  },
-  {
-    icon: PackageCheck,
-    title: "Delivered",
-    body: "Fresh laundry returned in your chosen slot.",
   },
 ];
 
@@ -108,42 +80,6 @@ export function WhyUClean() {
             );
           })}
         </ul>
-
-        <div className="reveal-up border-border bg-muted/40 mt-16 rounded-3xl border p-6 sm:p-10">
-          <h3 className="font-display text-2xl font-bold tracking-tight">
-            How it works
-          </h3>
-          <ol className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {STEPS.map((step, stepIndex) => {
-              const Icon = step.icon;
-              return (
-                <li key={step.title} className="relative">
-                  <div className="flex items-center gap-3">
-                    <span
-                      aria-hidden="true"
-                      className="border-border bg-card text-primary grid size-11 place-items-center rounded-xl border"
-                    >
-                      <Icon className="size-5" />
-                    </span>
-                    <span className="font-display text-muted-foreground text-sm font-bold">
-                      Step {stepIndex + 1}
-                    </span>
-                  </div>
-                  <h4 className="mt-4 flex items-center gap-1.5 font-semibold">
-                    <CheckCircle2
-                      aria-hidden="true"
-                      className="text-primary size-4"
-                    />
-                    {step.title}
-                  </h4>
-                  <p className="text-muted-foreground mt-1 text-sm">
-                    {step.body}
-                  </p>
-                </li>
-              );
-            })}
-          </ol>
-        </div>
       </div>
     </section>
   );
