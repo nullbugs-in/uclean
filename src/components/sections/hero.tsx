@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { CalendarClock, Radar, Truck } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,30 @@ function getReducedMotionSnapshot() {
 function getReducedMotionServerSnapshot() {
   return false;
 }
+
+/**
+ * Brand-at-a-glance facts shown as a row of three cards under the hero CTAs.
+ * Same anatomy as the About section's stats - icon, value, label - so the two
+ * sections read as one family. Values come from `siteConfig` where they exist
+ * so there is a single source of truth.
+ */
+const STATS = [
+  {
+    icon: Truck,
+    value: `${siteConfig.deliveryRadiusKm} km`,
+    label: "Free pickup & delivery",
+  },
+  {
+    icon: CalendarClock,
+    value: "Hourly",
+    label: "Pickup slots",
+  },
+  {
+    icon: Radar,
+    value: "Live",
+    label: "Order tracking",
+  },
+] as const;
 
 export function Hero() {
   const slides = heroSlides.filter((slide) => slide.image);
@@ -155,6 +180,37 @@ export function Hero() {
             Free pickup and delivery within {siteConfig.deliveryRadiusKm} km.
           </p>
         </div>
+
+        {/*
+          Three cards using the About stats anatomy (icon, value, label) in the
+          glass treatment About uses over photography, so they stay legible on
+          the slideshow. `grid-cols-3` holds down to 320px thanks to the
+          tighter gap below `sm`. A gentle hover lift adds life without
+          changing layout.
+        */}
+        <dl className="mt-6 grid max-w-lg grid-cols-3 gap-1.5 sm:gap-2">
+          {STATS.map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <div
+                key={stat.label}
+                className="border-border bg-card/85 rounded-xl border p-2 text-center shadow-sm backdrop-blur-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-2.5"
+              >
+                <Icon
+                  aria-hidden="true"
+                  className="text-primary mx-auto size-4"
+                />
+                <dt className="sr-only">{stat.label}</dt>
+                <dd className="font-display mt-1 text-sm font-bold sm:text-base">
+                  {stat.value}
+                </dd>
+                <dd className="text-muted-foreground text-[0.625rem] leading-tight sm:text-[0.6875rem]">
+                  {stat.label}
+                </dd>
+              </div>
+            );
+          })}
+        </dl>
       </div>
     </section>
   );
