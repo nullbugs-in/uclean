@@ -42,6 +42,8 @@ export function About() {
           {/*
             Three stats stay on one row even at 320px, but the padding and gaps
             step down so each cell keeps enough text box for "Order tracking".
+            The solid primary icon chip is the tallest element, so the tile
+            height is driven by it plus the two lines of copy.
           */}
           <dl className="grid grid-cols-3 gap-2 pt-2 sm:gap-4">
             {STATS.map((stat) => {
@@ -49,17 +51,19 @@ export function About() {
               return (
                 <div
                   key={stat.label}
-                  className="border-border bg-card rounded-2xl border p-3 text-center shadow-sm sm:p-4"
+                  className="border-border from-accent/60 via-background to-card group relative overflow-hidden rounded-2xl border bg-gradient-to-br p-3 text-center shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-4"
                 >
-                  <Icon
+                  <span
                     aria-hidden="true"
-                    className="text-primary mx-auto size-5"
-                  />
+                    className="bg-primary text-primary-foreground mx-auto grid size-9 place-items-center rounded-xl shadow-sm transition-transform duration-200 group-hover:scale-105 sm:size-10"
+                  >
+                    <Icon className="size-4 sm:size-5" />
+                  </span>
                   <dt className="sr-only">{stat.label}</dt>
-                  <dd className="font-display mt-2 text-lg font-bold sm:text-xl">
+                  <dd className="font-display mt-3 text-lg font-bold sm:text-xl">
                     {stat.value}
                   </dd>
-                  <dd className="text-muted-foreground text-xs">
+                  <dd className="text-muted-foreground mt-0.5 text-xs">
                     {stat.label}
                   </dd>
                 </div>
