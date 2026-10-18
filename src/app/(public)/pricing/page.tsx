@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 
-import { CategoryCard } from "@/components/pricing/category-card";
+import { PricingBrowser } from "@/components/pricing/pricing-browser";
 import { PricingNotes } from "@/components/pricing/pricing-notes";
-import { pricingCategories } from "@/data/pricing";
 import { siteConfig } from "@/config/site";
 
 export const metadata: Metadata = {
@@ -24,19 +23,11 @@ export default function PricingPage() {
         </p>
       </header>
 
-      <ul className="grid gap-6 sm:grid-cols-2">
-        {pricingCategories.map((category) => (
-          <li key={category.slug}>
-            <CategoryCard category={category} />
-          </li>
-        ))}
-      </ul>
+      <PricingBrowser />
 
       <PricingNotes />
 
-      <p className="text-muted-foreground text-sm">
-        Prices shown for {siteConfig.name}, Mysuru.
-      </p>
+     
     </div>
   );
 }
