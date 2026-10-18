@@ -153,11 +153,16 @@ export function Contact() {
                   ? "Opening WhatsApp with your message ready to send."
                   : "We'll open WhatsApp so you can send it in one tap."}
               </p>
-              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+              {/*
+                Below `sm` the pair shares one full-width row (each `flex-1`
+                fills half); from `sm` they drop back to natural width beside
+                the status text.
+              */}
+              <div className="flex w-full gap-2 sm:w-auto">
                 <Button
                   type="submit"
                   size="sm"
-                  className="shadow-primary/30 hover:shadow-primary/40 flex-1 rounded-xl px-5 shadow-md transition-shadow hover:shadow-lg sm:flex-none"
+                  className="shadow-primary/30 hover:shadow-primary/40 flex-1 rounded-xl px-3 text-xs shadow-md transition-shadow hover:shadow-lg sm:flex-none sm:px-5 sm:text-sm"
                 >
                   Send message
                 </Button>
@@ -165,7 +170,7 @@ export function Contact() {
                   asChild
                   size="sm"
                   variant="outline"
-                  className="flex-1 rounded-xl sm:flex-none"
+                  className="flex-1 rounded-xl px-2 text-xs sm:flex-none sm:px-3 sm:text-sm"
                 >
                   <a
                     href={whatsAppLink()}

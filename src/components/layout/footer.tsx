@@ -3,15 +3,13 @@ import Link from "next/link";
 import { Clock, Mail, MapPin, Phone } from "lucide-react";
 
 import { formattedAddress, openingHoursRows, siteConfig } from "@/config/site";
+import { NAV_LINKS } from "@/config/nav";
 
-const QUICK_LINKS = [
-  { label: "About", href: "/#about" },
-  { label: "Services", href: "/#services" },
-  { label: "Pricing", href: "/pricing" },
-  { label: "Why UClean", href: "/#why" },
-  { label: "Contact", href: "/#contact" },
-  { label: "Book Now", href: "/book" },
-] as const;
+/**
+ * Quick links are the navbar's links, shared from `@/config/nav` - the footer
+ * used to carry its own longer list (Services, Why UClean, Book Now) that the
+ * header never showed.
+ */
 
 export function Footer() {
   const year = new Date().getFullYear();
@@ -56,7 +54,7 @@ export function Footer() {
         <nav aria-label="Footer" className="space-y-3">
           <p className="text-sm font-semibold">Quick links</p>
           <ul className="text-muted-foreground space-y-2 text-sm">
-            {QUICK_LINKS.map((link) => (
+            {NAV_LINKS.map((link) => (
               <li key={link.label}>
                 <Link
                   href={link.href}

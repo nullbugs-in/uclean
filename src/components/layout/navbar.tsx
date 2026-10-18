@@ -3,30 +3,16 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Bell,
-  Info,
-  MapPin,
-  Package,
-  Tag,
-  UserRound,
-  Menu,
-  X,
-} from "lucide-react";
+import { Bell, Package, UserRound, Menu, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { notificationLabel } from "@/db/queries/notifications";
 import { SignOutLink } from "@/components/layout/sign-out-link";
 import { Button } from "@/components/ui/button";
+import { NAV_LINKS } from "@/config/nav";
 import { siteConfig } from "@/config/site";
 import { formatDateTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-
-const NAV_LINKS = [
-  { label: "About", href: "/#about", icon: Info },
-  { label: "Pricing", href: "/pricing", icon: Tag },
-  { label: "Contact", href: "/#contact", icon: MapPin },
-] as const;
 
 /** Soft lime glow cast by the primary CTAs. */
 const CTA_GLOW = "shadow-[0_8px_24px_-8px_var(--primary)]";
@@ -180,10 +166,17 @@ export function Navbar({ user = null }: { user?: NavbarUser | null }) {
         </div>
       </div>
 
+      {/*
+        The mobile panel is an overlay, not flow content: `absolute top-full`
+        anchors it to the bottom edge of the sticky header so it floats over the
+        hero instead of growing the header and pushing the page down. The
+        header (sticky, so already a positioning context) casts the same shadow
+        so the panel reads as part of it.
+      */}
       <div
         id="mobile-menu"
         hidden={!open}
-        className="border-border bg-background border-t lg:hidden"
+        className="border-border bg-background absolute inset-x-0 top-full border-t shadow-[0_8px_24px_-16px_rgba(0,0,0,0.25)] lg:hidden"
       >
         <nav
           aria-label="Mobile"
