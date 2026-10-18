@@ -23,8 +23,19 @@ const STATS = [
 
 export function About() {
   return (
-    <section id="about" className="scroll-mt-20">
-      <div className="mx-auto grid w-full max-w-6xl items-center gap-12 px-4 py-14 sm:px-6 md:grid-cols-2 md:py-16 lg:gap-12 lg:py-24">
+    <section
+      id="about"
+      className="relative scroll-mt-20 overflow-hidden bg-gradient-to-br from-[var(--accent)]/60 via-[var(--background)] to-[var(--secondary)]"
+    >
+      {/*
+        Brand green glow, same logo palette as the hero gradient, so the About
+        section carries the theme colour without a hard background edge.
+      */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-24 -right-16 size-[26rem] rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--primary),transparent_78%),transparent)] blur-3xl"
+      />
+      <div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 px-4 py-14 sm:px-6 md:grid-cols-2 md:py-16 lg:gap-12 lg:py-24">
         <div className="reveal-up space-y-6">
           <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
             Laundry day, off your plate.
@@ -51,7 +62,7 @@ export function About() {
               return (
                 <div
                   key={stat.label}
-                  className="border-border from-accent/60 via-background to-card group relative overflow-hidden rounded-2xl border bg-gradient-to-br p-3 text-center shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-4"
+                  className="border-border to-card group relative overflow-hidden rounded-2xl border bg-gradient-to-br from-[color-mix(in_oklab,var(--primary),transparent_78%)] via-[var(--accent)]/50 p-3 text-center shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-4"
                 >
                   <span
                     aria-hidden="true"

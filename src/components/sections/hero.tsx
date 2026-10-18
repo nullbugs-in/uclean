@@ -81,7 +81,7 @@ export function Hero() {
   return (
     <section
       id="hero"
-      className="border-border relative overflow-hidden border-b bg-gradient-to-b from-[var(--accent)]/60 to-[var(--background)] lg:flex lg:min-h-[calc(100dvh-4rem)] lg:items-center"
+      className="border-border relative overflow-hidden border-b bg-gradient-to-br from-[var(--accent)] via-[var(--secondary)]/70 to-[var(--background)] lg:flex lg:min-h-[calc(100dvh-4rem)] lg:items-center"
     >
       {/*
         Full-bleed background slideshow. Every slide is rendered up front and
@@ -108,6 +108,25 @@ export function Hero() {
           />
         ))}
       </div>
+
+      {/*
+        Brand green gradient. Built from the logo palette - lime `--primary`
+        and soft `--accent` green over the dark-green `--foreground` family -
+        as a diagonal wash over the photos so the hero reads green without
+        hiding them. Sits under the legibility scrim below.
+      */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary),transparent_60%)_0%,transparent_45%,color-mix(in_oklab,var(--accent),transparent_45%)_100%)]"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-24 -left-20 size-[26rem] rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--primary),transparent_72%),transparent)] blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-24 -bottom-28 size-[30rem] rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--accent),transparent_70%),transparent)] blur-3xl"
+      />
 
       {/*
         Locally scoped legibility scrim. The hero copy is dark-on-light, so a
