@@ -2,6 +2,7 @@ import Image from "next/image";
 import { CalendarClock, MapPin, Truck } from "lucide-react";
 
 import { siteConfig } from "@/config/site";
+import { cn } from "@/lib/utils";
 
 const STATS = [
   {
@@ -51,30 +52,30 @@ export function About() {
           </p>
 
           {/*
-            Three stats stay on one row even at 320px, but the padding and gaps
-            step down so each cell keeps enough text box for "Order tracking".
-            The solid primary icon chip is the tallest element, so the tile
-            height is driven by it plus the two lines of copy.
+            A flat divider strip rather than cards: icon, value and label sit
+            straight on the section, split by a thin brand-green rule with no
+            surface, border box or shadow. Three columns hold down to 320px as
+            long as the padding and gaps step down; the rule is what keeps the
+            cells visually separate without a card outline.
           */}
-          <dl className="grid grid-cols-3 gap-2 pt-2 sm:gap-4">
-            {STATS.map((stat) => {
+          <dl className="grid grid-cols-3 gap-3 pt-2 sm:gap-6">
+            {STATS.map((stat, index) => {
               const Icon = stat.icon;
               return (
                 <div
                   key={stat.label}
-                  className="border-border to-card group relative overflow-hidden rounded-2xl border bg-gradient-to-br from-[color-mix(in_oklab,var(--primary),transparent_78%)] via-[var(--accent)]/50 p-3 text-center shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-4"
+                  className={cn(
+                    "space-y-1",
+                    index > 0 &&
+                      "border-l border-[var(--primary)]/30 pl-3 sm:pl-6",
+                  )}
                 >
-                  <span
-                    aria-hidden="true"
-                    className="bg-primary text-primary-foreground mx-auto grid size-9 place-items-center rounded-xl shadow-sm transition-transform duration-200 group-hover:scale-105 sm:size-10"
-                  >
-                    <Icon className="size-4 sm:size-5" />
-                  </span>
+                  <Icon aria-hidden="true" className="text-primary size-5" />
                   <dt className="sr-only">{stat.label}</dt>
-                  <dd className="font-display mt-3 text-lg font-bold sm:text-xl">
+                  <dd className="font-display text-xl leading-none font-bold sm:text-2xl">
                     {stat.value}
                   </dd>
-                  <dd className="text-muted-foreground mt-0.5 text-xs">
+                  <dd className="text-muted-foreground text-xs">
                     {stat.label}
                   </dd>
                 </div>
@@ -94,32 +95,6 @@ export function About() {
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 50vw"
           />
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/30 to-black/15"
-          />
-          <div className="absolute inset-0 grid place-items-center p-5 sm:p-10">
-            <div className="grid w-full max-w-sm grid-cols-2 gap-3 sm:gap-4">
-              <div className="bg-card/80 rounded-2xl p-4 shadow-sm backdrop-blur-sm sm:p-5">
-                <p className="font-display text-foreground text-xl font-bold sm:text-2xl">
-                  Pickup
-                </p>
-                <p className="text-muted-foreground text-sm">10 AM - 2 PM</p>
-              </div>
-              <div className="bg-card/80 mt-6 rounded-2xl p-4 shadow-sm backdrop-blur-sm sm:p-5">
-                <p className="font-display text-foreground text-xl font-bold sm:text-2xl">
-                  Delivery
-                </p>
-                <p className="text-muted-foreground text-sm">3 PM - 8 PM</p>
-              </div>
-              <div className="bg-primary text-primary-foreground col-span-2 rounded-2xl p-4 shadow-sm sm:p-5">
-                <p className="font-display text-xl font-bold">
-                  Bubbles, sorted.
-                </p>
-                <p className="text-sm opacity-80">Washed, folded, delivered.</p>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </section>

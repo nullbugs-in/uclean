@@ -21,7 +21,7 @@ export function Footer() {
       <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-2 md:py-14 lg:grid-cols-4">
         <div className="space-y-3">
           <Link
-            href="/"
+            href="/#hero"
             className="inline-block rounded-md"
             aria-label={`${siteConfig.name} home`}
           >

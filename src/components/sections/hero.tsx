@@ -29,9 +29,10 @@ function getReducedMotionServerSnapshot() {
 
 /**
  * Brand-at-a-glance facts shown as a row of three cards under the hero CTAs.
- * Same anatomy as the About section's stats - icon, value, label - so the two
- * sections read as one family. Values come from `siteConfig` where they exist
- * so there is a single source of truth.
+ * Same icon/value/label anatomy as the About section's stats, kept as compact
+ * glass cards here so they stay legible over the slideshow (About renders its
+ * stats as a flat divider strip). Values come from `siteConfig` where they
+ * exist so there is a single source of truth.
  */
 const STATS = [
   {
@@ -81,7 +82,7 @@ export function Hero() {
   return (
     <section
       id="hero"
-      className="border-border relative overflow-hidden border-b bg-gradient-to-br from-[var(--accent)] via-[var(--secondary)]/70 to-[var(--background)] lg:flex lg:min-h-[calc(100dvh-4rem)] lg:items-center"
+      className="border-border relative scroll-mt-20 overflow-hidden border-b bg-gradient-to-br from-[var(--accent)] via-[var(--secondary)]/70 to-[var(--background)] lg:flex lg:min-h-[calc(100dvh-4rem)] lg:items-center"
     >
       {/*
         Full-bleed background slideshow. Every slide is rendered up front and
@@ -112,32 +113,32 @@ export function Hero() {
       {/*
         Brand green gradient. Built from the logo palette - lime `--primary`
         and soft `--accent` green over the dark-green `--foreground` family -
-        as a diagonal wash over the photos so the hero reads green without
-        hiding them. Sits under the legibility scrim below.
+        as a light diagonal wash over the photos so the hero reads green
+        without hiding them. Kept gentle (and under the legibility scrim below)
+        so the slideshow stays the star.
       */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary),transparent_60%)_0%,transparent_45%,color-mix(in_oklab,var(--accent),transparent_45%)_100%)]"
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary),transparent_80%)_0%,transparent_45%,color-mix(in_oklab,var(--accent),transparent_68%)_100%)]"
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -top-24 -left-20 size-[26rem] rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--primary),transparent_72%),transparent)] blur-3xl"
+        className="pointer-events-none absolute -top-24 -left-20 size-[26rem] rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--primary),transparent_88%),transparent)] blur-3xl"
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -right-24 -bottom-28 size-[30rem] rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--accent),transparent_70%),transparent)] blur-3xl"
+        className="pointer-events-none absolute -right-24 -bottom-28 size-[30rem] rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--accent),transparent_86%),transparent)] blur-3xl"
       />
 
       {/*
-        Locally scoped legibility scrim. The hero copy is dark-on-light, so a
-        background-toned gradient - strongest on the left where the text sits,
-        fading to nearly clear on the right - keeps the photos crisp while
-        holding text contrast. Pointer-transparent so it never intercepts
-        clicks.
+        Locally scoped legibility scrim. Deliberately light now - the photos are
+        the point - so it only needs to lift the left column enough for the
+        copy's own halo (below) to finish the job. Clears completely on the
+        right. Pointer-transparent so it never intercepts clicks.
       */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[var(--background)]/95 via-[var(--background)]/50 to-[var(--background)]/10"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[var(--background)]/60 via-[var(--background)]/20 to-transparent"
       />
 
       <div className="relative z-10 mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 lg:py-24">

@@ -220,6 +220,19 @@
       animation-timeline: view();
       animation-range: entry 0% cover 32%;
     }
+
+    /*
+     * How-it-works steps. They stack as short rows below `lg`, so the shared
+     * `cover 32%` range - about a third of a viewport of travel for every
+     * element - leaves the bottom step (the last one) stuck part-way through
+     * its fade when the section is scrolled into view. Completing the reveal
+     * once a step is fully on screen keeps the natural top-to-bottom stagger
+     * and always lands on full opacity. On `lg` the four share a row, so the
+     * tighter range changes nothing there.
+     */
+    .reveal-up.reveal-step {
+      animation-range: entry 0% entry 100%;
+    }
   }
 }
 

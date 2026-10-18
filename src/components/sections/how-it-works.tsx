@@ -71,7 +71,7 @@ export function HowItWorks() {
             return (
               <li
                 key={step.title}
-                className="reveal-up relative flex gap-4 lg:flex-col lg:items-center lg:gap-0 lg:text-center"
+                className="reveal-up reveal-step relative flex gap-4 lg:flex-col lg:items-center lg:gap-0 lg:text-center"
               >
                 {!isLast ? (
                   <span

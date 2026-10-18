@@ -123,7 +123,7 @@ export function Navbar({ user = null }: { user?: NavbarUser | null }) {
         </button>
 
         <Link
-          href="/"
+          href="/#hero"
           className="group flex items-center justify-self-center rounded-md lg:justify-self-start"
           aria-label={`${siteConfig.name} home`}
         >
