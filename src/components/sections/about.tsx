@@ -1,26 +1,6 @@
 import Image from "next/image";
-import { CalendarClock, MapPin, Truck } from "lucide-react";
 
 import { siteConfig } from "@/config/site";
-import { cn } from "@/lib/utils";
-
-const STATS = [
-  {
-    icon: MapPin,
-    value: `${siteConfig.deliveryRadiusKm} km`,
-    label: "Pickup zone",
-  },
-  {
-    icon: CalendarClock,
-    value: "Hourly",
-    label: "Pickup slots",
-  },
-  {
-    icon: Truck,
-    value: "Live",
-    label: "Order tracking",
-  },
-] as const;
 
 export function About() {
   return (
@@ -52,36 +32,31 @@ export function About() {
           </p>
 
           {/*
-            A flat divider strip rather than cards: icon, value and label sit
-            straight on the section, split by a thin brand-green rule with no
-            surface, border box or shadow. Three columns hold down to 320px as
-            long as the padding and gaps step down; the rule is what keeps the
-            cells visually separate without a card outline.
+            The three-stat divider strip is gone; this closing line is
+            promoted to a branded pull-quote instead - display type behind a
+            vertical brand-green gradient rule, captioned like an editorial
+            quote. The rule ties it to the section's gradient language
+            without a card surface.
           */}
-          <dl className="grid grid-cols-3 gap-3 pt-2 sm:gap-6">
-            {STATS.map((stat, index) => {
-              const Icon = stat.icon;
-              return (
-                <div
-                  key={stat.label}
-                  className={cn(
-                    "space-y-1",
-                    index > 0 &&
-                      "border-l border-[var(--primary)]/30 pl-3 sm:pl-6",
-                  )}
-                >
-                  <Icon aria-hidden="true" className="text-primary size-5" />
-                  <dt className="sr-only">{stat.label}</dt>
-                  <dd className="font-display text-xl leading-none font-bold sm:text-2xl">
-                    {stat.value}
-                  </dd>
-                  <dd className="text-muted-foreground text-xs">
-                    {stat.label}
-                  </dd>
-                </div>
-              );
-            })}
-          </dl>
+          <figure className="pt-2">
+            <blockquote className="relative pl-6">
+              <span
+                aria-hidden="true"
+                className="absolute top-0 -bottom-0 left-0 w-1 rounded-full bg-gradient-to-b from-[var(--primary)] via-[var(--primary)]/70 to-transparent"
+              />
+              {/* Gradient-clipped type: the lime -> accent sweep of the
+                  section's glow, painted into the glyphs and mixed toward
+                  `--foreground` so it stays legible on the light surface
+                  (and on the flipped dark palette). */}
+              <p className="font-display bg-gradient-to-r from-[color-mix(in_oklab,var(--primary),var(--foreground)_28%)] via-[var(--primary)] to-[color-mix(in_oklab,var(--accent),var(--foreground)_22%)] bg-clip-text text-lg leading-snug font-bold text-balance text-transparent sm:text-xl">
+                Doorstep pickup, honest slots, clothes that come back right —
+                that is the {siteConfig.name} way.
+              </p>
+            </blockquote>
+            <figcaption className="text-foreground/70 mt-3 pl-6 text-xs font-semibold tracking-widest uppercase">
+              The {siteConfig.name} promise
+            </figcaption>
+          </figure>
         </div>
 
         <div
