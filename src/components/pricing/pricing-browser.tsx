@@ -38,10 +38,10 @@ export function PricingBrowser() {
       </div>
 
       <div className="space-y-3">
-        <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+        <p className="text-muted-foreground text-center text-xs font-semibold tracking-wider uppercase">
           Service category
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
           {groups.map((entry) => {
             const active = entry.slug === group.slug;
 
@@ -76,7 +76,7 @@ export function PricingBrowser() {
         </p>
       ) : null}
 
-      <div className="space-y-3">
+      <div className="mx-auto max-w-2xl space-y-3">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h2 className="font-display text-xl font-bold tracking-tight">
             {group.name}
@@ -88,58 +88,88 @@ export function PricingBrowser() {
         </div>
 
         {/*
-          One row per item. Items with a single price (Shoe Cleaning, Household)
-          show it bare; items with two (Dry Cleaning and Steam Ironing) break out
-          one labelled line each, so the two are never confused for each other.
+          One row per item, dressed as a table: a brand-tinted header row names
+          the two columns and each row aligns to them from `sm`, stacking on
+          phones where the columns would not fit. Items with a single price
+          (Shoe Cleaning, Household) show it bare; items with two (Dry Cleaning
+          and Steam Ironing) break out one labelled line each, so the two are
+          never confused for each other.
         */}
-        <ul className="divide-border divide-y rounded-xl border border-[var(--border)]">
-          {group.items.map((item) => (
-            <li
-              key={item.slug}
-              className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 px-3 py-3 sm:px-4 sm:py-4"
-            >
-              <div className="min-w-0">
-                <p className="font-medium">{item.name}</p>
-                {group.turnaround ? (
-                  <p className="text-muted-foreground text-xs">
-                    Ready in {group.turnaround}
-                  </p>
-                ) : null}
-              </div>
+        <div className="border-border overflow-hidden rounded-2xl border shadow-sm">
+          <div className="hidden grid-cols-[1fr_auto] gap-4 bg-[var(--primary)]/15 px-4 py-2.5 text-xs font-semibold tracking-wider uppercase sm:grid">
+            <span>Service</span>
+            <span className="text-right">Price</span>
+          </div>
 
-              <ul className="space-y-1 text-right">
-                {item.options.map((option, index) => (
-                  <li key={option.label ?? `${item.slug}-${index}`}>
-                    {option.label ? (
-                      <span className="text-muted-foreground block text-xs">
-                        {option.label}
-                      </span>
+          <ul>
+            {group.items.map((item, itemIndex) => (
+              <li
+                key={item.slug}
+                className="relative border-l-2 border-transparent px-4 py-3 transition-colors hover:border-[var(--primary)] hover:bg-[var(--accent)]/40 sm:py-4"
+              >
+                {/*
+                  Brand-colour breaker between rows: two hairline gradients
+                  fading toward the edges with a small lime node at the centre,
+                  so the seam reads as a themed flourish rather than a hard
+                  table grid line. The last row has none, and because it lives
+                  inside the row the hover tint paints under it.
+                */}
+                {itemIndex < group.items.length - 1 ? (
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-x-4 bottom-0 flex items-center gap-2"
+                  >
+                    <span className="h-px flex-1 bg-gradient-to-r from-transparent to-[var(--primary)]/70" />
+                    <span className="size-1.5 rounded-full bg-[var(--primary)] shadow-[0_0_0_3px_color-mix(in_oklab,var(--primary),transparent_80%)]" />
+                    <span className="h-px flex-1 bg-gradient-to-l from-transparent to-[var(--primary)]/70" />
+                  </span>
+                ) : null}
+
+                <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2 sm:grid sm:grid-cols-[1fr_auto] sm:items-center">
+                  <div className="min-w-0">
+                    <p className="font-medium">{item.name}</p>
+                    {group.turnaround ? (
+                      <p className="text-muted-foreground text-xs">
+                        Ready in {group.turnaround}
+                      </p>
                     ) : null}
-                    {option.turnaround ? (
-                      <span className="text-muted-foreground block text-xs">
-                        {option.turnaround}
-                      </span>
-                    ) : null}
-                    <span className="whitespace-nowrap">
-                      {option.original > option.price ? (
-                        <span className="text-muted-foreground mr-2 text-sm line-through">
-                          {formatPrice(option.original)}
+                  </div>
+
+                  <ul className="space-y-1.5 sm:text-right">
+                    {item.options.map((option, index) => (
+                      <li
+                        key={option.label ?? `${item.slug}-${index}`}
+                        className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:justify-end"
+                      >
+                        {option.label ? (
+                          <span className="border-border text-muted-foreground rounded-full border px-2 py-0.5 text-xs">
+                            {option.label}
+                          </span>
+                        ) : null}
+                        {option.original > option.price ? (
+                          <span className="text-muted-foreground text-sm line-through">
+                            {formatPrice(option.original)}
+                          </span>
+                        ) : null}
+                        <span className="rounded-full bg-[var(--primary)]/15 px-2.5 py-1 whitespace-nowrap text-[var(--primary-foreground)]">
+                          <span className="font-display text-base font-bold">
+                            {formatPrice(option.price)}
+                          </span>
+                          <span className="text-xs"> / {option.unit}</span>
                         </span>
-                      ) : null}
-                      <span className="font-display text-lg font-bold">
-                        {formatPrice(option.price)}
-                      </span>
-                      <span className="text-muted-foreground text-xs">
-                        {" "}
-                        / {option.unit}
-                      </span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </li>
-          ))}
-        </ul>
+                        {option.turnaround ? (
+                          <span className="text-muted-foreground w-full text-xs sm:w-auto">
+                            {option.turnaround}
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </div>
   );
