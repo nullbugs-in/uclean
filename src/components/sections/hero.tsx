@@ -3,14 +3,22 @@
 import Image from "next/image";
 import Link from "next/link";
 import { CalendarClock, Radar, Truck } from "lucide-react";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type KeyboardEvent,
+  type PointerEvent,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 import { siteConfig } from "@/config/site";
 import { heroSlides } from "@/data/heroSlides";
 import { cn } from "@/lib/utils";
 
-const SLIDESHOW_MS = 3000;
+const AUTOPLAY_MS = 5000;
+const SWIPE_THRESHOLD_PX = 40;
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
 function subscribeReducedMotion(onChange: () => void) {
@@ -29,10 +37,13 @@ function getReducedMotionServerSnapshot() {
 
 /**
  * Brand-at-a-glance facts shown as a row of three cards under the hero CTAs.
- * Same icon/value/label anatomy as the About section's stats, kept as compact
- * glass cards here so they stay legible over the slideshow (About renders its
- * stats as a flat divider strip). Values come from `siteConfig` where they
- * exist so there is a single source of truth.
+ * Same icon/value/label anatomy as the About section's stats, so the two sections
+ * read as one family. Values come from `siteConfig` where they exist so there is
+ * a single source of truth.
+ *
+ * Plain cards rather than the glass treatment this row wore when it sat over the
+ * full-bleed slideshow: with the photos inside the carousel cards, these are on
+ * the page background and a backdrop blur over nothing is just a heavier paint.
  */
 const STATS = [
   {
@@ -53,9 +64,10 @@ const STATS = [
 ] as const;
 
 export function Hero() {
-  const slides = heroSlides.filter((slide) => slide.image);
-  const count = slides.length;
+  const count = heroSlides.length;
   const [index, setIndex] = useState(0);
+  const [interacting, setInteracting] = useState(false);
+  const startX = useRef<number | null>(null);
   const reducedMotion = useSyncExternalStore(
     subscribeReducedMotion,
     getReducedMotionSnapshot,
@@ -63,123 +75,95 @@ export function Hero() {
   );
 
   /*
-   * Auto-advance every 3 seconds, looping back to the first slide after the
-   * last. The interval is cleaned up on unmount and whenever `reducedMotion`
-   * changes; with reduced motion the first image stays put and the opacity
-   * crossfade never fires (see `motion-reduce:transition-none` below).
+   * Autoplay stops for the three reasons that matter, all of them the same one:
+   * the slide changing while somebody is reading it. They have hovered or focused
+   * the carousel, they have swiped it, or they have asked for reduced motion.
+   *
+   * Focus is the load-bearing case here. There is no pause button in this layout,
+   * so tabbing into the region is the only way somebody using a keyboard stops
+   * the carousel moving under them - which is also why the region is focusable
+   * rather than a plain div.
    */
+  const running = !interacting && !reducedMotion;
+
   useEffect(() => {
-    if (reducedMotion || count < 2) return;
+    if (!running || count < 2) return;
     const id = window.setInterval(
       () => setIndex((current) => (current + 1) % count),
-      SLIDESHOW_MS,
+      AUTOPLAY_MS,
     );
     return () => window.clearInterval(id);
-  }, [reducedMotion, count]);
+  }, [running, count]);
+
+  function goTo(next: number) {
+    setIndex(((next % count) + count) % count);
+  }
+
+  function onKeyDown(event: KeyboardEvent) {
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      goTo(index - 1);
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault();
+      goTo(index + 1);
+    }
+  }
+
+  function onPointerDown(event: PointerEvent) {
+    startX.current = event.clientX;
+    setInteracting(true);
+  }
+
+  function onPointerUp(event: PointerEvent) {
+    if (startX.current !== null) {
+      const delta = event.clientX - startX.current;
+      if (Math.abs(delta) > SWIPE_THRESHOLD_PX) {
+        goTo(index + (delta < 0 ? 1 : -1));
+      }
+    }
+    startX.current = null;
+    setInteracting(false);
+  }
 
   if (count === 0) return null;
 
   return (
     <section
       id="hero"
-      className="border-border relative scroll-mt-20 overflow-hidden border-b bg-gradient-to-br from-[var(--accent)] via-[var(--secondary)]/70 to-[var(--background)] lg:flex lg:min-h-[calc(100dvh-4rem)] lg:items-center"
+      className="border-border relative scroll-mt-20 overflow-hidden border-b bg-gradient-to-b from-[var(--accent)]/60 to-[var(--background)] lg:flex lg:min-h-[calc(100dvh-4rem)] lg:items-center"
     >
       {/*
-        Full-bleed background slideshow. Every slide is rendered up front and
-        stacked in the same box, so the browser fetches all three images on
-        load - the inactive ones sit at opacity 0, which means the crossfade
-        swaps pixels rather than waiting on the network (no blank flashes).
-        `fill` + `object-cover` + `sizes="100vw"` covers the section edge to
-        edge without distorting the mismatched source aspect ratios (3:2,
-        1:1, 4:5). The first slide is `priority` since it is the LCP element.
+        `min-w-0` on both children is load-bearing. Grid items default to
+        `min-width: auto`, so the carousel track - a flex row of `w-full
+        shrink-0` slides - reports a min-content width of roughly 585px and would
+        widen the column past the viewport. The section's `overflow-hidden` then
+        clips the overflow instead of scrolling it, which hid the damage from a
+        `scrollWidth` check. With `min-w-0` the column can shrink and the track is
+        laid out against the real container width.
       */}
-      <div aria-hidden="true" className="absolute inset-0">
-        {slides.map((slide, slideIndex) => (
-          <Image
-            key={slide.id}
-            src={slide.image!.src}
-            alt=""
-            fill
-            priority={slideIndex === 0}
-            sizes="100vw"
-            className={cn(
-              "object-cover transition-opacity duration-[600ms] ease-in-out motion-reduce:transition-none",
-              slideIndex === index ? "opacity-100" : "opacity-0",
-            )}
-          />
-        ))}
-      </div>
-
-      {/*
-        Brand green gradient. Built from the logo palette - lime `--primary`
-        and soft `--accent` green over the dark-green `--foreground` family -
-        as a light diagonal wash over the photos so the hero reads green
-        without hiding them. Kept gentle (and under the legibility scrim below)
-        so the slideshow stays the star.
-      */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary),transparent_80%)_0%,transparent_45%,color-mix(in_oklab,var(--accent),transparent_68%)_100%)]"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-24 -left-20 size-[26rem] rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--primary),transparent_88%),transparent)] blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-24 -bottom-28 size-[30rem] rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--accent),transparent_86%),transparent)] blur-3xl"
-      />
-
-      {/*
-        Locally scoped legibility scrim. A light dark wash over the left column
-        only - the text's real protection is the tight halo behind it (below),
-        so this layer stays thin and lets the photo read through. Clears
-        completely on the right. Black rather than `--background` because that
-        token is near-white in light mode; the veil has to stay dark in both
-        themes. Pointer-transparent so it never intercepts clicks.
-      */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/45 via-black/15 to-transparent"
-      />
-
-      <div className="relative z-10 mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
-        {/*
-          Text-protection halo. Instead of veiling the whole photo (which
-          dulls the slideshow), a black panel sits directly behind the copy
-          block and fades out toward its edges - near-solid where the words
-          are, transparent a short way beyond them. The falloff starts at 45%
-          of the panel's radius rather than 55%, so the photo opens up sooner
-          outside the text. Black rather than `--background` because that token
-          is near-white in light mode; the halo has to stay dark in both themes
-          to sit under white copy. The wrapper's `z-10` forms a stacking
-          context, so `-z-10` parks it behind the text but still above the
-          photo layer. It stretches across most of the width on phones, where
-          the copy is full-bleed, and tightens to the text column from `sm`.
-        */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-20 right-0 -bottom-20 -left-20 -z-10 rounded-[4rem] bg-[radial-gradient(closest-side,color-mix(in_oklab,black,transparent_12%),color-mix(in_oklab,black,transparent_50%)_45%,transparent)] blur-2xl sm:right-1/4"
-        />
-        <div className="max-w-xl space-y-6">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/25 px-3 py-1 text-xs font-medium text-white">
+      <div className="relative mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 md:grid-cols-2 lg:min-h-[calc(100dvh-4rem)] lg:py-24">
+        <div className="min-w-0 space-y-6">
+          <span className="border-primary/30 bg-primary/15 text-foreground inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium">
             <span
               aria-hidden="true"
               className="bg-primary size-2 rounded-full"
             />
             Fresh laundry, picked up and delivered
           </span>
-          <h1 className="font-display text-3xl leading-tight font-bold tracking-tight text-balance text-white sm:text-4xl lg:text-5xl">
+
+          <h1 className="font-display text-3xl leading-tight font-bold tracking-tight text-balance sm:text-4xl lg:text-5xl">
             Laundry pickup and delivery, sorted.
             <span
               aria-hidden="true"
               className="mt-2 block h-1 w-24 rounded-full bg-gradient-to-r from-[var(--primary)] via-[var(--primary)] to-[var(--accent)]"
             />
           </h1>
-          <p className="max-w-prose text-lg text-white">
+
+          <p className="text-muted-foreground max-w-prose text-lg">
             Book an hourly slot, we collect from your door and return everything
             fresh. Track every step from pickup to delivery.
           </p>
+
           {/*
             Full-width buttons below `sm`, where two side-by-side `size="lg"`
             CTAs would each be squeezed under ~150px.
@@ -201,41 +185,195 @@ export function Hero() {
               <a href="#services">Services</a>
             </Button>
           </div>
-          <p className="text-sm text-white/80">
+
+          <p className="text-muted-foreground text-sm">
             Free pickup and delivery within {siteConfig.deliveryRadiusKm} km.
           </p>
         </div>
 
-        {/*
-          Three cards using the About stats anatomy (icon, value, label) in the
-          glass treatment About uses over photography, so they stay legible on
-          the slideshow. `grid-cols-3` holds down to 320px thanks to the
-          tighter gap below `sm`. A gentle hover lift adds life without
-          changing layout.
-        */}
-        <dl className="mt-6 grid max-w-lg grid-cols-3 gap-1.5 sm:gap-2">
-          {STATS.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <div
-                key={stat.label}
-                className="border-border bg-card/85 rounded-xl border p-2 text-center shadow-sm backdrop-blur-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-2.5"
-              >
-                <Icon
-                  aria-hidden="true"
-                  className="text-primary mx-auto size-4"
-                />
-                <dt className="sr-only">{stat.label}</dt>
-                <dd className="font-display mt-1 text-sm font-bold sm:text-base">
-                  {stat.value}
-                </dd>
-                <dd className="text-muted-foreground text-[0.625rem] leading-tight sm:text-[0.6875rem]">
-                  {stat.label}
-                </dd>
-              </div>
-            );
-          })}
-        </dl>
+        <div
+          role="region"
+          aria-roledescription="carousel"
+          aria-label="Featured services"
+          tabIndex={0}
+          onKeyDown={onKeyDown}
+          onMouseEnter={() => setInteracting(true)}
+          onMouseLeave={() => setInteracting(false)}
+          onFocus={() => setInteracting(true)}
+          onBlur={() => setInteracting(false)}
+          onPointerDown={onPointerDown}
+          onPointerUp={onPointerUp}
+          className="focus-visible:outline-ring relative min-w-0 rounded-3xl focus-visible:outline-2 focus-visible:outline-offset-4"
+        >
+          <div className="overflow-hidden rounded-3xl">
+            {/*
+              One track, translated rather than re-rendered, so the slide change
+              is a movement the eye can follow instead of a cut. `aria-live` is
+              off while it is moving on its own and polite once it stops, because
+              an announcement every five seconds is noise rather than news.
+            */}
+            <div
+              className="flex transition-transform duration-500 ease-out motion-reduce:transition-none"
+              style={{ transform: `translateX(-${index * 100}%)` }}
+              aria-live={running ? "off" : "polite"}
+            >
+              {heroSlides.map((slide, slideIndex) => {
+                const Icon = slide.icon;
+
+                return (
+                  <article
+                    key={slide.id}
+                    role="group"
+                    aria-roledescription="slide"
+                    aria-label={`${slideIndex + 1} of ${count}: ${slide.title}`}
+                    aria-hidden={slideIndex !== index}
+                    className={cn(
+                      "relative flex aspect-4/5 w-full shrink-0 flex-col justify-between overflow-hidden bg-gradient-to-br p-6 select-none sm:aspect-16/10 sm:p-8",
+                      slide.gradient,
+                    )}
+                  >
+                    {/*
+                      Photo layer, first child so the gradient tint and the scrim
+                      below both paint over it. `fill` plus the card's own aspect
+                      ratio means each slide is cropped rather than distorted -
+                      the three photos have different aspect ratios (3:2, 1:1,
+                      4:5) and are cropped to 4:5 on mobile and 16:10 from `sm`.
+
+                      The `sizes` hint matters for how aggressively next/image
+                      picks a source width: the card is full-bleed on phones and
+                      roughly half the container from `md` up. If this carousel
+                      ever grows much past a handful of slides, revisit this
+                      alongside formats - WebP/AVIF and a responsive `sizes`
+                      strategy are the lever, since a `fill` image with a coarse
+                      hint will happily serve a 1200px bitmap to a phone.
+                    */}
+                    {slide.image ? (
+                      <Image
+                        src={slide.image.src}
+                        alt=""
+                        fill
+                        priority={slideIndex === 0}
+                        sizes="(max-width: 768px) 100vw, 50vw"
+                        className="object-cover"
+                      />
+                    ) : null}
+
+                    {/*
+                      Legibility scrim. The copy sits over photography, so the
+                      headline and tagline are white and need a dark base to
+                      clear 4.5:1; a gradient that is darkest at the bottom where
+                      the text is and lightest at the top keeps the badge area
+                      from muddying. Also the visual equaliser across three very
+                      different photos - a light subject on one slide would
+                      otherwise swallow the white text where a dark one would
+                      not.
+                    */}
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/10"
+                    />
+
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute -top-16 -right-10 size-56 rounded-full bg-white/20 blur-2xl"
+                    />
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute -bottom-20 -left-10 size-56 rounded-full bg-white/15 blur-2xl"
+                    />
+
+                    <div className="relative flex items-start justify-between gap-4">
+                      <span className="text-primary-foreground inline-flex items-center rounded-full bg-white/80 px-3 py-1 text-xs font-semibold shadow-sm">
+                        {slide.badge}
+                      </span>
+                      <span
+                        aria-hidden="true"
+                        className="text-primary-foreground grid size-14 place-items-center rounded-2xl bg-white/70 shadow-sm backdrop-blur-sm"
+                      >
+                        <Icon className="size-7" />
+                      </span>
+                    </div>
+
+                    <div className="relative space-y-2">
+                      <h2 className="font-display text-3xl font-bold tracking-tight text-white drop-shadow-sm sm:text-4xl">
+                        {slide.title}
+                      </h2>
+                      <p className="max-w-sm text-sm font-medium text-white/90 drop-shadow-sm sm:text-base">
+                        {slide.tagline}
+                      </p>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+
+          {/*
+            The three brand facts, under the poster rather than beside the copy.
+
+            They moved here because the right column is the one with room: the
+            carousel is a fixed aspect box, so a row of small cards beneath it
+            reads as part of the same object, whereas beside the headline they
+            pulled the copy column narrower than it needed to be.
+
+            Short by construction. The icon shares a line with the value rather
+            than sitting in a chip of its own: at three across, a card is about
+            100px wide, and a 32px chip stacked above the number was a third of
+            the card's height for decoration. Sharing the line takes the card
+            from ~100px to ~65px, which is what makes it read as a caption to
+            the poster instead of a panel competing with it.
+
+            Everything is on the centre line. A left-aligned card in a centred
+            row reads as a mistake rather than a choice.
+
+            The wash is always faintly on and deepens on hover, so the row is
+            visibly part of the palette at rest and still rewards a pointer.
+            `grid-cols-3` holds down to 320px; the labels wrap to two lines
+            there rather than shrinking the type any further.
+          */}
+          <dl className="mt-4 grid grid-cols-3 gap-2 sm:mt-5 sm:gap-3">
+            {STATS.map((stat) => {
+              const Icon = stat.icon;
+
+              return (
+                <div
+                  key={stat.label}
+                  className="group border-border bg-card relative flex flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl border px-2 py-2.5 text-center shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-[var(--primary)]/40 hover:shadow-lg sm:gap-2 sm:px-3"
+                >
+                  {/*
+                    Brand wash. Absolute and behind the content, so the text
+                    never shifts when it deepens. Faint at rest, full strength
+                    on hover.
+                  */}
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--primary)]/10 to-[var(--accent)]/8 opacity-70 transition-opacity duration-300 group-hover:opacity-100"
+                  />
+
+                  {/*
+                    Icon and value on one line. The glyph is tinted rather than
+                    boxed, which is what buys the height back: a chip around it
+                    would set a 32px floor on the row on its own.
+                  */}
+                  <span className="relative flex items-center justify-center gap-1.5">
+                    <Icon
+                      aria-hidden="true"
+                      className="text-primary size-3.5 shrink-0 transition-colors duration-300 group-hover:text-[var(--accent)] sm:size-4"
+                    />
+                    <dd className="font-display text-sm leading-none font-bold sm:text-base">
+                      {stat.value}
+                    </dd>
+                  </span>
+
+                  <dt className="sr-only">{stat.label}</dt>
+                  <dd className="text-muted-foreground relative text-[0.625rem] leading-tight sm:text-[0.6875rem]">
+                    {stat.label}
+                  </dd>
+                </div>
+              );
+            })}
+          </dl>
+        </div>
       </div>
     </section>
   );
