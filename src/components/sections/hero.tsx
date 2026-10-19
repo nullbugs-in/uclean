@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
+import { CalendarClock, Radar, Truck } from "lucide-react";
 import {
   useEffect,
   useRef,
@@ -10,7 +10,6 @@ import {
   useSyncExternalStore,
   type KeyboardEvent,
   type PointerEvent,
-  type ReactNode,
 } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -36,10 +35,37 @@ function getReducedMotionServerSnapshot() {
   return false;
 }
 
+/**
+ * Brand-at-a-glance facts shown as a row of three cards under the hero CTAs.
+ * Same icon/value/label anatomy as the About section's stats, so the two sections
+ * read as one family. Values come from `siteConfig` where they exist so there is
+ * a single source of truth.
+ *
+ * Plain cards rather than the glass treatment this row wore when it sat over the
+ * full-bleed slideshow: with the photos inside the carousel cards, these are on
+ * the page background and a backdrop blur over nothing is just a heavier paint.
+ */
+const STATS = [
+  {
+    icon: Truck,
+    value: `${siteConfig.deliveryRadiusKm} km`,
+    label: "Free pickup & delivery",
+  },
+  {
+    icon: CalendarClock,
+    value: "Hourly",
+    label: "Pickup slots",
+  },
+  {
+    icon: Radar,
+    value: "Live",
+    label: "Order tracking",
+  },
+] as const;
+
 export function Hero() {
   const count = heroSlides.length;
   const [index, setIndex] = useState(0);
-  const [userPaused, setUserPaused] = useState(false);
   const [interacting, setInteracting] = useState(false);
   const startX = useRef<number | null>(null);
   const reducedMotion = useSyncExternalStore(
@@ -48,7 +74,17 @@ export function Hero() {
     getReducedMotionServerSnapshot,
   );
 
-  const running = !userPaused && !interacting && !reducedMotion;
+  /*
+   * Autoplay stops for the three reasons that matter, all of them the same one:
+   * the slide changing while somebody is reading it. They have hovered or focused
+   * the carousel, they have swiped it, or they have asked for reduced motion.
+   *
+   * Focus is the load-bearing case here. There is no pause button in this layout,
+   * so tabbing into the region is the only way somebody using a keyboard stops
+   * the carousel moving under them - which is also why the region is focusable
+   * rather than a plain div.
+   */
+  const running = !interacting && !reducedMotion;
 
   useEffect(() => {
     if (!running || count < 2) return;
@@ -94,31 +130,18 @@ export function Hero() {
   return (
     <section
       id="hero"
-      className="border-border relative overflow-hidden border-b bg-gradient-to-b from-[var(--accent)]/60 to-[var(--background)] lg:flex lg:min-h-[calc(100dvh-4rem)] lg:items-center"
+      className="border-border relative scroll-mt-20 overflow-hidden border-b bg-gradient-to-b from-[var(--accent)]/60 to-[var(--background)] xl:flex xl:min-h-[calc(100dvh-4rem)] xl:items-center"
     >
-      {/* Logo-colour static glows */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[28rem] bg-[radial-gradient(60%_100%_at_50%_0%,color-mix(in_oklab,var(--primary),transparent_75%),transparent)]"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-24 -left-20 -z-10 size-[28rem] rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--primary),transparent_82%),transparent)] blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-28 -right-24 -z-10 size-[30rem] rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--primary),transparent_80%),transparent)] blur-3xl"
-      />
       {/*
         `min-w-0` on both children is load-bearing. Grid items default to
-        `min-width: auto`, so the carousel track - a flex row of three
-        `w-full shrink-0` slides - reports a min-content width of roughly 585px
-        and would widen the column past the viewport. The section's
-        `overflow-hidden` then clips the overflow instead of scrolling it, which
-        hid the damage from a `scrollWidth` check. With `min-w-0` the column can
-        shrink and the track is laid out against the real container width.
+        `min-width: auto`, so the carousel track - a flex row of `w-full
+        shrink-0` slides - reports a min-content width of roughly 585px and would
+        widen the column past the viewport. The section's `overflow-hidden` then
+        clips the overflow instead of scrolling it, which hid the damage from a
+        `scrollWidth` check. With `min-w-0` the column can shrink and the track is
+        laid out against the real container width.
       */}
-      <div className="relative z-10 mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 md:grid-cols-2 lg:py-0">
+      <div className="relative mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 xl:min-h-[calc(100dvh-4rem)] xl:grid-cols-2 xl:gap-12 xl:py-24">
         <div className="min-w-0 space-y-6">
           <span className="border-primary/30 bg-primary/15 text-foreground inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium">
             <span
@@ -127,6 +150,7 @@ export function Hero() {
             />
             Fresh laundry, picked up and delivered
           </span>
+
           <h1 className="font-display text-3xl leading-tight font-bold tracking-tight text-balance sm:text-4xl lg:text-5xl">
             Laundry pickup and delivery, sorted.
             <span
@@ -134,10 +158,12 @@ export function Hero() {
               className="mt-2 block h-1 w-24 rounded-full bg-gradient-to-r from-[var(--primary)] via-[var(--primary)] to-[var(--accent)]"
             />
           </h1>
+
           <p className="text-muted-foreground max-w-prose text-lg">
             Book an hourly slot, we collect from your door and return everything
             fresh. Track every step from pickup to delivery.
           </p>
+
           {/*
             Full-width buttons below `sm`, where two side-by-side `size="lg"`
             CTAs would each be squeezed under ~150px.
@@ -159,11 +185,41 @@ export function Hero() {
               <a href="#services">Services</a>
             </Button>
           </div>
+
           <p className="text-muted-foreground text-sm">
             Free pickup and delivery within {siteConfig.deliveryRadiusKm} km.
           </p>
         </div>
 
+        {/*
+          `order-first` puts the poster above the copy wherever the hero stacks.
+          The poster is the biggest thing on the screen and the image carrying it
+          is the LCP element - the one `priority` is already on - so leading with
+          it means the largest paint is also the first thing in view.
+
+          `xl` is the breakpoint that matters, and it moves in three places at
+          once: `xl:grid-cols-2` is where the grid stops stacking, `xl:order-none`
+          is where DOM order takes the layout back, and `xl:min-h` is where the
+          section stops being forced to a full viewport tall. They are set
+          together deliberately, because they are one decision split across three
+          properties, and a width where some apply and others do not is a layout
+          nobody could have drawn on purpose.
+
+          `xl` rather than `lg` for a concrete reason: an iPad Pro 13 portrait is
+          exactly 1024 CSS pixels wide, so it landed precisely on `lg` and got a
+          two-column hero it had no room for - 464px per column, the headline
+          wrapping, and a full-viewport height holding 459px of content, which is
+          roughly 840px of empty band. Below `xl` it now gets the same stacked,
+          poster-first layout a phone gets, and the same holds for a laptop
+          window in that band. Above `xl` the copy sits left and the cards right,
+          which is the arrangement the layout is drawn for.
+
+          Ordering rather than reordering the JSX, also deliberately: the DOM
+          stays copy-then-poster, so a screen reader and a crawler still meet the
+          headline before the carousel regardless of where it is painted. The
+          trade is that "Book Now" sits below the fold below `xl`, which is the
+          cost of leading with the picture.
+        */}
         <div
           role="region"
           aria-roledescription="carousel"
@@ -176,21 +232,23 @@ export function Hero() {
           onBlur={() => setInteracting(false)}
           onPointerDown={onPointerDown}
           onPointerUp={onPointerUp}
-          className="focus-visible:outline-ring relative min-w-0 rounded-3xl focus-visible:outline-2 focus-visible:outline-offset-4"
+          className="focus-visible:outline-ring relative order-first min-w-0 rounded-3xl focus-visible:outline-2 focus-visible:outline-offset-4 xl:order-none"
         >
-          {/* Carousel halo */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -inset-x-6 -inset-y-4 -z-10 rounded-[2rem] bg-[radial-gradient(60%_60%_at_50%_30%,color-mix(in_oklab,var(--primary),transparent_70%),transparent)] blur-3xl"
-          />
           <div className="overflow-hidden rounded-3xl">
+            {/*
+              One track, translated rather than re-rendered, so the slide change
+              is a movement the eye can follow instead of a cut. `aria-live` is
+              off while it is moving on its own and polite once it stops, because
+              an announcement every five seconds is noise rather than news.
+            */}
             <div
-              className="flex transition-transform duration-500 ease-out"
+              className="flex transition-transform duration-500 ease-out motion-reduce:transition-none"
               style={{ transform: `translateX(-${index * 100}%)` }}
               aria-live={running ? "off" : "polite"}
             >
               {heroSlides.map((slide, slideIndex) => {
                 const Icon = slide.icon;
+
                 return (
                   <article
                     key={slide.id}
@@ -204,20 +262,19 @@ export function Hero() {
                     )}
                   >
                     {/*
-                      Photo layer, first child so the gradient tint and the
-                      scrim below both paint over it. `fill` plus the card's
-                      own aspect ratio means each slide is cropped rather than
-                      distorted - the three photos have different aspect ratios
-                      (3:2, 1:1, 4:5) and are cropped to 4:5 on mobile and 16:10
-                      from `sm`.
+                      Photo layer, first child so the gradient tint and the scrim
+                      below both paint over it. `fill` plus the card's own aspect
+                      ratio means each slide is cropped rather than distorted -
+                      the three photos have different aspect ratios (3:2, 1:1,
+                      4:5) and are cropped to 4:5 on mobile and 16:10 from `sm`.
 
                       The `sizes` hint matters for how aggressively next/image
                       picks a source width: the card is full-bleed on phones and
                       roughly half the container from `md` up. If this carousel
                       ever grows much past a handful of slides, revisit this
                       alongside formats - WebP/AVIF and a responsive `sizes`
-                      strategy are the lever, since a `fill` image with a
-                      coarse hint will happily serve a 1200px bitmap to a phone.
+                      strategy are the lever, since a `fill` image with a coarse
+                      hint will happily serve a 1200px bitmap to a phone.
                     */}
                     {slide.image ? (
                       <Image
@@ -233,10 +290,10 @@ export function Hero() {
                     {/*
                       Legibility scrim. The copy sits over photography, so the
                       headline and tagline are white and need a dark base to
-                      clear 4.5:1; a gradient that is darkest at the bottom
-                      where the text is and lightest at the top keeps the badge
-                      area from muddying. Also the visual equaliser across three
-                      very different photos - a light subject on one slide would
+                      clear 4.5:1; a gradient that is darkest at the bottom where
+                      the text is and lightest at the top keeps the badge area
+                      from muddying. Also the visual equaliser across three very
+                      different photos - a light subject on one slide would
                       otherwise swallow the white text where a dark one would
                       not.
                     */}
@@ -280,75 +337,73 @@ export function Hero() {
             </div>
           </div>
 
-          <div className="mt-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <CarouselButton
-                label="Previous slide"
-                onClick={() => goTo(index - 1)}
-              >
-                <ChevronLeft aria-hidden="true" className="size-5" />
-              </CarouselButton>
-              <CarouselButton
-                label="Next slide"
-                onClick={() => goTo(index + 1)}
-              >
-                <ChevronRight aria-hidden="true" className="size-5" />
-              </CarouselButton>
-              <button
-                type="button"
-                onClick={() => setUserPaused((value) => !value)}
-                aria-label={userPaused ? "Resume slideshow" : "Pause slideshow"}
-                className="border-border bg-card text-muted-foreground hover:bg-accent hover:text-accent-foreground grid size-9 place-items-center rounded-full border transition-colors"
-              >
-                {userPaused ? (
-                  <Play aria-hidden="true" className="size-4" />
-                ) : (
-                  <Pause aria-hidden="true" className="size-4" />
-                )}
-              </button>
-            </div>
+          {/*
+            The three brand facts, under the poster rather than beside the copy.
 
-            <div className="flex items-center gap-2">
-              {heroSlides.map((slide, slideIndex) => (
-                <button
-                  key={slide.id}
-                  type="button"
-                  onClick={() => goTo(slideIndex)}
-                  aria-label={`Go to slide ${slideIndex + 1}: ${slide.title}`}
-                  aria-current={slideIndex === index}
-                  className={cn(
-                    "h-2.5 rounded-full transition-all",
-                    slideIndex === index
-                      ? "bg-primary w-6"
-                      : "bg-border hover:bg-muted-foreground/50 w-2.5",
-                  )}
-                />
-              ))}
-            </div>
-          </div>
+            They moved here because the right column is the one with room: the
+            carousel is a fixed aspect box, so a row of small cards beneath it
+            reads as part of the same object, whereas beside the headline they
+            pulled the copy column narrower than it needed to be.
+
+            Short by construction. The icon shares a line with the value rather
+            than sitting in a chip of its own: at three across, a card is about
+            100px wide, and a 32px chip stacked above the number was a third of
+            the card's height for decoration. Sharing the line takes the card
+            from ~100px to ~65px, which is what makes it read as a caption to
+            the poster instead of a panel competing with it.
+
+            Everything is on the centre line. A left-aligned card in a centred
+            row reads as a mistake rather than a choice.
+
+            The wash is always faintly on and deepens on hover, so the row is
+            visibly part of the palette at rest and still rewards a pointer.
+            `grid-cols-3` holds down to 320px; the labels wrap to two lines
+            there rather than shrinking the type any further.
+          */}
+          <dl className="mt-4 grid grid-cols-3 gap-2 sm:mt-5 sm:gap-3">
+            {STATS.map((stat) => {
+              const Icon = stat.icon;
+
+              return (
+                <div
+                  key={stat.label}
+                  className="group border-border bg-card relative flex flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl border px-2 py-2.5 text-center shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-[var(--primary)]/40 hover:shadow-lg sm:gap-2 sm:px-3"
+                >
+                  {/*
+                    Brand wash. Absolute and behind the content, so the text
+                    never shifts when it deepens. Faint at rest, full strength
+                    on hover.
+                  */}
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--primary)]/10 to-[var(--accent)]/8 opacity-70 transition-opacity duration-300 group-hover:opacity-100"
+                  />
+
+                  {/*
+                    Icon and value on one line. The glyph is tinted rather than
+                    boxed, which is what buys the height back: a chip around it
+                    would set a 32px floor on the row on its own.
+                  */}
+                  <span className="relative flex items-center justify-center gap-1.5">
+                    <Icon
+                      aria-hidden="true"
+                      className="text-primary size-3.5 shrink-0 transition-colors duration-300 group-hover:text-[var(--accent)] sm:size-4"
+                    />
+                    <dd className="font-display text-sm leading-none font-bold sm:text-base">
+                      {stat.value}
+                    </dd>
+                  </span>
+
+                  <dt className="sr-only">{stat.label}</dt>
+                  <dd className="text-muted-foreground relative text-[0.625rem] leading-tight sm:text-[0.6875rem]">
+                    {stat.label}
+                  </dd>
+                </div>
+              );
+            })}
+          </dl>
         </div>
       </div>
     </section>
-  );
-}
-
-function CarouselButton({
-  label,
-  onClick,
-  children,
-}: {
-  label: string;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      className="border-border bg-card text-muted-foreground hover:bg-accent hover:text-accent-foreground grid size-9 place-items-center rounded-full border transition-colors"
-    >
-      {children}
-    </button>
   );
 }

@@ -1,0 +1,238 @@
+"use client";
+
+import { useState } from "react";
+
+import { pricingCategories, type CategorySlug } from "@/data/pricing";
+import { cn, formatPrice } from "@/lib/utils";
+
+import { SpeedToggle } from "./speed-toggle";
+
+/**
+ * The two long wear groups whose lists are capped to a self-scrolling box so
+ * they do not stretch the page. Every other group - Household included - has
+ * few enough services to render at full height.
+ */
+const SCROLLABLE_GROUPS: ReadonlySet<string> = new Set([
+  "adult-wear",
+  "kids-wear",
+]);
+
+/**
+ * The pricing view as an interactive browser.
+ *
+ * Same shape as the service step in the booking wizard - a Regular/Express
+ * capsule toggle over a row of sub-category capsules that filter the list below
+ * - except this one is the price list, so every line shows its figures. The
+ * book step stays price-free on purpose; here the prices are the point.
+ *
+ * Both the speed and the sub-category are local state, so browsing does not
+ * rewrite the URL. The optional `initialSpeed` / `initialGroup` props seed that
+ * state from a deep link (the home overview's category cards); with no props
+ * the page behaves exactly as it always has. The per-category pages at
+ * /pricing/[category] are left in place.
+ */
+export function PricingBrowser({
+  initialSpeed,
+  initialGroup,
+}: {
+  /** Speed to open on, from `?speed=`. Falls back to Regular. */
+  initialSpeed?: CategorySlug;
+  /** Group to open on, from `?group=`. Falls back to the first group. */
+  initialGroup?: string;
+}) {
+  const [category, setCategory] = useState<CategorySlug>(
+    initialSpeed ?? "regular",
+  );
+  const [activeGroup, setActiveGroup] = useState(
+    () => initialGroup ?? pricingCategories[0]?.groups[0]?.slug ?? "",
+  );
+
+  const activeCategory =
+    pricingCategories.find((entry) => entry.slug === category) ??
+    pricingCategories[0];
+  const groups = activeCategory?.groups ?? [];
+  const group = groups.find((entry) => entry.slug === activeGroup) ?? groups[0];
+
+  if (!activeCategory || !group) return null;
+
+  const scrollable = SCROLLABLE_GROUPS.has(group.slug);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-center">
+        <SpeedToggle category={category} onChange={setCategory} />
+      </div>
+
+      <div className="space-y-3">
+        <p className="text-muted-foreground text-center text-xs font-semibold tracking-wider uppercase">
+          Service category
+        </p>
+        <div className="flex flex-wrap justify-center gap-2">
+          {groups.map((entry) => {
+            const active = entry.slug === group.slug;
+
+            return (
+              <button
+                key={entry.slug}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setActiveGroup(entry.slug)}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
+                  active
+                    ? "bg-[var(--primary)] text-[var(--primary-foreground)]"
+                    : "border-border text-muted-foreground hover:bg-accent border",
+                )}
+              >
+                {entry.name}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/*
+        Express is derived from the Regular list rather than quoted separately,
+        so say so instead of implying the figures were set independently.
+      */}
+      {activeCategory.derived ? (
+        <p className="border-border bg-muted/40 rounded-lg border p-3 text-sm">
+          These prices are {activeCategory.derivedFrom}, with a{" "}
+          {activeCategory.turnaround} turnaround.
+        </p>
+      ) : null}
+
+      <div className="mx-auto max-w-2xl space-y-3">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h2 className="font-display text-xl font-bold tracking-tight">
+            {group.name}
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            {group.items.length} items
+            {group.turnaround ? ` · ready in ${group.turnaround}` : ""}
+          </p>
+        </div>
+
+        {/*
+          One row per item, dressed as a table: a brand-tinted header row names
+          the two columns and each row aligns to them from `sm`, stacking on
+          phones where the columns would not fit. Items with a single price
+          (Shoe Cleaning, Household) show it bare; items with two (Dry Cleaning
+          and Steam Ironing) break out one labelled line each, so the two are
+          never confused for each other.
+        */}
+        <div className="border-border relative overflow-hidden rounded-2xl border shadow-sm">
+          <div className="hidden grid-cols-[1fr_auto] gap-4 bg-[var(--primary)]/15 px-4 py-2.5 text-xs font-semibold tracking-wider uppercase sm:grid">
+            <span>Service</span>
+            <span className="text-right">Price</span>
+          </div>
+
+          {/*
+            Capped groups get a self-scrolling box so the page keeps its height;
+            the header row above stays put while rows scroll under it. The region
+            is focusable so it can be scrolled from the keyboard,
+            since the rows themselves hold no focusable controls.
+          */}
+          <ul
+            {...(scrollable
+              ? {
+                  tabIndex: 0,
+                  role: "region",
+                  "aria-label": `${group.name} prices, scroll to see all ${group.items.length} items`,
+                }
+              : {})}
+            className={cn(
+              scrollable &&
+                "focus-visible:outline-ring max-h-[26rem] [scrollbar-width:thin] [scrollbar-color:var(--primary)_transparent] overflow-y-auto overscroll-contain focus-visible:outline-2 focus-visible:outline-offset-[-2px]",
+            )}
+          >
+            {group.items.map((item, itemIndex) => (
+              <li
+                key={item.slug}
+                className="relative border-l-2 border-transparent px-4 py-3 transition-colors hover:border-[var(--primary)] hover:bg-[var(--accent)]/40 sm:py-4"
+              >
+                {/*
+                  Brand-colour breaker between rows: two hairline gradients
+                  fading toward the edges with a small lime node at the centre,
+                  so the seam reads as a themed flourish rather than a hard
+                  table grid line. The last row has none, and because it lives
+                  inside the row the hover tint paints under it.
+                */}
+                {itemIndex < group.items.length - 1 ? (
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-x-4 bottom-0 flex items-center gap-2"
+                  >
+                    <span className="h-px flex-1 bg-gradient-to-r from-transparent to-[var(--primary)]/70" />
+                    <span className="size-1.5 rounded-full bg-[var(--primary)] shadow-[0_0_0_3px_color-mix(in_oklab,var(--primary),transparent_80%)]" />
+                    <span className="h-px flex-1 bg-gradient-to-l from-transparent to-[var(--primary)]/70" />
+                  </span>
+                ) : null}
+
+                <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2 sm:grid sm:grid-cols-[1fr_auto] sm:items-center">
+                  <div className="min-w-0">
+                    <p className="font-medium">{item.name}</p>
+                    {group.turnaround ? (
+                      <p className="text-muted-foreground text-xs">
+                        Ready in {group.turnaround}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <ul className="space-y-1.5 sm:text-right">
+                    {item.options.map((option, index) => (
+                      <li
+                        key={option.label ?? `${item.slug}-${index}`}
+                        className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:justify-end"
+                      >
+                        {option.label ? (
+                          <span className="border-border text-muted-foreground rounded-full border px-2 py-0.5 text-xs">
+                            {option.label}
+                          </span>
+                        ) : null}
+                        {option.original > option.price ? (
+                          <span className="text-muted-foreground text-sm line-through">
+                            {formatPrice(option.original)}
+                          </span>
+                        ) : null}
+                        <span className="rounded-full bg-[var(--primary)]/15 px-2.5 py-1 whitespace-nowrap text-[var(--primary-foreground)]">
+                          <span className="font-display text-base font-bold">
+                            {formatPrice(option.price)}
+                          </span>
+                          <span className="text-xs"> / {option.unit}</span>
+                        </span>
+                        {option.turnaround ? (
+                          <span className="text-muted-foreground w-full text-xs sm:w-auto">
+                            {option.turnaround}
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          {/*
+            Fade hint: a soft background-coloured scrim over the last visible
+            rows, so a capped list reads as "there is more below" instead of
+            looking abruptly cut off.
+          */}
+          {scrollable ? (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[var(--background)] to-transparent"
+            />
+          ) : null}
+        </div>
+
+        {scrollable ? (
+          <p className="text-muted-foreground text-center text-xs">
+            Scroll within the list to see all {group.items.length} items.
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}

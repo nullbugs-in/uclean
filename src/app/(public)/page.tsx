@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { About } from "@/components/sections/about";
 import { Contact } from "@/components/sections/contact";
 import { Hero } from "@/components/sections/hero";
+import { HowItWorks } from "@/components/sections/how-it-works";
 import { Services } from "@/components/sections/services";
 import { WhyUClean } from "@/components/sections/why-uclean";
 import {
@@ -56,6 +57,7 @@ export default function HomePage() {
       <About />
       <Services />
       <WhyUClean />
+      <HowItWorks />
       <Contact />
     </>
   );

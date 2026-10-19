@@ -94,11 +94,12 @@ export const siteConfig = {
     { days: "Evening", opens: "15:00", closes: "20:00" },
   ] as OpeningHours[],
 
-  /** REPLACE BEFORE LAUNCH: real social profiles; hrefs are placeholders. */
+  /** Real profile; the JSON-LD sameAs block filters out "#" placeholders. */
   social: [
-    { label: "Instagram", href: "#" },
-    { label: "Facebook", href: "#" },
-    { label: "X", href: "#" },
+    {
+      label: "Instagram",
+      href: "https://www.instagram.com/uclean_v.v.mohalla?exln=MWd2ZDVxaHhvMDVsdw==",
+    },
   ] as SocialLink[],
 
   /** Driving-distance service radius, also mirrored in the database. */
