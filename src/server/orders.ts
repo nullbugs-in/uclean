@@ -5,12 +5,15 @@ import { createClient, createServiceClient } from "@/db/server";
 import type { Database, Order, OrderSource } from "@/db/types";
 import * as orderStatus from "@/lib/order-status";
 
+import { googleServerKey } from "./env";
 import {
   forbidden,
+  fromDatabaseError,
   invalidTransition,
   unauthenticated,
   zoneNoticeNotAccepted,
 } from "./errors";
+import { assertWithinDeliveryZone } from "./maps";
 
 export type CreatePickupInput = {
   customerId: string;
@@ -23,7 +26,21 @@ export type CreatePickupInput = {
   slotId: string;
   zoneNoticeAcceptedAt: string;
   /** Services chosen in the wizard, written to order_items once the order exists. */
-  items?: Array<{ name: string; qty: number; unitPrice: number }>;
+  items?: Array<{
+    name: string;
+    qty: number;
+    unitPrice: number;
+    /**
+     * The `services` row this line came from, when there is one.
+     *
+     * The public wizard's price list has no row behind it, so this is null for an
+     * online booking. A walk-in is taken from the live catalogue at the counter,
+     * so it can carry the reference - which lets the sales report, the rate on the
+     * invoice and the catalogue all name the same service rather than three
+     * similar strings.
+     */
+    serviceId?: string | null;
+  }>;
   source?: OrderSource;
   createdBy?: string | null;
 };
@@ -42,8 +59,7 @@ export type CreatePickupResult = {
  *   2. Re-read name and mobile from `profiles` rather than accepting them from
  *      the form, so a booking records who the customer is *now* (section 6.1).
  *   3. Recompute the driving distance server side. The browser's number is
- *      never used, which is what makes the 6 km rule unbypassable. TEMPORARY:
- *      this step is disabled for testing, see below.
+ *      never used, which is what makes the 6 km rule unbypassable.
  *   4. Call book_pickup, which re-checks capacity and the zone under a row
  *      lock inside one transaction.
  */
@@ -77,13 +93,14 @@ export async function createPickupOrder(
     throw new Error(`No profile found for customer ${input.customerId}`);
   }
 
-  // TEMPORARY (testing): the 6 km delivery-zone rule is switched off.
-  //
-  // assertWithinDeliveryZone used to recompute the driving distance here and
-  // throw outsideDeliveryZone past the radius. Restore it before launch: it is
-  // the only thing stopping an out-of-zone address from booking, because
-  // book_pickup trusts the distance passed to it.
-  const distanceKm = 0;
+  // Recompute the driving distance server side. The browser never sends a
+  // distance, and book_pickup trusts the value passed to it (`p_distance_km`),
+  // so this check is the only thing stopping an out-of-zone address from
+  // booking. It throws outsideDeliveryZone past the radius.
+  const { distanceKm } = await assertWithinDeliveryZone(
+    { lat: input.lat, lng: input.lng },
+    googleServerKey(),
+  );
 
   // The booking RPC is SECURITY DEFINER and validates capacity, the blocked
   // dates, and the zone again under a lock. The service role is used because
@@ -108,15 +125,27 @@ export async function createPickupOrder(
   });
 
   if (error || !orderId) {
+    /*
+     * `book_pickup` re-checks the zone, the cut-off, the capacity and the blocked
+     * dates under its row lock, and answers with a plain message. Recognising the
+     * ones a customer can actually act on is the difference between "pick another
+     * slot" and "we could not confirm your booking" -- the first is retried, the
+     * second is abandoned. Anything unrecognised is still thrown raw so it is not
+     * swallowed into a friendly lie.
+     */
+    const recognised = error ? fromDatabaseError(error) : null;
+    if (recognised) throw recognised;
+
     throw new Error(`book_pickup failed: ${error?.message ?? "unknown error"}`);
   }
 
   /*
    * The services the customer chose, recorded once the order row exists.
    *
-   * order_items has no insert policy, so the service role is used here, as it
-   * is for the RPC call above. service_id is left null: these are price-list
-   * lines, not rows in `services`.
+   * order_items has no insert policy, so the service role is used here, as it is
+   * for the RPC call above. `service_id` is whatever the caller knew: the public
+   * wizard's price-list lines have no `services` row behind them and pass null,
+   * while a walk-in taken from the catalogue passes the row it came from.
    *
    * Best effort on purpose. The booking is already committed at this point, and
    * failing the whole request over a line item would leave the customer with a
@@ -127,9 +156,7 @@ export async function createPickupOrder(
     const { error: itemsError } = await service.from("order_items").insert(
       input.items.map((item) => ({
         order_id: orderId,
-        // Price-list lines have no `services` row behind them. The column is
-        // nullable, but the generated insert type still requires the key.
-        service_id: null,
+        service_id: item.serviceId ?? null,
         item_name: item.name,
         qty: item.qty,
         unit_price: item.unitPrice,

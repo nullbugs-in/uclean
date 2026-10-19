@@ -18,6 +18,7 @@ import { toDateKey } from "@/lib/dates";
 import { INTERNAL_STATUS_LABEL } from "@/lib/order-status";
 
 import { AssignmentCard } from "../_components/assignment-card";
+import { PageEntrance } from "../_components/page-entrance";
 import { SlotLoadChart } from "../_components/slot-load-chart";
 import { PanelPage } from "@/components/panel/panel-page";
 
@@ -99,98 +100,100 @@ export default async function StaffOverviewPage() {
         : `${stopCount} stops on the round`;
 
   return (
-    <PanelPage
-      title="Your round today"
-      description={`${dateText} · ${stopText}`}
-    >
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Pickups today"
-          value={overview.counts.pickupsToday}
-          hint="Stops booked for today"
-          icon={CalendarClock}
-        />
-        <StatCard
-          label="To deliver"
-          value={overview.counts.deliveriesDue}
-          hint="Ready, or already on the road"
-          icon={Truck}
-        />
-        <StatCard
-          label="At the store"
-          value={overview.counts.atStore}
-          hint="Picked up, in the building"
-          icon={Warehouse}
-        />
-        <StatCard
-          label="Travel today"
-          value={`${overview.distanceKm.toFixed(1)} km`}
-          hint="Total across today's stops"
-          icon={Route}
-        />
-      </div>
+    <PageEntrance>
+      <PanelPage
+        title="Your round today"
+        description={`${dateText} · ${stopText}`}
+      >
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            label="Pickups today"
+            value={overview.counts.pickupsToday}
+            hint="Stops booked for today"
+            icon={CalendarClock}
+          />
+          <StatCard
+            label="To deliver"
+            value={overview.counts.deliveriesDue}
+            hint="Ready, or already on the road"
+            icon={Truck}
+          />
+          <StatCard
+            label="At the store"
+            value={overview.counts.atStore}
+            hint="Picked up, in the building"
+            icon={Warehouse}
+          />
+          <StatCard
+            label="Travel today"
+            value={`${overview.distanceKm.toFixed(1)} km`}
+            hint="Total across today's stops"
+            icon={Route}
+          />
+        </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Booked load</CardTitle>
-            <CardDescription>
-              Pickups and deliveries over the next {overview.slotLoad.length}{" "}
-              days.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <SlotLoadChart days={overview.slotLoad} />
-          </CardContent>
-        </Card>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Booked load</CardTitle>
+              <CardDescription>
+                Pickups and deliveries over the next {overview.slotLoad.length}{" "}
+                days.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SlotLoadChart days={overview.slotLoad} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Where orders sit</CardTitle>
+              <CardDescription>Active orders by state.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DonutChart
+                rows={overview.statusMix.map((row) => ({
+                  label: INTERNAL_STATUS_LABEL[row.status],
+                  value: row.count,
+                }))}
+                centerLabel="active"
+                emptyLabel="Nothing in progress. An order shows up here the moment one is assigned to you."
+              />
+            </CardContent>
+          </Card>
+        </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Where orders sit</CardTitle>
-            <CardDescription>Active orders by state.</CardDescription>
+            <CardTitle>Stops</CardTitle>
+            <CardDescription>
+              Pickups first, then anything going back out.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <DonutChart
-              rows={overview.statusMix.map((row) => ({
-                label: INTERNAL_STATUS_LABEL[row.status],
-                value: row.count,
-              }))}
-              centerLabel="active"
-              emptyLabel="Nothing in progress. An order shows up here the moment one is assigned to you."
-            />
+            {stopCount === 0 ? (
+              <div className="rounded-lg border border-dashed px-6 py-10 text-center">
+                <p className="font-medium">No stops booked for today</p>
+                <p className="text-muted-foreground mx-auto mt-1 max-w-md text-sm">
+                  {upcoming > 0
+                    ? `${upcoming} more coming up in the next few days.`
+                    : "Assignments appear here as soon as an admin hands them over."}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <RoundGroup label="Pickups" rows={todayPickups} type="pickup" />
+                <RoundGroup
+                  label="Deliveries"
+                  rows={dueDeliveries}
+                  type="delivery"
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Stops</CardTitle>
-          <CardDescription>
-            Pickups first, then anything going back out.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {stopCount === 0 ? (
-            <div className="rounded-lg border border-dashed px-6 py-10 text-center">
-              <p className="font-medium">No stops booked for today</p>
-              <p className="text-muted-foreground mx-auto mt-1 max-w-md text-sm">
-                {upcoming > 0
-                  ? `${upcoming} more coming up in the next few days.`
-                  : "Assignments appear here as soon as an admin hands them over."}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <RoundGroup label="Pickups" rows={todayPickups} type="pickup" />
-              <RoundGroup
-                label="Deliveries"
-                rows={dueDeliveries}
-                type="delivery"
-              />
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </PanelPage>
+      </PanelPage>
+    </PageEntrance>
   );
 }

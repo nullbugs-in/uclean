@@ -45,7 +45,11 @@ export function SlotLoadChart({ days }: { days: SlotLoadDay[] }) {
       config={chartConfig}
       className="aspect-auto h-[240px] w-full"
     >
-      <BarChart accessibilityLayer data={data} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+      <BarChart
+        accessibilityLayer
+        data={data}
+        margin={{ top: 8, right: 4, left: 0, bottom: 0 }}
+      >
         <CartesianGrid vertical={false} strokeDasharray="3 3" />
         <XAxis
           dataKey="label"

@@ -3,41 +3,52 @@ import { describe, expect, it } from "vitest";
 import { codSchema, invoiceSchema, orderItemSchema } from "./billing";
 import { bookPickupSchema, mobileSchema } from "./index";
 
+const SERVICE_ID = "0f9a3b2c-1d4e-4f6a-8b9c-0d1e2f3a4b5c";
+
 describe("orderItemSchema", () => {
-  it("accepts a normal line item", () => {
-    const parsed = orderItemSchema.safeParse({
-      serviceId: "0f9a3b2c-1d4e-4f6a-8b9c-0d1e2f3a4b5c",
-      itemName: "Cotton shirts",
-      qty: "4",
-      unitPrice: "60.00",
-    });
+  it("accepts a catalogue line: a service and a quantity", () => {
+    const parsed = orderItemSchema.safeParse({ serviceId: SERVICE_ID, qty: "4" });
 
     expect(parsed.success).toBe(true);
   });
 
-  it("rejects a zero or negative quantity", () => {
+  it("requires a service, because the price is read from the catalogue", () => {
+    expect(orderItemSchema.safeParse({ qty: 4 }).success).toBe(false);
     expect(
-      orderItemSchema.safeParse({ itemName: "Shirt", qty: 0, unitPrice: 60 })
-        .success,
-    ).toBe(false);
-    expect(
-      orderItemSchema.safeParse({ itemName: "Shirt", qty: -1, unitPrice: 60 })
-        .success,
+      orderItemSchema.safeParse({ serviceId: "not-a-uuid", qty: 4 }).success,
     ).toBe(false);
   });
 
-  it("rejects a negative unit price", () => {
+  it("rejects a zero or negative quantity", () => {
+    expect(orderItemSchema.safeParse({ serviceId: SERVICE_ID, qty: 0 }).success).toBe(
+      false,
+    );
     expect(
-      orderItemSchema.safeParse({ itemName: "Shirt", qty: 1, unitPrice: -10 })
-        .success,
+      orderItemSchema.safeParse({ serviceId: SERVICE_ID, qty: -1 }).success,
     ).toBe(false);
+  });
+
+  it("drops a price or a name if one is smuggled in", () => {
+    // Unknown keys are stripped, so a forged price never reaches the server's
+    // draft. The real defence is that createInvoice prices from the catalogue.
+    const parsed = orderItemSchema.safeParse({
+      serviceId: SERVICE_ID,
+      qty: 4,
+      unitPrice: 1,
+      itemName: "Free shirts",
+    });
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data).not.toHaveProperty("unitPrice");
+      expect(parsed.data).not.toHaveProperty("itemName");
+    }
   });
 });
 
 describe("invoiceSchema", () => {
   const base = {
     orderId: "0f9a3b2c-1d4e-4f6a-8b9c-0d1e2f3a4b5c",
-    subtotal: 240,
     tax: 0,
     discount: 0,
     deliveryCharge: 0,
@@ -47,24 +58,33 @@ describe("invoiceSchema", () => {
     expect(invoiceSchema.safeParse({ ...base, items: [] }).success).toBe(false);
   });
 
-  it("accepts an invoice with one item", () => {
+  it("accepts an invoice with one catalogue item", () => {
     const parsed = invoiceSchema.safeParse({
       ...base,
-      items: [{ itemName: "Shirts", qty: 4, unitPrice: 60 }],
+      items: [{ serviceId: SERVICE_ID, qty: 4 }],
     });
     expect(parsed.success).toBe(true);
   });
 
-  it("rejects a discount larger than nothing to discount", () => {
-    // The schema cannot know the subtotal, but it must at least reject a
-    // negative discount, which would otherwise inflate the total.
+  it("rejects a negative discount, which would otherwise inflate the total", () => {
     expect(
       invoiceSchema.safeParse({
         ...base,
         discount: -100,
-        items: [{ itemName: "S", qty: 1, unitPrice: 1 }],
+        items: [{ serviceId: SERVICE_ID, qty: 1 }],
       }).success,
     ).toBe(false);
+  });
+
+  it("does not accept a subtotal, which the server sums itself", () => {
+    const parsed = invoiceSchema.safeParse({
+      ...base,
+      subtotal: 240,
+      items: [{ serviceId: SERVICE_ID, qty: 1 }],
+    });
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data).not.toHaveProperty("subtotal");
   });
 });
 

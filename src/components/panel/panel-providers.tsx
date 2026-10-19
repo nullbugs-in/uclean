@@ -30,7 +30,7 @@ export function PanelProviders({ children }: { children: React.ReactNode }) {
       disableTransitionOnChange
     >
       {children}
-      <Toaster position="top-right" />
+      <Toaster position="bottom-right" richColors />
     </ThemeProvider>
   );
 }

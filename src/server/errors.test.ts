@@ -70,6 +70,17 @@ describe("fromDatabaseError", () => {
     );
   });
 
+  it("maps the booking cut-off raised by book_pickup", () => {
+    const mapped = fromDatabaseError({
+      message:
+        "Pickup slot is too soon: pickups are booked at least 60 minutes ahead",
+    });
+
+    expect(mapped?.code).toBe("SLOT_TOO_SOON");
+    // The customer cannot set the number, so it is not worth quoting back.
+    expect(mapped?.userMessage).toMatch(/choose a later slot/i);
+  });
+
   it("maps an invalid transition raised by the trigger", () => {
     const mapped = fromDatabaseError({
       message: "Invalid order status transition: delivered -> picked_up",

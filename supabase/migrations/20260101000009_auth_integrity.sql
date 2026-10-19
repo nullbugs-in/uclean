@@ -79,9 +79,11 @@ create trigger profiles_canonicalise_mobile
 -- ---------------------------------------------------------------------------
 
 -- The uniqueness constraint below is only meaningful if no two customers are
--- already merged into one number. Nothing is deleted or rewritten here: the
--- migration stops and names the numbers, because merging accounts by hand means
--- deciding which orders belong to whom, and that is not a migration's call.
+-- already merged into one number. Exact duplicates are named and the migration
+-- stops, because merging accounts by hand means deciding which orders belong to
+-- whom, and that is not a migration's call. Duplicates that only collide once
+-- canonicalised (e.g. "9876543210" and "+919876543210") are handled by the
+-- repair block further down, which cannot see them yet.
 do $$
 declare
   duplicates text;
@@ -91,6 +93,7 @@ begin
   from (
     select mobile
     from public.profiles
+    where mobile is not null
     group by mobile
     having count(*) > 1
   ) as repeated;
@@ -104,9 +107,63 @@ end;
 $$;
 
 -- Backfill every existing row to its canonical form before the index lands.
+-- Temporarily disable the canonicalisation trigger during backfill so that
+-- rows with NULL/invalid mobiles don't cause the trigger to raise.
+alter table public.profiles disable trigger profiles_canonicalise_mobile;
+
 update public.profiles
 set mobile = public.canonical_mobile(mobile)
-where mobile is distinct from public.canonical_mobile(mobile);
+where mobile is not null
+  and public.canonical_mobile(mobile) is not null
+  and mobile is distinct from public.canonical_mobile(mobile);
+
+-- Make the unique index buildable without deleting any profile row: orders,
+-- invoices, payments and notifications all reference profiles by id, so a
+-- merge would have to reassign those by hand. Rows that are missing, unusable
+-- or duplicated are instead given a unique, format-valid placeholder mobile.
+-- A staging database with seeded test accounts needs this; a fresh database
+-- has neither NULL nor duplicate mobiles, so both loops are no-ops there.
+do $$
+declare
+  v_row record;
+  v_seq integer := 0;
+  v_placeholder text;
+begin
+  for v_row in
+    select id
+    from public.profiles
+    where mobile is null
+      or public.canonical_mobile(mobile) is null
+    union all
+    select id
+    from (
+      select id,
+             row_number() over (
+               partition by public.canonical_mobile(mobile)
+               order by created_at, id
+             ) as rn
+      from public.profiles
+      where mobile is not null
+        and public.canonical_mobile(mobile) is not null
+    ) as ranked
+    where rn > 1
+  loop
+    -- Walk forward until the placeholder is unused, so the repair can never
+    -- itself create the duplicate the index is about to reject.
+    loop
+      v_seq := v_seq + 1;
+      v_placeholder := '+9190000' || lpad(v_seq::text, 5, '0');
+      exit when not exists (
+        select 1 from public.profiles where mobile = v_placeholder
+      );
+    end loop;
+
+    update public.profiles set mobile = v_placeholder where id = v_row.id;
+  end loop;
+end;
+$$;
+
+alter table public.profiles enable trigger profiles_canonicalise_mobile;
 
 -- The guarantee. From here on the database itself refuses a second account for
 -- a number, so two concurrent signups for the same person cannot both succeed

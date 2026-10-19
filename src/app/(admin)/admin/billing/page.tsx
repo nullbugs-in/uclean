@@ -1,43 +1,44 @@
 import type { Metadata } from "next";
 
-import { PagePlaceholder } from "@/components/placeholder";
+import { PanelPage } from "@/components/panel/panel-page";
+import { listActiveServices } from "@/db/queries/catalog";
+import { listBillableOrders, listInvoices } from "@/db/queries/billing";
+import { createClient } from "@/db/server";
+
+import { BillingPanel } from "./billing-panel";
 
 export const metadata: Metadata = { title: "Billing" };
 
 /**
- * Product analysis and billing (section 8.4 and 8.5).
+ * Billing (section 8.4 and 8.5).
  *
- * Admin records items received, prices come from the live price list, and the
- * invoice is generated with tax, discount and delivery charge. The flow is
- * implemented server side already: createInvoice, issuePaymentToken and
- * sendInvoice in src/server/billing.ts.
+ * The item entry prices from the `services` catalogue rather than a typed rate:
+ * a line names a service and the server reads its price, so the figure the
+ * customer is billed cannot disagree with the price list. The page then shows
+ * the invoices and lets an admin send one, or record the cash on delivery.
+ *
+ * Three reads, each falling back to an empty list so a single failure still
+ * renders the rest of the page rather than dropping to an error boundary.
  */
-export default function AdminBillingPage() {
+export default async function AdminBillingPage() {
+  const supabase = await createClient();
+
+  const [invoices, billableOrders, services] = await Promise.all([
+    listInvoices(supabase).catch(() => []),
+    listBillableOrders(supabase).catch(() => []),
+    listActiveServices(supabase).catch(() => []),
+  ]);
+
   return (
-    <PagePlaceholder
+    <PanelPage
       title="Billing"
-      description="Record items, generate invoices, and send payment links."
-      milestone="Milestone 6 for the item entry and invoice form"
+      description="Record items from the price list, generate invoices, and take payment."
     >
-      <ol className="space-y-2 text-sm">
-        {[
-          "Record the items received: type, quantity, service, notes and photos.",
-          "Prices are pulled from the live price list rather than typed.",
-          "Generate the invoice: items, tax, discount, delivery charge, total.",
-          "Send it to the customer's WhatsApp number with a link to /pay/[token].",
-        ].map((item, index) => (
-          <li key={item} className="flex gap-3">
-            <span className="font-medium text-[var(--muted-foreground)]">
-              {index + 1}.
-            </span>
-            <span>{item}</span>
-          </li>
-        ))}
-      </ol>
-      <p className="text-sm text-[var(--muted-foreground)]">
-        Phase 1 shows the invoice with Cash on Delivery. Phase 2 adds the
-        gateway checkout behind the same signed link.
-      </p>
-    </PagePlaceholder>
+      <BillingPanel
+        invoices={invoices}
+        billableOrders={billableOrders}
+        services={services}
+      />
+    </PanelPage>
   );
 }

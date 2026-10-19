@@ -44,7 +44,10 @@ export function cronSecret(): string {
   return required("CRON_SECRET");
 }
 
-/** Server-side Maps key, IP-restricted. Never exposed to the browser. */
+/**
+ * Server-side Maps key, restricted to the Routes API. Never exposed to the
+ * browser.
+ */
 export function googleServerKey(): string {
   return required("GOOGLE_MAPS_SERVER_API_KEY");
 }

@@ -4,29 +4,48 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { createClient, createServiceClient } from "@/db/server";
 import type { Invoice, OrderItem } from "@/db/types";
+import { BillingError, invoiceTotal, priceInvoiceLines } from "@/lib/invoice";
+import type { InvoiceLineInput } from "@/lib/invoice";
 
 import { invalidPaymentToken, paymentLinkExpired } from "./errors";
 import { paymentTokenSecret } from "./env";
 
+export { BillingError } from "@/lib/invoice";
+export type { InvoiceLineInput } from "@/lib/invoice";
+
 export type InvoiceDraft = {
   orderId: string;
-  items: OrderItem[];
+  items: InvoiceLineInput[];
   tax: number;
   discount: number;
   deliveryCharge: number;
+  /** Who generated the invoice, for the record. */
+  createdBy?: string | null;
 };
 
 /** How long a WhatsApp payment link stays usable. */
 export const PAY_LINK_TTL_DAYS = 7;
 
 /**
- * Creates the draft invoice for an order.
+ * Creates or regenerates the invoice for an order.
  *
- * The total is derived here from the line items, never accepted from the
- * client. The admin form submits items and adjustments; the arithmetic is the
- * server's job.
+ * The price of every line is read from `services` here, never accepted from the
+ * caller (section 8.4). `invoices.order_id` is unique, so re-generating replaces
+ * the previous draft and its lines rather than stacking a second invoice on the
+ * order.
+ *
+ * The subtotal is summed from the derived prices and the total is worked out
+ * server side, so the numbers the customer is shown are the ones the server
+ * computed and not the ones the browser sent.
  */
 export async function createInvoice(draft: InvoiceDraft): Promise<Invoice> {
+  if (draft.items.length === 0) {
+    throw new BillingError(
+      "invoice created with no lines",
+      "Add at least one service before generating the invoice.",
+    );
+  }
+
   const supabase = await createClient();
 
   const { data: order, error: orderError } = await supabase
@@ -38,14 +57,28 @@ export async function createInvoice(draft: InvoiceDraft): Promise<Invoice> {
   if (orderError) throw new Error(orderError.message);
   if (!order) throw new Error("Order not found");
 
-  const subtotal = draft.items.reduce(
-    (sum, item) => sum + item.qty * item.unit_price,
-    0,
+  // One read for every distinct service on the draft. The catalogue is the
+  // authority, so each line is priced from the row it names.
+  const serviceIds = [...new Set(draft.items.map((item) => item.serviceId))];
+
+  const { data: services, error: servicesError } = await supabase
+    .from("services")
+    .select("id, name, price, is_active")
+    .in("id", serviceIds);
+
+  if (servicesError) throw new Error(servicesError.message);
+
+  const { lines, subtotal } = priceInvoiceLines(
+    draft.orderId,
+    draft.items,
+    services ?? [],
   );
-  const total = Math.max(
-    0,
-    subtotal + draft.tax + draft.deliveryCharge - draft.discount,
-  );
+  const total = invoiceTotal({
+    subtotal,
+    tax: draft.tax,
+    deliveryCharge: draft.deliveryCharge,
+    discount: draft.discount,
+  });
 
   const service = createServiceClient();
 
@@ -63,6 +96,7 @@ export async function createInvoice(draft: InvoiceDraft): Promise<Invoice> {
         delivery_charge: draft.deliveryCharge,
         total,
         status: "draft",
+        created_by: draft.createdBy ?? null,
       },
       { onConflict: "order_id" },
     )
@@ -77,17 +111,9 @@ export async function createInvoice(draft: InvoiceDraft): Promise<Invoice> {
     .eq("order_id", draft.orderId);
   if (itemError) throw new Error(itemError.message);
 
-  const { error: insertError } = await service.from("order_items").insert(
-    draft.items.map((item) => ({
-      order_id: draft.orderId,
-      service_id: item.service_id,
-      item_name: item.item_name,
-      qty: item.qty,
-      unit_price: item.unit_price,
-      notes: item.notes,
-      photo_url: item.photo_url,
-    })),
-  );
+  const { error: insertError } = await service
+    .from("order_items")
+    .insert(lines);
   if (insertError) throw new Error(insertError.message);
 
   return invoice;
@@ -252,6 +278,27 @@ export async function recordCashOnDelivery(
     .from("invoices")
     .update({ status: "paid", paid_at: new Date().toISOString() })
     .eq("id", invoiceId);
+}
+
+/**
+ * The lines behind an invoice, for the customer's copy.
+ *
+ * Read with the service role because the pay page has no session: the signed
+ * token is the credential, and this only ever runs for the order that token
+ * already resolved to. A session check here would be theatre rather than a
+ * control.
+ */
+export async function listInvoiceLines(orderId: string): Promise<OrderItem[]> {
+  const service = createServiceClient();
+
+  const { data, error } = await service
+    .from("order_items")
+    .select("*")
+    .eq("order_id", orderId)
+    .order("created_at", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
 }
 
 // --- HMAC helpers ----------------------------------------------------------

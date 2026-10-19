@@ -1,4 +1,5 @@
 import type {
+  BlockedDate,
   DbClient,
   HeroSlide,
   Service,
@@ -18,13 +19,30 @@ function unwrap<T>(result: {
   return result.data as T;
 }
 
-/** Active services in display order. Powers the public Services section. */
+/** Active services in display order. Retired ones are filtered out. */
 export async function listActiveServices(client: Client): Promise<Service[]> {
   return unwrap(
     await client
       .from("services")
       .select("*")
       .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true }),
+  );
+}
+
+/**
+ * Every service, active or not, for the admin catalogue.
+ *
+ * Distinct from `listActiveServices`: an admin has to see a retired service to
+ * bring it back, and `services_public_read` lets an admin read inactive rows
+ * anyway.
+ */
+export async function listServices(client: Client): Promise<Service[]> {
+  return unwrap(
+    await client
+      .from("services")
+      .select("*")
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
   );
@@ -44,11 +62,12 @@ export async function listActiveHeroSlides(
 }
 
 /**
- * Store settings for the public site: address, hours, WhatsApp number.
+ * The contact-facing slice of store_settings: address, hours, WhatsApp number.
  *
- * Prefer this over fetching store_settings directly from a client component:
- * lat/lng are business sensitive and are only used by the server-side distance
- * check, so they have no business in the public bundle.
+ * Prefer this over the full row when a page only needs the contact block. The
+ * coordinates are left out not because they are secret -- the public contact map
+ * already points at the store -- but because this shape is what the marketing
+ * section reads, and fields it ignores only invite drift.
  */
 export async function getPublicStoreSettings(client: Client): Promise<{
   address: string | null;
@@ -123,4 +142,22 @@ export async function listBlockedDates(
       .lte("date", to),
   );
   return rows.map((row) => row.date);
+}
+
+/**
+ * Every blocked date with its reason, for the admin Slots page.
+ *
+ * Distinct from `listBlockedDates` on purpose: availability only needs the
+ * dates and asks for a window, while the admin edits them one at a time and
+ * shows the reason, so this one is unbounded and carries the whole row.
+ */
+export async function listBlockedDateEntries(
+  client: Client,
+): Promise<BlockedDate[]> {
+  return unwrap(
+    await client
+      .from("blocked_dates")
+      .select("*")
+      .order("date", { ascending: true }),
+  );
 }

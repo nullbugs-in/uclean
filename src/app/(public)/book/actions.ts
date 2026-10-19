@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/db/server";
+import { storeNow } from "@/lib/dates";
 import { pickupRequestSchema } from "@/lib/validation";
 import { getPrefillAddress, saveDefaultAddress } from "@/server/addresses";
 import { getAuthUser } from "@/server/auth";
@@ -39,7 +40,10 @@ function toOption(entry: SlotAvailability): SlotOption {
 
 /** Today plus the next {@link SLOT_WINDOW_DAYS} date keys, oldest first. */
 function upcomingDateKeys(count: number): string[] {
-  const today = new Date();
+  // The store's today, not the server's: a function running in UTC would
+  // otherwise start the window on the wrong day for the first five and a half
+  // hours of every store day.
+  const today = storeNow();
 
   return Array.from({ length: count }, (_, offset) => {
     const date = new Date(today);
@@ -189,8 +193,9 @@ export type CreateBookingInput = {
  *
  * `createPickupOrder` re-reads the name and mobile from the profile, so nothing
  * here is trusted from the browser beyond the chosen address, slot and notice
- * timestamp. The driving distance is not recomputed yet: the zone check is
- * switched off in `src/server/orders.ts` pending the real location flow.
+ * timestamp. The driving distance is recomputed there from the coordinates of
+ * the pin the customer placed, so the browser cannot widen its own delivery
+ * zone.
  */
 export async function createBookingAction(
   input: CreateBookingInput,

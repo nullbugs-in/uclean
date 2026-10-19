@@ -43,8 +43,10 @@ values
 on conflict (start_time, end_time) do update set label = excluded.label;
 
 -- --- Services --------------------------------------------------------------
--- Indicative sample rows so the public Services section renders. Admin edits
--- prices in /admin/services; the section reads live from this table.
+-- The billing catalogue: invoices price line items from these rows, and admins
+-- edit them at /admin/services. This does NOT feed the public price list -- the
+-- /pricing page and the home Services section read the static src/data/pricing.ts
+-- transcribed from laundry_price_list_updated.md.
 insert into public.services (name, description, unit, price, sort_order)
 values
   ('Washing and Folding', 'Machine wash, dry and neatly folded', 'kg', 60.00, 1),

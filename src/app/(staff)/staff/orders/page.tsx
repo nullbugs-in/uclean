@@ -80,7 +80,7 @@ export default async function StaffOrdersPage() {
                   <TableCell className="text-muted-foreground whitespace-nowrap">
                     {dayLabel(order.pickup_slot_date)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums whitespace-nowrap">
+                  <TableCell className="text-right whitespace-nowrap tabular-nums">
                     {order.distance_km.toFixed(1)} km
                   </TableCell>
                   <TableCell>

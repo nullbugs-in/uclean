@@ -25,6 +25,7 @@ import type {
   LatLng,
   SlotDay,
   WizardStep,
+  ZoneResult,
 } from "./types";
 
 type BookWizardProps = {
@@ -34,6 +35,15 @@ type BookWizardProps = {
   initialIdentity: { name: string; mobile: string } | null;
   /** The customer's last saved address, so it can be prefilled. */
   initialAddress?: string;
+};
+
+/** Shape of POST /api/distance's body, as far as this wizard cares about it. */
+type DistanceResponse = {
+  ok?: boolean;
+  distanceKm?: number;
+  maxRadiusKm?: number;
+  reason?: string;
+  error?: string;
 };
 
 const STEP_LABELS: { id: WizardStep; label: string }[] = [
@@ -152,6 +162,12 @@ export function BookWizard({
   );
   const [notes, setNotes] = React.useState("");
 
+  // The pin the customer placed on the map. Everything the zone check and the
+  // booking itself depend on comes from here, never from the typed address.
+  const [coords, setCoords] = React.useState<LatLng | null>(null);
+  const [zone, setZone] = React.useState<ZoneResult | null>(null);
+  const [checking, setChecking] = React.useState(false);
+
   // Service choices, keyed by the stable "<group>/<item>/<option>" key so the
   // customer can switch between Regular and Express without losing them.
   const [category, setCategory] = React.useState<CategorySlug>("regular");
@@ -182,6 +198,90 @@ export function BookWizard({
         ?.slots.find((slot) => slot.id === slotId) ?? null
     );
   }, [upcomingDays, slotDate, slotId]);
+
+  /**
+   * Distance check for the current pin.
+   *
+   * Debounced so dragging or tapping the map does not fire a request per move,
+   * and aborted on cleanup so a stale verdict cannot land after a newer pin.
+   * The number is never computed here: the server owns it, so the browser
+   * cannot talk itself into the delivery zone.
+   *
+   * `checking` is raised in `handleCoords`, not in this effect body, because a
+   * synchronous setState inside an effect is a cascading render.
+   */
+  React.useEffect(() => {
+    if (!coords) return;
+
+    let ignore = false;
+    const controller = new AbortController();
+
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const response = await fetch("/api/distance", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(coords),
+            signal: controller.signal,
+          });
+          const body = (await response
+            .json()
+            .catch(() => null)) as DistanceResponse | null;
+
+          if (ignore) return;
+
+          if (!response.ok || !body) {
+            setZone({
+              status: "error",
+              message:
+                body?.error ??
+                "We could not check this location. Please try again.",
+            });
+            return;
+          }
+
+          if (body.ok) {
+            setZone({
+              status: "within",
+              distanceKm: body.distanceKm ?? 0,
+              maxRadiusKm: body.maxRadiusKm ?? maxRadiusKm,
+            });
+          } else if (body.reason === "STORE_NOT_CONFIGURED") {
+            setZone({ status: "unconfigured" });
+          } else {
+            setZone({
+              status: "outside",
+              distanceKm: body.distanceKm ?? 0,
+              maxRadiusKm: body.maxRadiusKm ?? maxRadiusKm,
+            });
+          }
+        } catch (error) {
+          if (ignore || (error as Error).name === "AbortError") return;
+          setZone({
+            status: "error",
+            message: "We could not check this location. Please try again.",
+          });
+        } finally {
+          if (!ignore) setChecking(false);
+        }
+      })();
+    }, 400);
+
+    return () => {
+      ignore = true;
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [coords, maxRadiusKm]);
+
+  function handleCoords(next: LatLng) {
+    setCoords(next);
+    // Drop the previous verdict immediately so a moved pin never shows a stale
+    // "inside our zone" message while the new check is in flight.
+    setZone(null);
+    setChecking(true);
+  }
 
   /**
    * Fetches the saved address now that there is a session to fetch it for.
@@ -234,14 +334,14 @@ export function BookWizard({
   function persistAddress() {
     const trimmed = addressText.trim();
 
-    if (!isUsableAddress(trimmed)) return;
+    if (!isUsableAddress(trimmed) || !coords) return;
 
     setAddressSaveState("saving");
 
     void saveAddressAction({
       addressText: trimmed,
-      lat: storeCenter.lat,
-      lng: storeCenter.lng,
+      lat: coords.lat,
+      lng: coords.lng,
     }).then((result) => {
       // A later success supersedes an earlier failure: the post-booking save is
       // a backstop and may well succeed after this one did not.
@@ -280,7 +380,7 @@ export function BookWizard({
   }
 
   async function confirmBooking() {
-    if (!slotDate || !slotId || !noticeAcceptedAt) {
+    if (!coords || !slotDate || !slotId || !noticeAcceptedAt) {
       setConfirmError(
         "Something is missing from your booking. Please step back and try again.",
       );
@@ -295,14 +395,13 @@ export function BookWizard({
     setSubmitting(true);
     setConfirmError(null);
 
-    // The address step takes no map and does no location work, so the order is
-    // recorded against the store point. TEMPORARY for testing: this is a
-    // placeholder, not a resolved address, and the real coordinates have to come
-    // back (with the zone check) before launch.
+    // The order is recorded against the pin the customer placed, and the server
+    // recomputes the distance from those coordinates. A zero-distance booking
+    // is no longer possible: the pin is required before this step is reachable.
     const result = await createBookingAction({
       address: addressText.trim(),
-      lat: storeCenter.lat,
-      lng: storeCenter.lng,
+      lat: coords.lat,
+      lng: coords.lng,
       notes: notes.trim() || undefined,
       slotDate,
       slotId,
@@ -350,13 +449,18 @@ export function BookWizard({
 
         {step === "address" ? (
           <AddressStep
+            center={storeCenter}
             maxRadiusKm={maxRadiusKm}
             addressText={addressText}
+            coords={coords}
+            zone={zone}
+            checking={checking}
             prefilled={Boolean(addressText) && !addressEdited}
             loadingSaved={addressLoading}
             noticeAccepted={noticeAccepted}
             notes={notes}
             onAddressText={handleAddressText}
+            onCoords={handleCoords}
             onNoticeAccepted={handleNoticeAccepted}
             onNotes={setNotes}
             onBack={() => setStep("details")}

@@ -114,6 +114,8 @@ export type StoreSettings = {
   phone: string | null;
   whatsapp_number: string | null;
   max_radius_km: number;
+  /** Pickups starting sooner than this are refused. 0 means up to the minute. */
+  booking_cutoff_minutes: number;
   opening_time: string;
   closing_time: string;
   break_start: string;

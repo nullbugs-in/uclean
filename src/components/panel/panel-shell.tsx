@@ -33,11 +33,7 @@ export function PanelShell({
   return (
     <PanelProviders>
       <SidebarProvider>
-        <PanelSidebar
-          sections={sections}
-          user={user}
-          panelName={panelName}
-        />
+        <PanelSidebar sections={sections} user={user} panelName={panelName} />
         <SidebarInset>
           <PanelTopbar
             panelName={panelName}
