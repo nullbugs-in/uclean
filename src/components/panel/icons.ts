@@ -35,6 +35,7 @@ const PANEL_ICONS: Record<string, LucideIcon> = {
   "/staff/deliveries": Truck,
   "/staff/orders": ClipboardList,
   "/staff/bills": Receipt,
+  "/staff/profile": UserRound,
 
   // Admin
   "/admin": LayoutDashboard,
@@ -52,6 +53,7 @@ const PANEL_ICONS: Record<string, LucideIcon> = {
   "/admin/services": Sparkles,
   "/admin/slots": CalendarClock,
   "/admin/settings": Settings,
+  "/admin/profile": UserRound,
 
   // Customer account
   "/account/book": CalendarPlus,

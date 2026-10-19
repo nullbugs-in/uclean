@@ -25,11 +25,23 @@ const PANELS: Array<{
 }> = [
   { href: "/staff", label: "Staff panel", roles: ["staff", "admin"] },
   { href: "/admin", label: "Admin panel", roles: ["admin"] },
-  {
-    href: "/account",
-    label: "My account",
-    roles: ["customer", "staff", "admin"],
-  },
+
+  /*
+   * "My account", split per role rather than one shared entry.
+   *
+   * This used to point every role at `/account`, which is a stub left over from
+   * the removed customer dashboard and does nothing but `redirect("/")` - so
+   * staff and admin were bounced to the public home page instead. `/account`
+   * itself stays put, because it is still the post-sign-in landing for six call
+   * sites, so only the destination changes.
+   *
+   * Staff and admin get a page inside their own panel rather than the customer
+   * account module, which would greet an administrator as "Customer since" and
+   * offer to manage laundry addresses they will never use.
+   */
+  { href: "/staff/profile", label: "My account", roles: ["staff"] },
+  { href: "/admin/profile", label: "My account", roles: ["admin"] },
+  { href: "/account/profile", label: "My account", roles: ["customer"] },
 ];
 
 function initials(fullName: string) {
@@ -42,10 +54,13 @@ function initials(fullName: string) {
 /**
  * Account menu in the sidebar footer.
  *
- * Staff and admin accounts can hold more than one panel, so the switch list is
- * built from the role rather than hard-coded: a customer sees only their
- * account, an admin sees all three. Sign-out calls the same server action the
- * standalone button uses, rather than reimplementing session teardown.
+ * The switch list is built from the role rather than hard-coded: a staff member
+ * sees Staff panel and My account, an admin sees all three panels, a customer
+ * sees only their account. A customer lands on one entry, which the
+ * `length > 1` guard below hides - their menu is name, role and Sign out.
+ *
+ * Sign-out calls the same server action the standalone button uses, rather than
+ * reimplementing session teardown.
  */
 export function PanelUserMenu({
   user,

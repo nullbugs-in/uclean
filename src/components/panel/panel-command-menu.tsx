@@ -44,6 +44,18 @@ export function PanelCommandMenu({
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
+      /*
+       * A guard, not paranoia: this listener is on `window`, so it sees every
+       * event of type "keydown" on the page, including ones dispatched
+       * synthetically by browser extensions and devtools. Those carry no `key`
+       * at all, and `event.key.toLowerCase()` throws on them - taking the whole
+       * panel down on someone else's extension.
+       *
+       * A real keypress always has a string `key`, so anything else is not a
+       * keypress and dropping it cannot swallow a genuine Ctrl+K.
+       */
+      if (typeof event.key !== "string") return;
+
       // metaKey covers macOS; ctrlKey covers Windows and Linux.
       if (event.key.toLowerCase() !== "k") return;
       if (!event.metaKey && !event.ctrlKey) return;
