@@ -117,7 +117,15 @@ export async function listPickupRequests(
   });
 }
 
-/** Agents with their profile identity resolved, for the assignment dropdown. */
+/**
+ * Agents with their profile identity resolved, for the assignment dropdown.
+ *
+ * Staff only. The roster is the pool of people who collect and return laundry,
+ * so it holds the staff role and nothing else. Filtering here rather than
+ * trusting the `agents` table on its own means an account that later gains an
+ * `agents` row while holding a different role - which older data did allow -
+ * still does not turn up as someone the shop can dispatch.
+ */
 export async function listPickupAgents(
   client: DbClient,
 ): Promise<PickupAgent[]> {
@@ -132,7 +140,7 @@ export async function listPickupAgents(
 
   const { data: profileRows, error: profileError } = await client
     .from("profiles")
-    .select("id, full_name, mobile")
+    .select("id, full_name, mobile, role")
     .in(
       "id",
       agents.map((agent) => agent.id),
@@ -142,14 +150,26 @@ export async function listPickupAgents(
 
   const profiles = (profileRows ?? []) as Pick<
     Profile,
-    "id" | "full_name" | "mobile"
+    "id" | "full_name" | "mobile" | "role"
   >[];
+
+  // An agent whose profile cannot be read is left out rather than shown blank:
+  // the roster is for dispatching real people.
+  const staffIds = new Set(
+    profiles
+      .filter((profile) => profile.role === "staff")
+      .map((profile) => profile.id),
+  );
+
+  const roster = agents.filter((agent) => staffIds.has(agent.id));
+  if (roster.length === 0) return [];
 
   const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
 
   // Sorted by resolved name rather than by the agents row, which has no name
   // column of its own.
-  return assemblePickupAgents(agents, profileById.size ? profiles : []).sort(
-    (a, b) => a.fullName.localeCompare(b.fullName),
-  );
+  return assemblePickupAgents(
+    roster,
+    profiles.filter((profile) => staffIds.has(profile.id)),
+  ).sort((a, b) => a.fullName.localeCompare(b.fullName));
 }

@@ -77,7 +77,11 @@ async function readOrder(client: DbClient, orderId: string) {
 export async function removeAgent(
   agentId: string,
   actorId: string,
-): Promise<{ fullName: string; releasedPickups: number }> {
+): Promise<{
+  fullName: string;
+  releasedPickups: number;
+  loginRemoved: boolean;
+}> {
   const service = createServiceClient();
 
   const { data: agent, error: agentError } = await service
@@ -125,7 +129,7 @@ export async function removeAgent(
     if (releaseError) throw new Error(releaseError.message);
   }
 
-  // The step that unblocks the cascade.
+  // The step that unblocks removing the agents row.
   const { error: detachError } = await service
     .from("pickup_assignments")
     .update({ agent_id: null })
@@ -133,32 +137,55 @@ export async function removeAgent(
 
   if (detachError) throw new Error(detachError.message);
 
-  const { error: deleteError } = await service.auth.admin.deleteUser(agentId);
+  /*
+   * Take them out of the roster directly, rather than leaning on the
+   * auth.users -> profiles -> agents cascade.
+   *
+   * That cascade was the original design, and it made removal fail for anyone
+   * who had ever booked laundry as a customer: `orders.customer_id references
+   * profiles on delete restrict` blocks the profile delete, and GoTrue reports
+   * it as "Database error deleting user" without ever exposing the constraint.
+   * The old code tried to detect that by looking for "violates foreign key" in
+   * the API error, which GoTrue never includes - so the friendly branch was
+   * unreachable and every blocked removal showed the same generic failure.
+   *
+   * Deleting the agents row is the operation that actually means "remove from
+   * the roster", and with the assignments detached above nothing references it.
+   */
+  const { error: rosterError } = await service
+    .from("agents")
+    .delete()
+    .eq("id", agentId);
 
-  if (deleteError) {
-    /*
-     * The one realistic failure here is `orders.customer_id references profiles
-     * on delete restrict`: if this person ever placed a booking as a customer,
-     * Postgres refuses to remove their profile rather than orphaning an order.
-     * That is the database protecting accounting records, so the message says
-     * so instead of surfacing the raw constraint text.
-     */
-    const message = deleteError.message.toLowerCase();
+  if (rosterError) throw new Error(rosterError.message);
 
-    if (
-      message.includes("violates foreign key") ||
-      message.includes("restrict")
-    ) {
-      throw new PickupAssignmentError(
-        `agent delete blocked by a foreign key: ${deleteError.message}`,
-        "This person is linked to customer orders, so their login cannot be deleted. Set them off duty instead.",
+  /*
+   * The login is a separate, best-effort step now. Removing an agent from the
+   * pool must not depend on whether the database will let us erase a person's
+   * account - so if something still references their profile, they come off the
+   * roster and keep their login, and the admin is told that plainly rather than
+   * being shown a failure for work that did succeed.
+   */
+  const { data: customerOrders } = await service
+    .from("orders")
+    .select("id")
+    .eq("customer_id", agentId)
+    .limit(1);
+
+  let loginRemoved = true;
+
+  if ((customerOrders ?? []).length === 0) {
+    const { error: deleteError } = await service.auth.admin.deleteUser(agentId);
+
+    if (deleteError) {
+      loginRemoved = false;
+      console.error(
+        `Removed ${agentId} from the roster but could not delete their login`,
+        deleteError,
       );
     }
-
-    throw new PickupAssignmentError(
-      `could not delete the agent user: ${deleteError.message}`,
-      "We could not remove that agent. Please try again shortly.",
-    );
+  } else {
+    loginRemoved = false;
   }
 
   await audit(service, {
@@ -167,10 +194,18 @@ export async function removeAgent(
     entity: "agent",
     entityId: agentId,
     before: { full_name: agent.full_name, role: agent.role },
-    after: { removed: true, released_pickups: released },
+    after: {
+      removed: true,
+      released_pickups: released,
+      login_removed: loginRemoved,
+    },
   });
 
-  return { fullName: agent.full_name, releasedPickups: released };
+  return {
+    fullName: agent.full_name,
+    releasedPickups: released,
+    loginRemoved,
+  };
 }
 
 /**

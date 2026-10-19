@@ -203,7 +203,10 @@ function AgentRow({ agent }: { agent: PickupAgent }) {
                   } will go back to Needs an agent.`
                 : "They have no open pickups."}
             </li>
-            <li>Their panel login is deleted and cannot be restored.</li>
+            <li>
+              Their panel login is deleted too, unless they have customer orders
+              of their own - then they keep it and simply come off the list.
+            </li>
             <li>
               Their name stops appearing against the pickups they collected. The
               pickup records themselves are kept.

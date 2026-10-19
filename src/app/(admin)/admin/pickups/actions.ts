@@ -232,9 +232,16 @@ export async function removeAgentAction(input: {
             result.releasedPickups === 1 ? "" : "s"
           } went back to the queue.`;
 
+    // They are off the roster either way; whether the login went with them is a
+    // separate fact, and saying so is better than reporting a failure for the
+    // half that worked.
+    const login = result.loginRemoved
+      ? ""
+      : " Their login was kept, because customer orders still reference them.";
+
     return {
       ok: true,
-      message: `${result.fullName} has been removed.${released}`,
+      message: `${result.fullName} has been removed from the agent list.${released}${login}`,
     };
   } catch (error) {
     return { ok: false, message: toAssignmentMessage(error) };
