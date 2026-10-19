@@ -4,8 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, Package, UserRound, Menu, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
+import { markAllNotificationsReadAction } from "@/app/(public)/notifications/actions";
 import { notificationLabel } from "@/db/queries/notifications";
 import { SignOutLink } from "@/components/layout/sign-out-link";
 import { Button } from "@/components/ui/button";
@@ -31,11 +32,22 @@ export type NavbarUser = {
   hasBookings: boolean;
   /** Recent messages, for the notification bell. */
   notifications: {
-    count: number;
+    /**
+     * Messages not yet marked read. This is the badge, and it survives a
+     * refresh because it is counted from `notifications.read_at` rather than
+     * held in component state.
+     */
+    unread: number;
+    /**
+     * The messages themselves, read or not. The bell is the only place a
+     * customer can look back at what they were told, so marking read does not
+     * remove anything from here.
+     */
     items: Array<{
       id: number;
       template: string;
       channel: string;
+      read_at: string | null;
       created_at: string;
     }>;
   };
@@ -338,20 +350,59 @@ function ProfileAvatarLink({ user }: { user: NavbarUser }) {
 /**
  * The notification bell.
  *
- * The badge counts messages from the last week rather than unread ones: the
- * `read` status exists in the schema but nothing writes it yet, so an unread
- * count would always read zero and the bell would look permanently empty.
+ * "Read all" writes `notifications.read_at` through
+ * `mark_all_notifications_read()` (migration 13), so the cleared badge survives a
+ * refresh and follows the customer to another device. Only messages that arrive
+ * afterwards count again.
+ *
+ * The local `seen` state is the optimistic half: it clears the badge the moment
+ * the button is pressed rather than after a round trip, and it re-seeds from the
+ * prop whenever the server sends a different count, so a navigation that re-runs
+ * the layout corrects anything the optimistic update got wrong.
+ *
+ * Marking read does not remove anything from the list. The bell is the only
+ * place a customer can look back at what they were told, and emptying it behind
+ * the very button that marked them read would make anything scrolled past
+ * unreachable. Messages already read are dimmed instead.
  */
-function NotificationsBell({
+export function NotificationsBell({
   notifications,
 }: {
   notifications: NavbarUser["notifications"];
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const { count, items } = notifications;
+  const { unread, items } = notifications;
+  const [seen, setSeen] = useState(unread);
+  const [seenCount, setSeenCount] = useState(unread);
+  const [isPending, startTransition] = useTransition();
+
+  /*
+   * React's documented way to derive state from a prop: compare against the
+   * *previous prop* during render, not in an effect.
+   *
+   * The distinction is the whole trick. Comparing `unread` against `seen` would
+   * re-fire the moment `setSeen(0)` below runs - the badge would put its own old
+   * number straight back, because the server has not answered yet. Comparing
+   * against `seenCount` means the sync only fires when the server actually
+   * sends something different, which is what carries a newly arrived message
+   * into the badge and what corrects the optimistic update if it was wrong.
+   */
+  if (unread !== seenCount) {
+    setSeenCount(unread);
+    setSeen(unread);
+  }
 
   useDismissable(containerRef, open, () => setOpen(false));
+
+  function markAllRead() {
+    // Clear first so the badge responds immediately; the action persists it.
+    setSeen(0);
+
+    startTransition(async () => {
+      await markAllNotificationsReadAction();
+    });
+  }
 
   return (
     <div className="relative" ref={containerRef}>
@@ -360,18 +411,18 @@ function NotificationsBell({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={
-          count > 0 ? `Notifications, ${count} recent` : "Notifications"
+          seen > 0 ? `Notifications, ${seen} recent` : "Notifications"
         }
         onClick={() => setOpen((value) => !value)}
         className="border-border text-foreground hover:bg-accent relative grid size-9 place-items-center rounded-full border transition-colors focus-visible:ring-2 focus-visible:outline-none"
       >
         <Bell className="size-4" aria-hidden="true" />
-        {count > 0 ? (
+        {seen > 0 ? (
           <span
             aria-hidden="true"
             className="absolute -top-0.5 -right-0.5 grid min-w-4 place-items-center rounded-full bg-[var(--destructive)] px-1 text-[10px] leading-4 font-semibold text-white"
           >
-            {count > 9 ? "9+" : count}
+            {seen > 9 ? "9+" : seen}
           </span>
         ) : null}
       </button>
@@ -382,23 +433,62 @@ function NotificationsBell({
           aria-label="Notifications"
           className="bg-card border-border absolute right-0 z-50 mt-2 w-80 origin-top-right rounded-2xl border p-2 shadow-lg"
         >
-          <p className="text-muted-foreground px-3 py-2 text-xs tracking-wide uppercase">
-            Notifications
-          </p>
+          {/*
+            Header and "Read all" on one line. The button is only rendered when
+            there is something unread to clear - a permanently present control
+            that does nothing is worse than no control.
+          */}
+          <div className="flex items-center justify-between gap-2 px-3 py-2">
+            <p className="text-muted-foreground text-xs tracking-wide uppercase">
+              Notifications
+            </p>
+
+            {seen > 0 ? (
+              <button
+                type="button"
+                onClick={markAllRead}
+                disabled={isPending}
+                className="text-muted-foreground hover:text-foreground hover:bg-accent rounded-md px-1.5 py-0.5 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
+              >
+                {isPending ? "Marking..." : "Read all"}
+              </button>
+            ) : null}
+          </div>
 
           {items.length === 0 ? (
             <p className="text-muted-foreground px-3 py-4 text-sm">
               Nothing new in the last week.
             </p>
           ) : (
-            <ul className="space-y-0.5">
+            /*
+              Capped to about four rows and scrolled from there: enough to show
+              what kind of messages these are, without the dropdown becoming the
+              height of the screen on a phone.
+
+              The rows hold no focusable controls, so the region is itself
+              focusable and labelled - without that the box would be reachable by
+              pointer only.
+            */
+            <ul
+              role="region"
+              aria-label={`Notifications, ${items.length} in the last week`}
+              tabIndex={0}
+              className="focus-visible:outline-ring max-h-56 [scrollbar-width:thin] space-y-0.5 overflow-y-auto overscroll-contain focus-visible:outline-2 focus-visible:outline-offset-[-2px]"
+            >
               {items.map((item) => (
                 <li
                   key={item.id}
                   className="hover:bg-accent flex items-start justify-between gap-3 rounded-xl px-3 py-2 transition-colors"
                 >
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">
+                    <p
+                      className={cn(
+                        "truncate text-sm font-medium",
+                        // Read messages stay readable but stop competing with
+                        // the unread ones for attention.
+                        item.read_at && "text-muted-foreground font-normal",
+                      )}
+                    >
                       {notificationLabel(item.template)}
                     </p>
                     <p className="text-muted-foreground text-xs capitalize">

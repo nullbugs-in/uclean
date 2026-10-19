@@ -130,7 +130,7 @@ export function Hero() {
   return (
     <section
       id="hero"
-      className="border-border relative scroll-mt-20 overflow-hidden border-b bg-gradient-to-b from-[var(--accent)]/60 to-[var(--background)] lg:flex lg:min-h-[calc(100dvh-4rem)] lg:items-center"
+      className="border-border relative scroll-mt-20 overflow-hidden border-b bg-gradient-to-b from-[var(--accent)]/60 to-[var(--background)] xl:flex xl:min-h-[calc(100dvh-4rem)] xl:items-center"
     >
       {/*
         `min-w-0` on both children is load-bearing. Grid items default to
@@ -141,7 +141,7 @@ export function Hero() {
         `scrollWidth` check. With `min-w-0` the column can shrink and the track is
         laid out against the real container width.
       */}
-      <div className="relative mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 md:grid-cols-2 lg:min-h-[calc(100dvh-4rem)] lg:py-24">
+      <div className="relative mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 xl:min-h-[calc(100dvh-4rem)] xl:grid-cols-2 xl:gap-12 xl:py-24">
         <div className="min-w-0 space-y-6">
           <span className="border-primary/30 bg-primary/15 text-foreground inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium">
             <span
@@ -191,6 +191,35 @@ export function Hero() {
           </p>
         </div>
 
+        {/*
+          `order-first` puts the poster above the copy wherever the hero stacks.
+          The poster is the biggest thing on the screen and the image carrying it
+          is the LCP element - the one `priority` is already on - so leading with
+          it means the largest paint is also the first thing in view.
+
+          `xl` is the breakpoint that matters, and it moves in three places at
+          once: `xl:grid-cols-2` is where the grid stops stacking, `xl:order-none`
+          is where DOM order takes the layout back, and `xl:min-h` is where the
+          section stops being forced to a full viewport tall. They are set
+          together deliberately, because they are one decision split across three
+          properties, and a width where some apply and others do not is a layout
+          nobody could have drawn on purpose.
+
+          `xl` rather than `lg` for a concrete reason: an iPad Pro 13 portrait is
+          exactly 1024 CSS pixels wide, so it landed precisely on `lg` and got a
+          two-column hero it had no room for - 464px per column, the headline
+          wrapping, and a full-viewport height holding 459px of content, which is
+          roughly 840px of empty band. Below `xl` it now gets the same stacked,
+          poster-first layout a phone gets, and the same holds for a laptop
+          window in that band. Above `xl` the copy sits left and the cards right,
+          which is the arrangement the layout is drawn for.
+
+          Ordering rather than reordering the JSX, also deliberately: the DOM
+          stays copy-then-poster, so a screen reader and a crawler still meet the
+          headline before the carousel regardless of where it is painted. The
+          trade is that "Book Now" sits below the fold below `xl`, which is the
+          cost of leading with the picture.
+        */}
         <div
           role="region"
           aria-roledescription="carousel"
@@ -203,7 +232,7 @@ export function Hero() {
           onBlur={() => setInteracting(false)}
           onPointerDown={onPointerDown}
           onPointerUp={onPointerUp}
-          className="focus-visible:outline-ring relative min-w-0 rounded-3xl focus-visible:outline-2 focus-visible:outline-offset-4"
+          className="focus-visible:outline-ring relative order-first min-w-0 rounded-3xl focus-visible:outline-2 focus-visible:outline-offset-4 xl:order-none"
         >
           <div className="overflow-hidden rounded-3xl">
             {/*

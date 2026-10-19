@@ -25,7 +25,7 @@ export default async function PublicLayout({
 
   let hasBookings = false;
   let notifications: Awaited<ReturnType<typeof listRecentNotifications>> = {
-    count: 0,
+    unread: 0,
     items: [],
   };
 
@@ -34,10 +34,17 @@ export default async function PublicLayout({
 
     const [orders, recent] = await Promise.all([
       countCustomerOrders(supabase, session.profile.id).catch(() => 0),
-      listRecentNotifications(supabase, session.profile.id).catch(() => ({
-        count: 0,
-        items: [],
-      })),
+      // An empty bell must mean "no messages", never "the query is broken".
+      // Swallowing the error into an empty list made a missing column look
+      // exactly like a quiet inbox, and the two were indistinguishable from the
+      // outside - which is a slow way to find out the database was out of step
+      // with the app.
+      listRecentNotifications(supabase, session.profile.id).catch(
+        (error: unknown) => {
+          console.error("Could not load notifications", error);
+          return { unread: 0, items: [] };
+        },
+      ),
     ]);
 
     hasBookings = orders > 0;

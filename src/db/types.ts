@@ -275,6 +275,12 @@ export type Notification = {
   sent_at: string | null;
   invoice_id: string | null;
   order_id: string | null;
+  /**
+   * When the recipient saw the message. Added by
+   * 20260101000013_notification_read_at.sql; separate from `status`, which
+   * records delivery.
+   */
+  read_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -500,6 +506,7 @@ export type Database = {
           | "last_error"
           | "next_attempt_at"
           | "sent_at"
+          | "read_at"
           | "invoice_id"
           | "order_id"
           | "created_at"
@@ -580,6 +587,16 @@ export type Database = {
           p_reason?: string | null;
         };
         Returns: undefined;
+      };
+      /**
+       * Added by migration 20260101000013_notification_read_at.sql. Marks the
+       * caller's own unread messages read and returns how many it touched.
+       * Hand-written to match that migration; regenerate with
+       * `supabase gen types` if the signature ever changes.
+       */
+      mark_all_notifications_read: {
+        Args: Record<string, never>;
+        Returns: number;
       };
     };
     Enums: {
