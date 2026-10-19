@@ -219,6 +219,22 @@ export function Hero() {
           headline before the carousel regardless of where it is painted. The
           trade is that "Book Now" sits below the fold below `xl`, which is the
           cost of leading with the picture.
+
+          Below `xl` the poster is full-bleed: it runs edge to edge and touches
+          the top of the section, so the first thing on a phone is the picture
+          with no margin around it. That needs `-mx-4 -mt-14` (and `-mx-6` from
+          `sm`) on the poster column to cancel the grid wrapper's own
+          `px-4 py-14 sm:px-6`, since a grid child cannot escape its parent's
+          padding with a utility. Those values therefore have to track the
+          wrapper's padding above, and all of it - the negative margins and the
+          corner radius - drops back to zero at `xl`, where the card is inset
+          again and the two-column layout takes over. A rounded corner on a
+          full-bleed element would show the page background through it and read
+          as a mistake rather than a style.
+
+          Height is deliberately left alone: the card keeps the 4:5/16:10 aspect
+          it always had and only gains width, so the change is about the space
+          around the picture rather than the picture's proportions.
         */}
         <div
           role="region"
@@ -232,9 +248,9 @@ export function Hero() {
           onBlur={() => setInteracting(false)}
           onPointerDown={onPointerDown}
           onPointerUp={onPointerUp}
-          className="focus-visible:outline-ring relative order-first min-w-0 rounded-3xl focus-visible:outline-2 focus-visible:outline-offset-4 xl:order-none"
+          className="focus-visible:outline-ring relative order-first -mx-4 -mt-14 min-w-0 focus-visible:outline-2 focus-visible:outline-offset-4 sm:-mx-6 xl:order-none xl:mx-0 xl:mt-0"
         >
-          <div className="overflow-hidden rounded-3xl">
+          <div className="overflow-hidden xl:rounded-3xl">
             {/*
               One track, translated rather than re-rendered, so the slide change
               is a movement the eye can follow instead of a cut. `aria-live` is
@@ -266,11 +282,22 @@ export function Hero() {
                       below both paint over it. `fill` plus the card's own aspect
                       ratio means each slide is cropped rather than distorted -
                       the three photos have different aspect ratios (3:2, 1:1,
-                      4:5) and are cropped to 4:5 on mobile and 16:10 from `sm`.
+                      4:5) and are cropped to the card's ratio rather than scaled.
+
+                      The card is full-bleed on a phone from `sm` down, where it
+                      is 16:10 at the full viewport width rather than inside the
+                      wrapper's `px-6`. That is wider than the inset box, so the
+                      crop is correspondingly tighter: at 390px against a 3:2
+                      source, `object-cover` keeps roughly a third of the width.
+                      The overlaid copy is bottom-anchored over the scrim, so it
+                      survives the crop intact. If the photography needs to read
+                      as more than abstract colour at this size, the fix is
+                      wider source images rather than a different crop.
 
                       The `sizes` hint matters for how aggressively next/image
-                      picks a source width: the card is full-bleed on phones and
-                      roughly half the container from `md` up. If this carousel
+                      picks a source width: the card is genuinely 100vw on a
+                      phone now that it is full-bleed, and roughly half the
+                      container from `xl` up. If this carousel
                       ever grows much past a handful of slides, revisit this
                       alongside formats - WebP/AVIF and a responsive `sizes`
                       strategy are the lever, since a `fill` image with a coarse
@@ -282,7 +309,7 @@ export function Hero() {
                         alt=""
                         fill
                         priority={slideIndex === 0}
-                        sizes="(max-width: 768px) 100vw, 50vw"
+                        sizes="(max-width: 1279px) 100vw, 50vw"
                         className="object-cover"
                       />
                     ) : null}
