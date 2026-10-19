@@ -115,11 +115,24 @@ export function PricingBrowser({
 
         {/*
           One row per item, dressed as a table: a brand-tinted header row names
-          the two columns and each row aligns to them from `sm`, stacking on
-          phones where the columns would not fit. Items with a single price
+          the two columns and each row aligns to them. Items with a single price
           (Shoe Cleaning, Household) show it bare; items with two (Dry Cleaning
           and Steam Ironing) break out one labelled line each, so the two are
           never confused for each other.
+
+          Below `sm` a row is a centred column - service name on top, prices
+          beneath it - rather than a wrapping flex row. The wrapping version was
+          unpredictable: a short name put its prices on the right, a long one
+          like "Kurta (Designer / Stone work)" pushed them onto the next line on
+          the left, so the same column held two different alignments decided by
+          the length of the text above it. Every `sm:` prefix here restores the
+          desktop two-column table exactly.
+
+          The centred price block is a deliberate trade: right-aligned figures
+          line up vertically between rows, which is how a price list is usually
+          scanned. Centring gives symmetry at the cost of that column, which is
+          the right call on the short groups and the weaker one on the long
+          Adult Wear and Kids Wear lists.
         */}
         <div className="border-border relative overflow-hidden rounded-2xl border shadow-sm">
           <div className="hidden grid-cols-[1fr_auto] gap-4 bg-[var(--primary)]/15 px-4 py-2.5 text-xs font-semibold tracking-wider uppercase sm:grid">
@@ -169,7 +182,7 @@ export function PricingBrowser({
                   </span>
                 ) : null}
 
-                <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2 sm:grid sm:grid-cols-[1fr_auto] sm:items-center">
+                <div className="flex flex-col items-center gap-y-2 text-center sm:grid sm:grid-cols-[1fr_auto] sm:items-center sm:gap-x-6 sm:text-left">
                   <div className="min-w-0">
                     <p className="font-medium">{item.name}</p>
                     {group.turnaround ? (
@@ -179,11 +192,11 @@ export function PricingBrowser({
                     ) : null}
                   </div>
 
-                  <ul className="space-y-1.5 sm:text-right">
+                  <ul className="space-y-1.5 text-center sm:text-right">
                     {item.options.map((option, index) => (
                       <li
                         key={option.label ?? `${item.slug}-${index}`}
-                        className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:justify-end"
+                        className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 sm:justify-end"
                       >
                         {option.label ? (
                           <span className="border-border text-muted-foreground rounded-full border px-2 py-0.5 text-xs">
