@@ -62,6 +62,28 @@ export function linesForCategory(category: CategorySlug) {
 }
 
 /**
+ * One selectable service: the name the customer reads, and the single priced
+ * line sitting behind it.
+ *
+ * The wizard books by name. Every group resolves to one line per item - most
+ * items are priced once, and Adult Wear and Kids Wear are booked without the
+ * Dry Cleaning / Steam Ironing choice the price list offers - so an item and
+ * its line are one thing here rather than a name with options hanging off it.
+ * The full two-price list is unchanged on `/pricing`, where the variant is the
+ * point of the page.
+ */
+export type SelectableItem = {
+  /** Item slug, stable within its group. */
+  key: string;
+  item: string;
+  /**
+   * The `selectionKey` of the priced line this item books as, so picking it
+   * here is the same act as picking that line in `resolveSelection`.
+   */
+  optionKey: string;
+};
+
+/**
  * Turns the stored selection into priced lines for whichever category is
  * active, so the same picks are shown against Express prices when the customer
  * switches over.
@@ -106,11 +128,36 @@ export function groupsForCategory(category: CategorySlug): PriceGroup[] {
   );
 }
 
-/** Every priced line belonging to one group, in list order. */
-export function linesForGroup(category: CategorySlug, groupSlug: string) {
-  return linesForCategory(category).filter(
-    (line) => line.groupSlug === groupSlug,
+/**
+ * Every selectable service belonging to one group, in list order.
+ *
+ * The item name is shown once, exactly as the price list shows it, and the
+ * priced line behind it is reached by key rather than by anything the customer
+ * sees.
+ */
+export function itemsForGroup(
+  category: CategorySlug,
+  groupSlug: string,
+): SelectableItem[] {
+  const group = groupsForCategory(category).find(
+    (entry) => entry.slug === groupSlug,
   );
+
+  if (!group) return [];
+
+  return group.items.flatMap((item) => {
+    // Every item in the list is authored with a price. An item without one has
+    // nothing to book against, so it is dropped rather than shown unpickable.
+    if (!item.options[0]) return [];
+
+    return [
+      {
+        key: item.slug,
+        item: item.name,
+        optionKey: selectionKey(group.slug, item.slug, 0),
+      },
+    ];
+  });
 }
 
 /** The struck-through figure, or the price itself when there is no discount. */
