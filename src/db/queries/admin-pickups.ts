@@ -164,8 +164,6 @@ export async function listPickupAgents(
   const roster = agents.filter((agent) => staffIds.has(agent.id));
   if (roster.length === 0) return [];
 
-  const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
-
   // Sorted by resolved name rather than by the agents row, which has no name
   // column of its own.
   return assemblePickupAgents(

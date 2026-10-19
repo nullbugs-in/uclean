@@ -14,7 +14,7 @@
 -- Staff only. The roster is the pool of people who collect and return laundry,
 -- which is the staff role; an admin who also carries an `agents` row (older
 -- data did allow it) is not someone the shop dispatches, and listing them here
--- put an administrator in the pool of people taking pickups.
+-- puts an administrator in the pool of people taking pickups.
 --
 -- `is_available` is true so they can be assigned immediately: someone who can
 -- see the list and has never been dismissed should not have to be told they are
