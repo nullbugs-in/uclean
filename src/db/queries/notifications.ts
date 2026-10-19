@@ -90,6 +90,42 @@ export async function listRecentNotifications(
   };
 }
 
+/**
+ * Where a message about an order should take the customer.
+ *
+ * The `order` param is read by `/account/orders`, which expands that booking's
+ * timeline and scrolls it into view. Without it the customer would land on the
+ * bookings list and have to find the right order themselves, which is the whole
+ * thing the tap was supposed to save them from.
+ *
+ * Kept here rather than in the bell so the link and the page that serves it
+ * cannot drift apart.
+ */
+export function orderTrackingHref(orderId: string): string {
+  return `/account/orders?order=${encodeURIComponent(orderId)}`;
+}
+
+/**
+ * Reads the `order` param off the bookings page.
+ *
+ * Returns null for anything that is not a UUID, so a hand-typed or truncated
+ * value leaves the page in its ordinary state rather than looking for an order
+ * that cannot exist.
+ */
+export function readTrackedOrderId(
+  value: string | string[] | undefined,
+): string | null {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  const trimmed = candidate?.trim();
+
+  if (!trimmed) return null;
+
+  const UUID =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  return UUID.test(trimmed) ? trimmed : null;
+}
+
 /** Human label for a template, with a readable fallback for anything unmapped. */
 export function notificationLabel(template: string): string {
   const known = TEMPLATE_LABEL[template as NotificationTemplate];

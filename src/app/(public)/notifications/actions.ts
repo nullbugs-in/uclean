@@ -16,6 +16,8 @@ import { requireRole } from "@/server/auth";
 
 export type MarkReadResult = { ok: true; marked: number };
 
+export type MarkOneReadResult = { ok: true; marked: boolean };
+
 /**
  * Marks every one of the caller's own unread messages as read.
  *
@@ -55,4 +57,47 @@ export async function markAllNotificationsReadAction(): Promise<MarkReadResult> 
   revalidatePath("/", "layout");
 
   return { ok: true, marked: typeof data === "number" ? data : 0 };
+}
+
+/**
+ * Marks one of the caller's own messages read, when they tap it in the bell.
+ *
+ * The write is `mark_notification_read()` from migration 14 - SECURITY DEFINER
+ * for the same reason as above: an UPDATE policy could not be limited to
+ * `read_at`. The function also checks `user_id = auth.uid()`, so a caller
+ * cannot mark somebody else's message read by guessing an id, and it only
+ * touches rows that are still unread.
+ *
+ * Reports failure as `{ ok: true, marked: false }` rather than `ok: false` for
+ * the same reason the read-all action does: a notification that fails to clear
+ * is a cosmetic problem, and a hard error would leave the customer staring at a
+ * dialog over something that does not matter. The bell optimistically drops the
+ * badge and this corrects it if the write did not land.
+ */
+export async function markNotificationReadAction(input: {
+  notificationId: number;
+}): Promise<MarkOneReadResult> {
+  if (!Number.isInteger(input.notificationId)) {
+    return { ok: true, marked: false };
+  }
+
+  // The gate that matters: signed out, `auth.uid()` is null inside the function
+  // and it would match no rows, so a silent no-op is the right failure.
+  await requireRole(["customer", "staff", "admin"]);
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("mark_notification_read", {
+    p_notification_id: input.notificationId,
+  });
+
+  if (error) {
+    console.error("Could not mark the notification read", error);
+    return { ok: true, marked: false };
+  }
+
+  // Same revalidation as the read-all action: the badge lives in the chrome,
+  // which every public page renders.
+  revalidatePath("/", "layout");
+
+  return { ok: true, marked: data === true };
 }

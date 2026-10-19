@@ -4,6 +4,7 @@ import Link from "next/link";
 import { GlassCard } from "@/components/account/glass";
 import { OrderTrackingList } from "@/components/account/order-tracking-list";
 import { listTimeSlots } from "@/db/queries/catalog";
+import { readTrackedOrderId } from "@/db/queries/notifications";
 import {
   listOrderHistoryForCustomer,
   listOrdersForCustomer,
@@ -24,12 +25,27 @@ export const metadata: Metadata = { title: "My bookings" };
  * Distance is deliberately not shown: it is stored as 0 on every order booked
  * while the delivery-zone check is disabled, so it would only read as a fault.
  */
-export default async function CustomerOrdersPage() {
+export default async function CustomerOrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ order?: string | string[] }>;
+}) {
   const session = await requireRoleOrRedirect(
     ["customer", "staff", "admin"],
     "/account/orders",
   );
   const supabase = await createClient();
+
+  /*
+   * The `?order=` param is how a notification in the bell deep-links to one
+   * booking: the tapped message sends the customer here with the id, and the
+   * list below expands that order's timeline and scrolls it into view.
+   *
+   * Validated against the UUID shape rather than passed through, so a truncated
+   * or hand-edited value leaves the page exactly as it renders normally instead
+   * of hunting for an order that cannot exist.
+   */
+  const trackedOrderId = readTrackedOrderId((await searchParams).order);
 
   const [orders, history, slots] = await Promise.all([
     listOrdersForCustomer(supabase, session.profile.id).catch(() => []),
@@ -87,7 +103,11 @@ export default async function CustomerOrdersPage() {
           </Link>
         </GlassCard>
       ) : (
-        <OrderTrackingList orders={bookings} history={history} />
+        <OrderTrackingList
+          orders={bookings}
+          history={history}
+          trackedOrderId={trackedOrderId}
+        />
       )}
     </div>
   );

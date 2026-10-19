@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, MapPin, Package } from "lucide-react";
 
 import {
@@ -41,12 +41,47 @@ function matchesFilter(status: OrderStatus, filter: FilterId) {
 export function OrderTrackingList({
   orders,
   history,
+  trackedOrderId,
 }: {
   orders: Booking[];
   history: Record<string, OrderStatusHistory[]>;
+  /**
+   * The order a notification deep-linked to, if any.
+   *
+   * Its timeline starts open and the card is scrolled into view, so tapping a
+   * message in the bell lands on that booking rather than on a list the customer
+   * then has to search through.
+   */
+  trackedOrderId?: string | null;
 }) {
   const [filter, setFilter] = useState<FilterId>("all");
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(trackedOrderId ?? null);
+
+  const listRef = useRef<HTMLUListElement | null>(null);
+
+  /*
+   * Bring the tracked order into view once, on arrival.
+   *
+   * A `useEffect` keyed on the id rather than on a ref set inside render: the
+   * list has to be mounted and laid out before `scrollIntoView` means anything,
+   * and scrolling is a side effect on the DOM rather than derived state.
+   *
+   * `behavior: "smooth"` would animate behind a page the customer has only just
+   * arrived at, which reads as the page moving on its own; `auto" jumps there.
+   */
+  useEffect(() => {
+    if (!trackedOrderId) return;
+
+    const target = document.getElementById(`order-${trackedOrderId}`);
+
+    // Guarded rather than optional-chained: jsdom does not implement
+    // `scrollIntoView`, so a bare call would throw there, and a scroll that
+    // cannot happen should leave the list exactly as it renders rather than
+    // taking the page down with it. The booking is still expanded either way.
+    if (typeof target?.scrollIntoView === "function") {
+      target.scrollIntoView({ block: "center", behavior: "auto" });
+    }
+  }, [trackedOrderId]);
 
   const visible = orders.filter((order) =>
     matchesFilter(order.status as OrderStatus, filter),
@@ -64,6 +99,8 @@ export function OrderTrackingList({
               aria-pressed={active}
               onClick={() => {
                 setFilter(option.id);
+                // Changing the filter drops the expansion, so the deep-linked
+                // order is not left open behind a chip that hides it.
                 setOpenId(null);
               }}
               className={cn(
@@ -93,15 +130,24 @@ export function OrderTrackingList({
           </p>
         </GlassCard>
       ) : (
-        <ul className="space-y-4">
+        <ul className="space-y-4" ref={listRef}>
           {visible.map((order, index) => {
             const status = order.status as OrderStatus;
             const expanded = openId === order.id;
+            const isTracked = order.id === trackedOrderId;
 
             return (
-              <li key={order.id}>
+              // Anchored so a deep link from the notification bell can scroll
+              // to this exact card.
+              <li key={order.id} id={`order-${order.id}`}>
                 <GlassCard
-                  className="uc-fade-up"
+                  className={cn(
+                    "uc-fade-up",
+                    // A ring on the order that was tapped, so the eye lands on
+                    // the right card in a list that can be long.
+                    isTracked &&
+                      "ring-2 ring-[var(--uc-lime-600)] ring-offset-2 ring-offset-transparent",
+                  )}
                   style={{ animationDelay: `${Math.min(index, 6) * 60}ms` }}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">

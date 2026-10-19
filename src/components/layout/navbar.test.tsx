@@ -4,16 +4,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/app/(public)/notifications/actions", () => ({
   markAllNotificationsReadAction: vi.fn(async () => ({ ok: true, marked: 2 })),
+  markNotificationReadAction: vi.fn(async () => ({ ok: true, marked: true })),
 }));
 
-import { markAllNotificationsReadAction } from "@/app/(public)/notifications/actions";
+import {
+  markAllNotificationsReadAction,
+  markNotificationReadAction,
+} from "@/app/(public)/notifications/actions";
 
 import { NotificationsBell } from "@/components/layout/navbar";
 
 /**
- * The notification bell's badge and its read-all control.
+ * The notification bell.
  *
- * Three things are worth protecting, and they are the three that are easy to
+ * Four behaviours are worth protecting, and they are the four that are easy to
  * regress without noticing:
  *
  *   1. The badge counts *unread*, so it survives a refresh because it comes from
@@ -22,11 +26,21 @@ import { NotificationsBell } from "@/components/layout/navbar";
  *      rather than lingering as a control that does nothing.
  *   3. Marking read never removes a message. The bell is the only place a
  *      customer can look back at what they were told.
+ *   4. A message about an order links to that order's tracking; a message with
+ *      no order does not, because there is nothing to track.
  */
+
+const ORDER_A = "11111111-1111-4111-8111-111111111111";
+const ORDER_B = "22222222-2222-4222-8222-222222222222";
 
 function notifications(
   unread: number,
-  items: Array<{ id: number; template: string; read?: boolean }> = [],
+  items: Array<{
+    id: number;
+    template: string;
+    orderId?: string | null;
+    read?: boolean;
+  }> = [],
 ) {
   return {
     unread,
@@ -34,6 +48,7 @@ function notifications(
       id: item.id,
       template: item.template,
       channel: "whatsapp",
+      order_id: item.orderId ?? null,
       read_at: item.read ? "2026-03-02T09:00:00.000Z" : null,
       created_at: "2026-03-01T10:00:00.000Z",
     })),
@@ -41,8 +56,8 @@ function notifications(
 }
 
 const TWO_MESSAGES = notifications(2, [
-  { id: 1, template: "invoice_ready" },
-  { id: 2, template: "picked_up" },
+  { id: 1, template: "invoice_ready", orderId: ORDER_A },
+  { id: 2, template: "picked_up", orderId: ORDER_B },
 ]);
 
 beforeEach(() => {
@@ -50,6 +65,11 @@ beforeEach(() => {
   vi.mocked(markAllNotificationsReadAction).mockResolvedValue({
     ok: true,
     marked: 2,
+  });
+  vi.mocked(markNotificationReadAction).mockClear();
+  vi.mocked(markNotificationReadAction).mockResolvedValue({
+    ok: true,
+    marked: true,
   });
 });
 
@@ -80,7 +100,9 @@ describe("NotificationsBell", () => {
 
     render(
       <NotificationsBell
-        notifications={notifications(0, [{ id: 1, template: "delivered" }])}
+        notifications={notifications(0, [
+          { id: 1, template: "delivered", orderId: ORDER_A },
+        ])}
       />,
     );
 
@@ -134,6 +156,7 @@ describe("NotificationsBell", () => {
           Array.from({ length: 12 }, (_, index) => ({
             id: index + 1,
             template: "delivered",
+            orderId: ORDER_A,
           })),
         )}
       />,
@@ -148,5 +171,79 @@ describe("NotificationsBell", () => {
         name: "Notifications, 12 in the last week",
       }),
     ).toHaveAttribute("tabindex", "0");
+  });
+});
+
+describe("NotificationsBell: message links", () => {
+  it("links a message about an order to that order's tracking", async () => {
+    const user = userEvent.setup();
+
+    render(<NotificationsBell notifications={TWO_MESSAGES} />);
+    await user.click(screen.getByRole("button", { name: /Notifications/ }));
+
+    expect(screen.getByRole("link", { name: /Invoice ready/ })).toHaveAttribute(
+      "href",
+      `/account/orders?order=${ORDER_A}`,
+    );
+    expect(
+      screen.getByRole("link", { name: /Laundry collected/ }),
+    ).toHaveAttribute("href", `/account/orders?order=${ORDER_B}`);
+  });
+
+  it("does not link a message with no order behind it", async () => {
+    const user = userEvent.setup();
+
+    // An OTP, or any system broadcast: there is no booking to track, so a link
+    // would land the customer on an orders list unconnected to the message.
+    render(
+      <NotificationsBell
+        notifications={notifications(1, [{ id: 9, template: "otp" }])}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: /Notifications/ }));
+
+    expect(screen.getByText("Verification code")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("marks the tapped message read and drops the badge by one", async () => {
+    const user = userEvent.setup();
+
+    render(<NotificationsBell notifications={TWO_MESSAGES} />);
+    await user.click(screen.getByRole("button", { name: /Notifications/ }));
+
+    await user.click(screen.getByRole("link", { name: /Invoice ready/ }));
+
+    await waitFor(() => {
+      expect(markNotificationReadAction).toHaveBeenCalledWith({
+        notificationId: 1,
+      });
+    });
+
+    // Optimistically decremented: 2 unread becomes 1.
+    expect(
+      screen.getByRole("button", { name: "Notifications, 1 recent" }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not rewrite a message that was already read", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <NotificationsBell
+        notifications={notifications(1, [
+          { id: 5, template: "delivered", orderId: ORDER_A, read: true },
+        ])}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: /Notifications/ }));
+    await user.click(screen.getByRole("link", { name: /Delivered/ }));
+
+    // Nothing to change, so no write - and the badge is left alone rather than
+    // being driven negative by a decrement that did not correspond to anything.
+    expect(markNotificationReadAction).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Notifications, 1 recent" }),
+    ).toBeInTheDocument();
   });
 });

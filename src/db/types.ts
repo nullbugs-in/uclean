@@ -598,6 +598,16 @@ export type Database = {
         Args: Record<string, never>;
         Returns: number;
       };
+      /**
+       * Added by migration 20260101000014_notification_mark_one_read.sql.
+       * Marks one of the caller's own messages read and reports whether it
+       * actually changed a row. Hand-written to match that migration;
+       * regenerate with `supabase gen types` if the signature ever changes.
+       */
+      mark_notification_read: {
+        Args: { p_notification_id: number };
+        Returns: boolean;
+      };
     };
     Enums: {
       app_role: AppRole;

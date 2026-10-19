@@ -3,11 +3,17 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Package, UserRound, Menu, X } from "lucide-react";
+import { Bell, ChevronRight, Package, UserRound, Menu, X } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 
-import { markAllNotificationsReadAction } from "@/app/(public)/notifications/actions";
-import { notificationLabel } from "@/db/queries/notifications";
+import {
+  markAllNotificationsReadAction,
+  markNotificationReadAction,
+} from "@/app/(public)/notifications/actions";
+import {
+  notificationLabel,
+  orderTrackingHref,
+} from "@/db/queries/notifications";
 import { SignOutLink } from "@/components/layout/sign-out-link";
 import { Button } from "@/components/ui/button";
 import { NAV_LINKS } from "@/config/nav";
@@ -42,11 +48,16 @@ export type NavbarUser = {
      * The messages themselves, read or not. The bell is the only place a
      * customer can look back at what they were told, so marking read does not
      * remove anything from here.
+     *
+     * `order_id` is what makes a row a link: null means the message is not
+     * about a booking (an OTP, a system broadcast) and there is nothing to
+     * track, so the row stays plain text.
      */
     items: Array<{
       id: number;
       template: string;
       channel: string;
+      order_id: string | null;
       read_at: string | null;
       created_at: string;
     }>;
@@ -364,6 +375,12 @@ function ProfileAvatarLink({ user }: { user: NavbarUser }) {
  * place a customer can look back at what they were told, and emptying it behind
  * the very button that marked them read would make anything scrolled past
  * unreachable. Messages already read are dimmed instead.
+ *
+ * A message that belongs to an order is a link to that booking's tracking on
+ * `/account/orders`, and tapping it also marks that one message read. Messages
+ * with no `order_id` - an OTP, a system broadcast - stay plain text: there is
+ * nothing to track, and a link that landed on an orders list with no
+ * connection to the message would be worse than no link at all.
  */
 export function NotificationsBell({
   notifications,
@@ -401,6 +418,27 @@ export function NotificationsBell({
 
     startTransition(async () => {
       await markAllNotificationsReadAction();
+    });
+  }
+
+  /**
+   * Tapping one message marks just that one read, and closes the menu so the
+   * destination is the page rather than a dropdown still hanging over it.
+   *
+   * Skips the write when the message is already read: there is nothing to
+   * change, and firing it anyway would report work the server did not do.
+   */
+  function openMessage(notificationId: number, readAt: string | null) {
+    setOpen(false);
+
+    if (readAt) return;
+
+    // Optimistic, for the same reason as read-all: the badge should not wait
+    // on a round trip to respond to the tap that caused it.
+    setSeen((current) => Math.max(0, current - 1));
+
+    startTransition(async () => {
+      await markNotificationReadAction({ notificationId });
     });
   }
 
@@ -475,31 +513,53 @@ export function NotificationsBell({
               tabIndex={0}
               className="focus-visible:outline-ring max-h-56 [scrollbar-width:thin] space-y-0.5 overflow-y-auto overscroll-contain focus-visible:outline-2 focus-visible:outline-offset-[-2px]"
             >
-              {items.map((item) => (
-                <li
-                  key={item.id}
-                  className="hover:bg-accent flex items-start justify-between gap-3 rounded-xl px-3 py-2 transition-colors"
-                >
-                  <div className="min-w-0">
-                    <p
-                      className={cn(
-                        "truncate text-sm font-medium",
-                        // Read messages stay readable but stop competing with
-                        // the unread ones for attention.
-                        item.read_at && "text-muted-foreground font-normal",
-                      )}
-                    >
-                      {notificationLabel(item.template)}
-                    </p>
-                    <p className="text-muted-foreground text-xs capitalize">
-                      {item.channel}
-                    </p>
-                  </div>
-                  <span className="text-muted-foreground shrink-0 text-xs">
-                    {formatDateTime(item.created_at)}
-                  </span>
-                </li>
-              ))}
+              {items.map((item) => {
+                const label = notificationLabel(item.template);
+                const body = (
+                  <>
+                    <div className="min-w-0">
+                      <p
+                        className={cn(
+                          "truncate text-sm font-medium",
+                          // Read messages stay readable but stop competing with
+                          // the unread ones for attention.
+                          item.read_at && "text-muted-foreground font-normal",
+                        )}
+                      >
+                        {label}
+                      </p>
+                      <p className="text-muted-foreground text-xs capitalize">
+                        {item.channel}
+                      </p>
+                    </div>
+
+                    <span className="text-muted-foreground flex shrink-0 items-center gap-1 text-xs">
+                      {formatDateTime(item.created_at)}
+                      {item.order_id ? (
+                        <ChevronRight className="size-3.5" aria-hidden="true" />
+                      ) : null}
+                    </span>
+                  </>
+                );
+
+                return (
+                  <li key={item.id}>
+                    {item.order_id ? (
+                      <Link
+                        href={orderTrackingHref(item.order_id)}
+                        onClick={() => openMessage(item.id, item.read_at)}
+                        className="hover:bg-accent focus-visible:ring-ring flex items-start justify-between gap-3 rounded-xl px-3 py-2 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                      >
+                        {body}
+                      </Link>
+                    ) : (
+                      <div className="flex items-start justify-between gap-3 px-3 py-2">
+                        {body}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
