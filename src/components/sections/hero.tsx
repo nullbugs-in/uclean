@@ -382,12 +382,19 @@ export function Hero() {
             Everything is on the centre line. A left-aligned card in a centred
             row reads as a mistake rather than a choice.
 
+            `mx-4 sm:mx-6 xl:mx-0` looks redundant next to the column's negative
+            margins but is not: the poster column below `xl` pulls itself out to
+            the viewport edges, and this row is inside that column. Without the
+            compensation the first and last cards sit flush against the screen
+            edges, which reads as the row having overflowed sideways rather than
+            as full-bleed.
+
             The wash is always faintly on and deepens on hover, so the row is
             visibly part of the palette at rest and still rewards a pointer.
             `grid-cols-3` holds down to 320px; the labels wrap to two lines
             there rather than shrinking the type any further.
           */}
-          <dl className="mt-4 grid grid-cols-3 gap-2 sm:mt-5 sm:gap-3">
+          <dl className="mx-4 mt-4 grid grid-cols-3 gap-2 sm:mx-6 sm:mt-5 sm:gap-3 xl:mx-0">
             {STATS.map((stat) => {
               const Icon = stat.icon;
 
