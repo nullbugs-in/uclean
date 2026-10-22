@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { OrderTimeline } from "@/components/order-timeline";
 import { CycleMeter } from "@/components/panel/cycle-meter";
+import { InvoiceStatusBadge } from "@/components/panel/invoice-status-badge";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { listInvoicesForOrders } from "@/db/queries/billing";
 import { getOrderDetail } from "@/db/queries/orders";
 import { createClient } from "@/db/server";
 import { INTERNAL_STATUS_LABEL } from "@/lib/order-status";
@@ -34,6 +38,15 @@ export default async function StaffOrderPage({
   const order = await getOrderDetail(supabase, id).catch(() => null);
 
   if (!order) notFound();
+
+  /*
+   * The invoice, when one has been raised for the booking: RLS gives an agent
+   * the bill on an order they are assigned against, the same way the customer's
+   * card and the bills list see it.
+   */
+  const [invoice] = await listInvoicesForOrders(supabase, [order.id]).catch(
+    () => [],
+  );
 
   const itemsTotal = order.order_items.reduce(
     (sum, item) => sum + item.qty * item.unit_price,
@@ -87,6 +100,35 @@ export default async function StaffOrderPage({
         </Card>
 
         <div className="space-y-6">
+          {invoice ? (
+            <Card>
+              <CardHeader className="flex-row items-center justify-between">
+                <CardTitle className="text-base">Invoice</CardTitle>
+                <InvoiceStatusBadge status={invoice.status} />
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <p>
+                  <span className="font-mono">{invoice.invoice_no}</span>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {formatINR(invoice.total)} collected on delivery
+                  </span>
+                </p>
+                {invoice.status !== "draft" && invoice.pay_token ? (
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/pay/${invoice.pay_token}`}>View invoice</Link>
+                  </Button>
+                ) : null}
+                {invoice.status === "draft" ? (
+                  <p className="text-muted-foreground text-xs">
+                    Not sent to the customer yet — no cash is due from this bill
+                    until it is sent.
+                  </p>
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Update status</CardTitle>

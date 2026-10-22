@@ -236,6 +236,7 @@ export type Invoice = {
   delivery_charge: number;
   total: number;
   status: InvoiceStatus;
+  analysis_note: string | null;
   pay_token: string | null;
   pay_token_expires_at: string | null;
   sent_at: string | null;
@@ -468,6 +469,7 @@ export type Database = {
           | "delivery_charge"
           | "total"
           | "status"
+          | "analysis_note"
           | "pay_token"
           | "pay_token_expires_at"
           | "sent_at"

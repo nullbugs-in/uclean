@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
 import { PanelPage } from "@/components/panel/panel-page";
-import { listActiveServices } from "@/db/queries/catalog";
 import { createClient } from "@/db/server";
 import {
   getBookingSummary,
@@ -41,7 +40,7 @@ export default async function AdminBookingsPage({
   const filter = readBookingFilter(await searchParams);
   const supabase = await createClient();
 
-  const [summary, result, services] = await Promise.all([
+  const [summary, result] = await Promise.all([
     /*
      * The figures are a nicety; the list is the page. A failed count must not
      * take the page with it, so it settles to zeroes rather than throwing.
@@ -69,12 +68,6 @@ export default async function AdminBookingsPage({
         truncated: false,
       };
     }),
-    /*
-     * The catalogue behind the cards' Generate invoice dialog, the same read
-     * the Billing page makes. A failed read empties it and the dialog says so,
-     * rather than the page falling over over lines it cannot price.
-     */
-    listActiveServices(supabase).catch(() => []),
   ]);
 
   return (
@@ -85,7 +78,7 @@ export default async function AdminBookingsPage({
       <div className="space-y-6">
         <BookingSummaryCards summary={summary} />
 
-        <AdminOrderList result={result} filter={filter} services={services} />
+        <AdminOrderList result={result} filter={filter} />
       </div>
     </PanelPage>
   );

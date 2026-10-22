@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Navigation } from "lucide-react";
+import { ArrowRight, Navigation, ReceiptText } from "lucide-react";
 
 import { CycleMeter } from "@/components/panel/cycle-meter";
 import { Badge } from "@/components/ui/badge";
@@ -93,6 +93,32 @@ export function AssignmentCard({
         </div>
 
         <CycleMeter status={order.status} />
+
+        {row.invoice && row.invoice.status !== "draft" ? (
+          /*
+           * The bill on the stop, exactly as the customer was shown it. A draft
+           * stays off the card — the customer cannot be billed from it yet, so
+           * showing "unsent paperwork" would invite the agent to chase money
+           * that is not due.
+           */
+          <div className="border-border/60 flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+            <ReceiptText
+              className="text-muted-foreground size-4 shrink-0"
+              aria-hidden="true"
+            />
+            <span className="flex-1 truncate">
+              <span className="font-mono">{row.invoice.invoice_no}</span>
+              <span className="text-muted-foreground"> · collected on delivery</span>
+            </span>
+            {row.invoice.pay_token ? (
+              <Button asChild size="sm" variant="ghost">
+                <Link href={`/pay/${row.invoice.pay_token}`}>
+                  View invoice
+                </Link>
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="flex flex-wrap items-center gap-2">
           <Button asChild size="sm" variant="outline">

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { BillingError, invoiceTotal, priceInvoiceLines } from "./invoice";
+import {
+  BillingError,
+  deliveryChargeFor,
+  invoiceTotal,
+  priceInvoiceLines,
+} from "./invoice";
 
 /**
  * The catalogue is the billing authority, so these tests are about a line's
@@ -45,7 +50,11 @@ describe("priceInvoiceLines", () => {
 
   it("refuses a retired service rather than billing it", () => {
     expect(() =>
-      priceInvoiceLines("order-1", [{ serviceId: "svc-old", qty: 1 }], CATALOGUE),
+      priceInvoiceLines(
+        "order-1",
+        [{ serviceId: "svc-old", qty: 1 }],
+        CATALOGUE,
+      ),
     ).toThrow(/retired/);
   });
 });
@@ -71,5 +80,19 @@ describe("invoiceTotal", () => {
         discount: 500,
       }),
     ).toBe(0);
+  });
+});
+
+describe("deliveryChargeFor", () => {
+  const POLICY = { freeAboveInr: 999, chargeInr: 69 };
+
+  it("is free at the threshold", () => {
+    expect(deliveryChargeFor(999, POLICY)).toBe(0);
+    expect(deliveryChargeFor(1000, POLICY)).toBe(0);
+  });
+
+  it("is the flat charge below the threshold", () => {
+    expect(deliveryChargeFor(998.99, POLICY)).toBe(69);
+    expect(deliveryChargeFor(0, POLICY)).toBe(69);
   });
 });

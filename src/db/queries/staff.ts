@@ -1,6 +1,7 @@
 import { addDays, toDateKey } from "@/lib/dates";
 import { ORDER_STATUSES } from "@/lib/order-status";
 
+import type { OrderInvoiceView } from "./billing";
 import type {
   AssignmentStatus,
   AssignmentType,
@@ -58,6 +59,11 @@ export type AssignedOrder = {
   assignmentId: string;
   assignmentStatus: AssignmentStatus;
   assignedAt: string;
+  /**
+   * The booking's invoice when one exists, so the agent sees the bill they may
+   * be collecting cash against on the same screen as the stop.
+   */
+  invoice: OrderInvoiceView | null;
 };
 
 /**
@@ -120,6 +126,21 @@ export async function listAssignedOrders(
   const orders = unwrap(await query.limit(limit));
   const assignmentByOrder = new Map(assignments.map((a) => [a.order_id, a]));
 
+  /*
+   * One RLS-scoped read for every bill on these orders: the invoice is RLS'd
+   * through the same order join as the orders above, so an agent sees exactly
+   * the bills of stops on their list and store staff see all of them.
+   */
+  const invoices = unwrap(
+    await client
+      .from("invoices")
+      .select("order_id, invoice_no, total, status, pay_token")
+      .in("order_id", orderIds),
+  );
+  const invoiceByOrder = new Map(
+    invoices.map((invoice) => [invoice.order_id, invoice] as const),
+  );
+
   // Driven by the orders so the query's ordering survives; flatMap instead of
   // filter+map keeps the assignment narrowed without a type predicate.
   return orders.flatMap((order) => {
@@ -131,6 +152,7 @@ export async function listAssignedOrders(
             assignmentId: assignment.id,
             assignmentStatus: assignment.status,
             assignedAt: assignment.assigned_at,
+            invoice: invoiceByOrder.get(order.id) ?? null,
           },
         ]
       : [];

@@ -1,4 +1,5 @@
 import type {
+  InvoiceStatus,
   Order,
   OrderItem,
   OrderStatus,
@@ -401,6 +402,21 @@ export type AdminOrderRow = Order & {
    * already done or the invoice step was simply skipped past.
    */
   hasInvoice: boolean;
+  /**
+   * The generated invoice's status, when one exists.
+   *
+   * Null when there is no invoice. This is what splits "Invoice generated" from
+   * "Send to customer" on the card: only the card itself can say whether the
+   * paperwork it produced has gone out, and a sent invoice must offer its send
+   * button as done rather than as `hasInvoice`'s existence does.
+   */
+  invoiceStatus: InvoiceStatus | null;
+  /**
+   * What the Analysis step recorded, taken from the `under_analysis` history
+   * row's note. The invoice form opens with it so the analysis findings travel
+   * with the invoice rather than living only in the log.
+   */
+  analysisNote: string | null;
 };
 
 /**
@@ -686,6 +702,13 @@ export type BookingCardActionState = {
   invoice: "locked" | "ready" | "done";
   /** Why the Generate Invoice button is disabled, when it is. */
   invoiceReason: string | null;
+  /**
+   * The Send to Customer button: `locked` while no invoice exists, `ready` on a
+   * generated-but-unsent invoice, `done` once it is sent.
+   */
+  send: "locked" | "ready" | "done";
+  /** Why the Send to Customer button is disabled, when it is. */
+  sendReason: string | null;
 };
 
 /**
@@ -705,8 +728,19 @@ export type BookingCardActionState = {
 export function bookingCardActions(input: {
   status: OrderStatus;
   hasInvoice: boolean;
+  /** The invoice's own status when one exists; null (or omitted) when not. */
+  invoiceStatus?: InvoiceStatus | null;
 }): BookingCardActionState {
   const { status, hasInvoice } = input;
+  /*
+   * An invoice row without a status select (the pre-split shape) is treated as
+   * an unsent draft: before the send step existed, existence and "not yet sent"
+   * were the same fact.
+   */
+  const invoiceStatus: InvoiceStatus | null = hasInvoice
+    ? (input.invoiceStatus ?? "draft")
+    : null;
+  const sent = invoiceStatus === "sent" || invoiceStatus === "paid";
 
   let analysis: BookingCardActionState["analysis"];
   let analysisReason: string | null;
@@ -752,11 +786,32 @@ export function bookingCardActions(input: {
       "Not available at this stage. Raise it on Billing if needed.";
   }
 
+  let send: BookingCardActionState["send"];
+  let sendReason: string | null;
+
+  if (!hasInvoice) {
+    send = "locked";
+    sendReason = "Generate the invoice first, then send it to the customer.";
+  } else if (sent) {
+    send = "done";
+    sendReason = null;
+  } else if (status === "cancelled") {
+    send = "locked";
+    sendReason = "This booking was cancelled.";
+  } else {
+    // An unsent invoice, otherwise: generation already produces the secure
+    // link, so sending is available to the whole rest of the booking's life.
+    send = "ready";
+    sendReason = null;
+  }
+
   return {
     analysis,
     analysisReason,
     invoice,
     invoiceReason,
+    send,
+    sendReason,
   };
 }
 

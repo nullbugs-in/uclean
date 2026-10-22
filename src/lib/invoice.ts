@@ -108,3 +108,21 @@ export function invoiceTotal(input: {
     input.subtotal + input.tax + input.deliveryCharge - input.discount,
   );
 }
+
+/** The store's delivery rule, as plain numbers: free at or above, flat below. */
+export type DeliveryPolicy = { freeAboveInr: number; chargeInr: number };
+
+/**
+ * The delivery charge for a services subtotal.
+ *
+ * The store's policy is a single rule — free delivery at or above a threshold,
+ * one flat charge below it — and both the server (which bills) and the admin
+ * form (which displays the figure it will become) must read it from here rather
+ * than restating it, so changing the rule in one place cannot desync the other.
+ */
+export function deliveryChargeFor(
+  subtotal: number,
+  policy: DeliveryPolicy,
+): number {
+  return subtotal >= policy.freeAboveInr ? 0 : policy.chargeInr;
+}

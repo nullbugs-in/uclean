@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, MapPin, Package } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, MapPin, Package, ReceiptText } from "lucide-react";
 
 import {
   GlassCard,
@@ -9,12 +10,17 @@ import {
   toneForStatus,
 } from "@/components/account/glass";
 import { OrderTimeline } from "@/components/order-timeline";
+import type { OrderInvoiceView } from "@/db/queries/billing";
 import type { Order, OrderStatusHistory } from "@/db/types";
 import { CUSTOMER_STATUS_LABEL, type OrderStatus } from "@/lib/order-status";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
-type Booking = Order & { slotLabel?: string };
+type Booking = Order & {
+  slotLabel?: string;
+  /** The booking's invoice, when one has been generated for it. */
+  invoice?: OrderInvoiceView;
+};
 
 const FILTERS = [
   { id: "all", label: "All" },
@@ -40,10 +46,13 @@ function matchesFilter(status: OrderStatus, filter: FilterId) {
  */
 export function OrderTrackingList({
   orders,
+  invoices,
   history,
   trackedOrderId,
 }: {
   orders: Booking[];
+  /** Each booking's invoice, keyed by order id — what the cards link with. */
+  invoices: Record<string, OrderInvoiceView>;
   history: Record<string, OrderStatusHistory[]>;
   /**
    * The order a notification deep-linked to, if any.
@@ -86,6 +95,10 @@ export function OrderTrackingList({
   const visible = orders.filter((order) =>
     matchesFilter(order.status as OrderStatus, filter),
   );
+
+  function invoiceFor(order: Booking): OrderInvoiceView | undefined {
+    return order.invoice ?? invoices[order.id];
+  }
 
   return (
     <div className="space-y-5">
@@ -180,6 +193,13 @@ export function OrderTrackingList({
                   </p>
 
                   {/*
+                    The booking's invoice, once generated: a draft says the
+                    paperwork exists, a sent one hands over the same secure link
+                    the WhatsApp message carries.
+                  */}
+                  <InvoiceLine invoice={invoiceFor(order)} />
+
+                  {/*
                     Tracking lives here rather than on a separate page: the
                     timeline is already fetched for the whole list, so opening
                     one costs nothing.
@@ -214,6 +234,55 @@ export function OrderTrackingList({
           })}
         </ul>
       )}
+    </div>
+  );
+}
+
+/**
+ * The invoice line on a booking card, or nothing before an invoice exists.
+ *
+ * A draft is announced but not linked: the signed /pay link is minted at
+ * generation, but the customer reads the sent invoice through the same link
+ * their WhatsApp message carries, so a hold on drafts keeps the card and the
+ * message telling one story.
+ */
+function InvoiceLine({ invoice }: { invoice: OrderInvoiceView | undefined }) {
+  if (!invoice) return null;
+
+  if (invoice.status === "draft" || !invoice.pay_token) {
+    return (
+      <div className="mt-3 flex items-center gap-2 border-t border-[var(--uc-divider)] pt-3">
+        <ReceiptText
+          className="text-muted-foreground size-4"
+          aria-hidden="true"
+        />
+        <span className="text-muted-foreground flex-1 text-sm">
+          Invoice{" "}
+          <span className="font-mono">{invoice.invoice_no}</span> generated —
+          coming to you shortly
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 flex items-center gap-2 border-t border-[var(--uc-divider)] pt-3">
+      <ReceiptText
+        className="text-[var(--uc-lime-600)] size-4"
+        aria-hidden="true"
+      />
+      <span className="text-muted-foreground flex-1 text-sm">
+        Invoice{" "}
+        <span className="font-mono">{invoice.invoice_no}</span>
+        {invoice.status === "paid" ? " · paid" : ""}
+      </span>
+      <Link
+        href={`/pay/${invoice.pay_token}`}
+        className="text-primary inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"
+      >
+        View invoice
+        <ChevronDown className="size-4 -rotate-90" aria-hidden="true" />
+      </Link>
     </div>
   );
 }

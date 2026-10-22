@@ -98,6 +98,8 @@ function row(overrides: Partial<AdminOrderRow> = {}): AdminOrderRow {
     items: [],
     itemCount: 0,
     hasInvoice: false,
+    invoiceStatus: null,
+    analysisNote: null,
     ...overrides,
   } as AdminOrderRow;
 }
@@ -982,6 +984,60 @@ describe("bookingCardActions", () => {
       if (result.invoice === "locked") {
         expect(result.invoiceReason).toBeTruthy();
       }
+      if (result.send === "locked") {
+        expect(result.sendReason).toBeTruthy();
+      }
     }
+  });
+
+  describe("send to customer", () => {
+    it("locks before any invoice exists", () => {
+      const result = bookingCardActions({
+        status: "under_analysis",
+        hasInvoice: false,
+      });
+      expect(result.send).toBe("locked");
+      expect(result.sendReason).toBeTruthy();
+    });
+
+    it("is ready the moment an invoice is generated but unsent", () => {
+      const result = bookingCardActions({
+        status: "invoice_sent",
+        hasInvoice: true,
+        invoiceStatus: "draft",
+      });
+      expect(result.send).toBe("ready");
+      expect(result.sendReason).toBeNull();
+    });
+
+    it("treats a row without an invoice status as an unsent draft", () => {
+      const result = bookingCardActions({
+        status: "invoice_sent",
+        hasInvoice: true,
+      });
+      expect(result.send).toBe("ready");
+    });
+
+    it("is done for both sent and collected invoices", () => {
+      for (const invoiceStatus of ["sent", "paid"] as const) {
+        const result = bookingCardActions({
+          status: "out_for_delivery",
+          hasInvoice: true,
+          invoiceStatus,
+        });
+        expect(result.send, invoiceStatus).toBe("done");
+        expect(result.sendReason, invoiceStatus).toBeNull();
+      }
+    });
+
+    it("refuses to send for a cancelled booking", () => {
+      const result = bookingCardActions({
+        status: "cancelled",
+        hasInvoice: true,
+        invoiceStatus: "draft",
+      });
+      expect(result.send).toBe("locked");
+      expect(result.sendReason).toBeTruthy();
+    });
   });
 });

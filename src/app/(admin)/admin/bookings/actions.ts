@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { invoiceSchema, type InvoiceInput } from "@/lib/validation";
+import { BillingError } from "@/lib/invoice";
 import { requireAdmin } from "@/server/auth";
 import { createClient } from "@/db/server";
 import {
@@ -13,8 +13,11 @@ import {
   type OrderItemDraft,
 } from "@/server/admin-orders";
 import { assignPickupAgent } from "@/server/admin-pickups";
-import { createInvoice } from "@/server/billing";
-import { BillingError } from "@/lib/invoice";
+import {
+  createBookingInvoice,
+  sendBookingInvoice,
+} from "@/server/admin-booking-invoice";
+import { issuePaymentToken } from "@/server/billing";
 
 /**
  * Admin booking actions.
@@ -31,7 +34,15 @@ import { BillingError } from "@/lib/invoice";
  */
 
 export type AdminBookingResult =
-  | { ok: true; message?: string; warning?: string }
+  | {
+      ok: true;
+      message?: string;
+      warning?: string;
+      /** Set when the action produced a secure /pay/{token} link. */
+      payUrl?: string;
+      /** The invoice number the action acted on, when one exists. */
+      invoiceNo?: string;
+    }
   | { ok: false; message: string };
 
 /**
@@ -158,6 +169,28 @@ const itemDraftSchema = z.object({
 // ---------------------------------------------------------------------------
 
 /**
+ * One line on the booking invoice.
+ *
+ * The price list the cards invoice from is not the catalogue: online bookings
+ * carry the public price list's items (`src/data/pricing.ts`) and no `services`
+ * id, so the line is a name and a final unit price rather than a service
+ * reference. The name and price caps match what a booking line is allowed to
+ * carry, and the price cap matches the item editor's cap.
+ */
+const bookingInvoiceItemSchema = z.object({
+  name: z.string().trim().min(1, "Name each service").max(160),
+  qty: z.coerce
+    .number()
+    .positive("Quantity must be more than zero")
+    .max(99, "Quantity must be at most 99"),
+  unitPrice: z.coerce
+    .number()
+    .min(0, "Amount cannot be negative")
+    .max(1_000_000, "Amount cannot be more than ₹10,00,000"),
+  serviceId: z.string().uuid().optional(),
+});
+
+/**
  * Generates the invoice for a booking the analysis has been completed on, and
  * records it on the booking's timeline.
  *
@@ -169,15 +202,38 @@ const itemDraftSchema = z.object({
  * expected-status transition the stage buttons use, which appends the timeline
  * row, the audit entry and the customer's WhatsApp message.
  *
+ * What the browser sends is deliberately narrow. Each line is a name and a
+ * final unit price the admin edited (capped above), because the store's rule
+ * here is that the admin confirms what washing requires — but the delivery
+ * charge is *not* one of the inputs: it is derived server-side from the
+ * subtotal by the store policy, and the confirmed findings ride along as
+ * `analysis_note`. Tax and discount are not fields on this channel.
+ *
  * Order of operations matters. The invoice is created before the stage moves;
  * if the stage move then fails (a colleague moved the booking in between),
  * the invoice exists and is re-reportable as a success with a caveat — the
  * retry path would otherwise hit "an invoice already exists" and look broken.
  */
-export async function generateBookingInvoiceAction(
-  input: InvoiceInput,
-): Promise<AdminBookingResult> {
-  const parsed = invoiceSchema.safeParse(input);
+export async function generateBookingInvoiceAction(input: {
+  orderId: string;
+  items: Array<{
+    name: string;
+    qty: number;
+    unitPrice: number;
+    serviceId?: string;
+  }>;
+  feedback?: string;
+}): Promise<AdminBookingResult> {
+  const parsed = z
+    .object({
+      orderId: orderIdSchema,
+      items: z
+        .array(bookingInvoiceItemSchema)
+        .min(1, "Add at least one service")
+        .max(30, "Too many services on one invoice"),
+      feedback: z.string().trim().max(500).optional().or(z.literal("")),
+    })
+    .safeParse(input);
 
   if (!parsed.success) {
     return {
@@ -222,19 +278,37 @@ export async function generateBookingInvoiceAction(
       };
     }
 
-    const invoice = await createInvoice({
+    const invoice = await createBookingInvoice({
       orderId,
-      items: parsed.data.items.map((item) => ({
-        serviceId: item.serviceId,
+      actorId: admin.profile.id,
+      lines: parsed.data.items.map((item) => ({
+        name: item.name,
         qty: item.qty,
-        notes: item.notes || null,
-        photoUrl: item.photoUrl || null,
+        unitPrice: item.unitPrice,
+        serviceId: item.serviceId ?? null,
       })),
-      tax: parsed.data.tax,
-      discount: parsed.data.discount,
-      deliveryCharge: parsed.data.deliveryCharge,
-      createdBy: admin.profile.id,
+      feedback: parsed.data.feedback || null,
     });
+
+    /*
+     * The secure invoice link is minted here, at generation, so it exists for
+     * the specific booking from the moment the invoice does: the dialog offers
+     * it to copy, and sending to the customer later reuses it rather than
+     * minting a second link that would strand anyone already holding the first.
+     * Best effort — a failed issuance is a warning, not a lost invoice: the
+     * send step can still mint it.
+     */
+    let payUrl: string | undefined;
+    let linkWarning: string | undefined;
+
+    try {
+      const { token } = await issuePaymentToken(invoice.id);
+      payUrl = `/pay/${token}`;
+    } catch (linkError) {
+      console.error("Could not issue the invoice payment link", linkError);
+      linkWarning =
+        "The invoice saved, but its secure link could not be issued. The send step will retry that.";
+    }
 
     /*
      * Best effort: the invoice is saved and is the money record, so a stage
@@ -258,10 +332,64 @@ export async function generateBookingInvoiceAction(
 
     revalidateInvoiceViews(orderId);
 
+    const combinedWarning = [stageWarning, linkWarning]
+      .filter(Boolean)
+      .join(" ");
+
     return {
       ok: true,
       message: `${invoice.invoice_no} generated.`,
-      warning: stageWarning,
+      warning: combinedWarning || undefined,
+      payUrl,
+      invoiceNo: invoice.invoice_no,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof BillingError
+          ? error.userMessage
+          : toOrderEditMessage(error),
+    };
+  }
+}
+
+/**
+ * Sends a generated invoice to the customer from the booking card.
+ *
+ * This is the second of the two steps: generation made the invoice and its
+ * secure link, and this is what the customer experiences — the invoice is
+ * marked sent, the same signed link stays live, it appears on the customer's
+ * booking card, and the WhatsApp message that carries the link is prepared in
+ * the notifications queue.
+ *
+ * No message goes out here. The queue worker is the only sender, and until a
+ * WhatsApp provider is configured the rows stay queued — that is reported as
+ * "queued", which is exactly what it is, rather than a claim of delivery.
+ */
+export async function sendBookingInvoiceAction(input: {
+  orderId: string;
+}): Promise<AdminBookingResult> {
+  const parsed = z
+    .object({ orderId: orderIdSchema })
+    .safeParse(input);
+
+  if (!parsed.success) {
+    return { ok: false, message: "That booking could not be found." };
+  }
+
+  try {
+    await requireAdmin();
+
+    const sent = await sendBookingInvoice(parsed.data.orderId);
+
+    revalidateInvoiceViews(parsed.data.orderId);
+
+    return {
+      ok: true,
+      message: `${sent.invoiceNo} sent to the customer. The WhatsApp message is queued for delivery.`,
+      payUrl: sent.payUrl,
+      invoiceNo: sent.invoiceNo,
     };
   } catch (error) {
     return {

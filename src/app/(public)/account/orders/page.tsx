@@ -3,6 +3,10 @@ import Link from "next/link";
 
 import { GlassCard } from "@/components/account/glass";
 import { OrderTrackingList } from "@/components/account/order-tracking-list";
+import {
+  listInvoicesForOrders,
+  type OrderInvoiceView,
+} from "@/db/queries/billing";
 import { listTimeSlots } from "@/db/queries/catalog";
 import { readTrackedOrderId } from "@/db/queries/notifications";
 import {
@@ -60,6 +64,20 @@ export default async function CustomerOrdersPage({
     slotLabel: slotLabels.get(order.pickup_slot_id) || undefined,
   }));
 
+  /*
+   * The invoice each booking carries, in one RLS-scoped read for all of them.
+   * A draft shows the customer that their paperwork exists; a sent invoice
+   * hands over the secure link, which is also what the WhatsApp message offers.
+   */
+  const invoices = await listInvoicesForOrders(
+    supabase,
+    orders.map((order) => order.id),
+  ).catch(() => [] as OrderInvoiceView[]);
+
+  const invoiceByOrderId = Object.fromEntries(
+    invoices.map((invoice) => [invoice.order_id, invoice]),
+  );
+
   return (
     <div className="space-y-8">
       <header className="uc-fade-up flex flex-wrap items-center justify-between gap-4">
@@ -105,6 +123,7 @@ export default async function CustomerOrdersPage({
       ) : (
         <OrderTrackingList
           orders={bookings}
+          invoices={invoiceByOrderId}
           history={history}
           trackedOrderId={trackedOrderId}
         />

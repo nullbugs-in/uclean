@@ -1,5 +1,6 @@
 import type {
   DbClient,
+  InvoiceStatus,
   Order,
   OrderItem,
   OrderStatus,
@@ -142,7 +143,7 @@ export async function listAdminOrders(
 /**
  * Loads the orders plus everything the list shows about them.
  *
- * Three queries in parallel, joined in memory. The relationships fan out in two
+ * Four queries in parallel, joined in memory. The relationships fan out in two
  * directions (items and two assignment types) so a single wide select would
  * either duplicate the order row per item or nest JSON that every column has to
  * dig back out of. One `in (...)` per table keeps it to a fixed number of round
@@ -153,28 +154,50 @@ export async function listAdminOrders(
  * is only whether an invoice exists: the Analysis and Generate Invoice buttons
  * on the cards need to know whether the invoice step was done or skipped, and
  * `invoices.order_id` is unique, so a bare `order_id` select answers exactly
- * that.
+ * that. The analysis transition's note is read the same way — it is the
+ * findings the invoice form opens prefilled with.
  */
 async function enrichOrders(
   client: DbClient,
   ids: string[],
 ): Promise<AdminOrderRow[]> {
-  const [orders, items, assignments, invoices] = await Promise.all([
-    client.from("orders").select("*").in("id", ids),
-    client.from("order_items").select("*").in("order_id", ids),
-    client.from("pickup_assignments").select("*").in("order_id", ids),
-    client.from("invoices").select("order_id").in("order_id", ids),
-  ]);
+  const [orders, items, assignments, invoices, analysisHistory] =
+    await Promise.all([
+      client.from("orders").select("*").in("id", ids),
+      client.from("order_items").select("*").in("order_id", ids),
+      client.from("pickup_assignments").select("*").in("order_id", ids),
+      client.from("invoices").select("order_id, status").in("order_id", ids),
+      client
+        .from("order_status_history")
+        .select("order_id, note")
+        .eq("to_status", "under_analysis")
+        .in("order_id", ids),
+    ]);
 
   for (const result of [orders, items, assignments, invoices]) {
     if (result.error) throw new Error(result.error.message);
   }
+  if (analysisHistory.error) throw new Error(analysisHistory.error.message);
 
   const orderRows = (orders.data ?? []) as Order[];
   const itemRows = (items.data ?? []) as OrderItem[];
   const assignmentRows = (assignments.data ?? []) as PickupAssignment[];
-  const invoiceRows = (invoices.data ?? []) as Array<{ order_id: string }>;
+  const invoiceRows = (invoices.data ?? []) as Array<{
+    order_id: string;
+    status: InvoiceStatus;
+  }>;
   const invoiced = new Set(invoiceRows.map((row) => row.order_id));
+  const statusByOrderId = new Map(
+    invoiceRows.map((row) => [row.order_id, row.status] as const),
+  );
+  const analysisNotes = new Map(
+    (
+      (analysisHistory.data ?? []) as Array<{
+        order_id: string;
+        note: string | null;
+      }>
+    ).map((row) => [row.order_id, row.note] as const),
+  );
 
   /*
    * Two reads that need ids the first batch produced, so they cannot join it.
@@ -249,6 +272,9 @@ async function enrichOrders(
       items: orderItems,
       itemCount: orderItems.length,
       hasInvoice: invoiced.has(order.id),
+      invoiceStatus:
+        statusByOrderId.get(order.id) ?? (invoiced.has(order.id) ? "draft" : null),
+      analysisNote: analysisNotes.get(order.id) ?? null,
     } satisfies AdminOrderRow;
   });
 }

@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import type { OrderInvoiceView } from "@/db/queries/billing";
 import type { Order, OrderStatusHistory } from "@/db/types";
 
 import { OrderTrackingList } from "./order-tracking-list";
@@ -53,10 +54,27 @@ const ORDERS = [
   order({ id: OTHER_ID, order_no: "UC-1002", status: "delivered" }),
 ];
 
-function list(trackedOrderId?: string | null) {
+function invoice(
+  overrides: Partial<OrderInvoiceView> = {},
+): OrderInvoiceView {
+  return {
+    order_id: ORDER_ID,
+    invoice_no: "INV-2601-00012",
+    total: 348,
+    status: "sent",
+    pay_token: "nonce.9999999999.hmac",
+    ...overrides,
+  };
+}
+
+function list(
+  trackedOrderId?: string | null,
+  invoices: Record<string, OrderInvoiceView> = {},
+) {
   return render(
     <OrderTrackingList
       orders={ORDERS}
+      invoices={invoices}
       history={{ [ORDER_ID]: history(ORDER_ID) }}
       trackedOrderId={trackedOrderId}
     />,
@@ -101,5 +119,48 @@ describe("OrderTrackingList deep link", () => {
     expect(
       screen.getAllByRole("button", { name: /Track order/i }),
     ).toHaveLength(2);
+  });
+});
+
+/**
+ * The invoice line on a booking card.
+ *
+ * A draft is announced but not linked, a sent invoice hands over the signed
+ * /pay link, and no invoice at all renders nothing — so the card and the
+ * WhatsApp message tell one story about when the link is live.
+ */
+describe("OrderTrackingList invoice line", () => {
+  it("shows nothing at all for a booking with no invoice", () => {
+    list(null);
+    expect(screen.queryByText(/generated/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/View invoice/i)).not.toBeInTheDocument();
+  });
+
+  it("announces a draft without linking it", () => {
+    list(null, { [ORDER_ID]: invoice({ status: "draft" }) });
+
+    expect(screen.getByText(/generated/i)).toBeInTheDocument();
+    expect(screen.queryByText(/View invoice/i)).not.toBeInTheDocument();
+  });
+
+  it("links a sent invoice to its secure /pay link", () => {
+    list(null, { [ORDER_ID]: invoice() });
+
+    const link = screen.getByText(/View invoice/i).closest("a");
+    expect(link?.getAttribute("href")).toBe("/pay/nonce.9999999999.hmac");
+  });
+
+  it("also links a collected invoice, with the paid note beside it", () => {
+    list(null, { [ORDER_ID]: invoice({ status: "paid" }) });
+
+    expect(screen.getByText(/paid/i)).toBeInTheDocument();
+    expect(screen.getByText(/View invoice/i)).toBeInTheDocument();
+  });
+
+  it("shows nothing linkable when a sent invoice somehow has no token", () => {
+    list(null, { [ORDER_ID]: invoice({ pay_token: null }) });
+
+    expect(screen.getByText(/coming to you/i)).toBeInTheDocument();
+    expect(screen.queryByText(/View invoice/i)).not.toBeInTheDocument();
   });
 });

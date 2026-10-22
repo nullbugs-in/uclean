@@ -32,7 +32,6 @@ import {
   type BookingFilterResult,
   type OrderFilter,
 } from "@/db/queries/admin-orders";
-import type { Service } from "@/db/types";
 import { INTERNAL_STATUS_LABEL } from "@/lib/order-status";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -63,12 +62,9 @@ const ASSIGNMENT_LABEL: Record<string, string> = {
 export function AdminOrderList({
   result,
   filter,
-  services,
 }: {
   result: BookingFilterResult;
   filter: OrderFilter;
-  /** The active catalogue, behind the card's Generate invoice dialog. */
-  services: Service[];
 }) {
   const router = useRouter();
 
@@ -231,7 +227,7 @@ export function AdminOrderList({
          */
         <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {rows.map((row) => (
-            <BookingCard key={row.id} row={row} services={services} />
+            <BookingCard key={row.id} row={row} />
           ))}
         </ul>
       )}
@@ -314,13 +310,7 @@ export function AdminOrderList({
  * every card in a row lines up on it, which makes the column scannable as a
  * whole.
  */
-function BookingCard({
-  row,
-  services,
-}: {
-  row: AdminOrderRow;
-  services: Service[];
-}) {
+function BookingCard({ row }: { row: AdminOrderRow }) {
   return (
     <li className="bg-card flex flex-col gap-4 rounded-xl border p-4 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
@@ -395,7 +385,7 @@ function BookingCard({
           <Badge variant="warning">Needs a pickup agent</Badge>
         )}
 
-        <BookingCardActions row={row} services={services} />
+        <BookingCardActions row={row} />
 
         <ProgressStrip
           status={row.status}
