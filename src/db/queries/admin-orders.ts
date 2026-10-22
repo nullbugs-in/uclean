@@ -142,33 +142,39 @@ export async function listAdminOrders(
 /**
  * Loads the orders plus everything the list shows about them.
  *
- * Four queries in parallel, joined in memory. The relationships fan out in two
+ * Three queries in parallel, joined in memory. The relationships fan out in two
  * directions (items and two assignment types) so a single wide select would
  * either duplicate the order row per item or nest JSON that every column has to
  * dig back out of. One `in (...)` per table keeps it to a fixed number of round
  * trips whatever the page size, which is the property that makes this not an N+1.
  *
- * Invoices and payments are not read. The list is a work queue and shows no
- * money, so fetching them would be two round trips per page spent on data that
- * nothing displays.
+ * Invoices and payments are not priced here. The list is a work queue and shows
+ * no money, so computing the bill would be data nothing displays. What is read
+ * is only whether an invoice exists: the Analysis and Generate Invoice buttons
+ * on the cards need to know whether the invoice step was done or skipped, and
+ * `invoices.order_id` is unique, so a bare `order_id` select answers exactly
+ * that.
  */
 async function enrichOrders(
   client: DbClient,
   ids: string[],
 ): Promise<AdminOrderRow[]> {
-  const [orders, items, assignments] = await Promise.all([
+  const [orders, items, assignments, invoices] = await Promise.all([
     client.from("orders").select("*").in("id", ids),
     client.from("order_items").select("*").in("order_id", ids),
     client.from("pickup_assignments").select("*").in("order_id", ids),
+    client.from("invoices").select("order_id").in("order_id", ids),
   ]);
 
-  for (const result of [orders, items, assignments]) {
+  for (const result of [orders, items, assignments, invoices]) {
     if (result.error) throw new Error(result.error.message);
   }
 
   const orderRows = (orders.data ?? []) as Order[];
   const itemRows = (items.data ?? []) as OrderItem[];
   const assignmentRows = (assignments.data ?? []) as PickupAssignment[];
+  const invoiceRows = (invoices.data ?? []) as Array<{ order_id: string }>;
+  const invoiced = new Set(invoiceRows.map((row) => row.order_id));
 
   /*
    * Two reads that need ids the first batch produced, so they cannot join it.
@@ -242,6 +248,7 @@ async function enrichOrders(
         : null,
       items: orderItems,
       itemCount: orderItems.length,
+      hasInvoice: invoiced.has(order.id),
     } satisfies AdminOrderRow;
   });
 }

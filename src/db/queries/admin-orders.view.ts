@@ -393,6 +393,14 @@ export type AdminOrderRow = Order & {
   items: OrderItem[];
   /** How many distinct services were booked. */
   itemCount: number;
+  /**
+   * Whether an invoice already exists for this booking.
+   *
+   * Only existence, never the invoice itself: the card is a work queue with no
+   * money on it, but the Generate Invoice button has to know whether the job was
+   * already done or the invoice step was simply skipped past.
+   */
+  hasInvoice: boolean;
 };
 
 /**
@@ -657,6 +665,99 @@ export function canEditOrderItems(input: {
 /** Running total of the lines, which is an estimate until an invoice exists. */
 export function itemsTotal(items: OrderItem[]): number {
   return items.reduce((total, item) => total + item.qty * item.unit_price, 0);
+}
+
+// ---------------------------------------------------------------------------
+// The booking card's two buttons
+// ---------------------------------------------------------------------------
+
+export type BookingCardActionState = {
+  /**
+   * The Analysis button: `locked` before the pickup, `ready` from `picked_up`
+   * until the analysis is recorded, `done` once it is on the timeline.
+   */
+  analysis: "locked" | "ready" | "done";
+  /** Why the Analysis button is disabled, when it is. */
+  analysisReason: string | null;
+  /**
+   * The Generate Invoice button: `ready` only between a recorded analysis and a
+   * generated invoice.
+   */
+  invoice: "locked" | "ready" | "done";
+  /** Why the Generate Invoice button is disabled, when it is. */
+  invoiceReason: string | null;
+};
+
+/**
+ * Gating for the two quick actions on a list card.
+ *
+ * The card reads the booking, not the paperwork around it, so the gates are
+ * stages rather than features: analysis is available the moment the laundry is
+ * in the store (`picked_up`), and invoicing is available the moment the analysis
+ * is recorded (`under_analysis`) and there is no invoice yet. Everything is
+ * derived from `{ status, hasInvoice }` so it can be tested without a database
+ * and never drift from what the row actually says.
+ *
+ * These gates do not replace the database's: the state machine in SQL and the
+ * `expectedStatus` conflict check still decide whether a press is legal. This is
+ * only so the button tells the truth about why it is grey.
+ */
+export function bookingCardActions(input: {
+  status: OrderStatus;
+  hasInvoice: boolean;
+}): BookingCardActionState {
+  const { status, hasInvoice } = input;
+
+  let analysis: BookingCardActionState["analysis"];
+  let analysisReason: string | null;
+
+  if (status === "pickup_requested" || status === "agent_assigned") {
+    analysis = "locked";
+    analysisReason = "Available once the pickup is completed.";
+  } else if (status === "cancelled") {
+    analysis = "locked";
+    analysisReason = "This booking was cancelled.";
+  } else if (status === "picked_up") {
+    analysis = "ready";
+    analysisReason = null;
+  } else {
+    analysis = "done";
+    analysisReason = null;
+  }
+
+  let invoice: BookingCardActionState["invoice"];
+  let invoiceReason: string | null;
+
+  if (hasInvoice) {
+    invoice = "done";
+    invoiceReason = null;
+  } else if (status === "under_analysis") {
+    invoice = "ready";
+    invoiceReason = null;
+  } else if (status === "cancelled") {
+    invoice = "locked";
+    invoiceReason = "This booking was cancelled.";
+  } else if (
+    status === "pickup_requested" ||
+    status === "agent_assigned" ||
+    status === "picked_up"
+  ) {
+    invoice = "locked";
+    invoiceReason = "Available once the analysis is completed.";
+  } else {
+    // The analysis window has passed without an invoice. The card cannot raise
+    // one, and pointing that out beats a button that lies with a generic grey.
+    invoice = "locked";
+    invoiceReason =
+      "Not available at this stage. Raise it on Billing if needed.";
+  }
+
+  return {
+    analysis,
+    analysisReason,
+    invoice,
+    invoiceReason,
+  };
 }
 
 /** Every status, in machine order. */

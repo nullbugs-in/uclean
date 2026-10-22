@@ -32,10 +32,12 @@ import {
   type BookingFilterResult,
   type OrderFilter,
 } from "@/db/queries/admin-orders";
+import type { Service } from "@/db/types";
 import { INTERNAL_STATUS_LABEL } from "@/lib/order-status";
 import { cn, formatDate } from "@/lib/utils";
 
 import { ProgressStrip, StatusPill } from "./booking-detail-cards";
+import { BookingCardActions } from "./booking-card-actions";
 
 const ASSIGNMENT_LABEL: Record<string, string> = {
   all: "Any assignment",
@@ -61,9 +63,12 @@ const ASSIGNMENT_LABEL: Record<string, string> = {
 export function AdminOrderList({
   result,
   filter,
+  services,
 }: {
   result: BookingFilterResult;
   filter: OrderFilter;
+  /** The active catalogue, behind the card's Generate invoice dialog. */
+  services: Service[];
 }) {
   const router = useRouter();
 
@@ -226,7 +231,7 @@ export function AdminOrderList({
          */
         <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {rows.map((row) => (
-            <BookingCard key={row.id} row={row} />
+            <BookingCard key={row.id} row={row} services={services} />
           ))}
         </ul>
       )}
@@ -304,10 +309,18 @@ export function AdminOrderList({
  *
  * Laid out in the order the queue is worked: identify it, see how far along it
  * is, then the five facts that decide what to do with it — who, when, what, and
- * whether anyone has it. The progress bar sits at the bottom as a footer so every
- * card in a row lines up on it, which makes the column scannable as a whole.
+ * whether anyone has it. The two store-side quick actions (Analysis, Generate
+ * invoice) sit with them, and the progress bar closes the card as a footer so
+ * every card in a row lines up on it, which makes the column scannable as a
+ * whole.
  */
-function BookingCard({ row }: { row: AdminOrderRow }) {
+function BookingCard({
+  row,
+  services,
+}: {
+  row: AdminOrderRow;
+  services: Service[];
+}) {
   return (
     <li className="bg-card flex flex-col gap-4 rounded-xl border p-4 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
@@ -381,6 +394,8 @@ function BookingCard({ row }: { row: AdminOrderRow }) {
         ) : (
           <Badge variant="warning">Needs a pickup agent</Badge>
         )}
+
+        <BookingCardActions row={row} services={services} />
 
         <ProgressStrip
           status={row.status}

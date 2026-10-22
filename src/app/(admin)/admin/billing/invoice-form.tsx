@@ -15,11 +15,16 @@ import {
 } from "@/components/ui/select";
 import type { BillableOrder } from "@/db/queries/billing";
 import type { Service } from "@/db/types";
+import type { InvoiceInput } from "@/lib/validation";
 import { formatINR } from "@/lib/utils";
 
 import { generateInvoiceAction } from "./actions";
 
 type DraftLine = { key: string; serviceId: string; qty: number };
+
+/** Shape of the result any submit action reports back. */
+type SubmitResult =
+  { ok: true; message?: string } | { ok: false; message: string };
 
 let nextKey = 0;
 function lineKey() {
@@ -35,56 +40,136 @@ function lineKey() {
  * the name and rate from `services`. The running total below uses the catalogue
  * prices the page already holds, purely so the admin can see the shape of the
  * bill before saving it.
+ *
+ * The optional props are for callers that drive the form on behalf of a
+ * specific booking (the bookings cards): `initialLines` prefills the entries
+ * from what was booked, `deliveryPolicy` applies the store's delivery rule to
+ * the delivery charge (still editable — the admin's override sticks), and
+ * `submitAction` swaps the save action. With none of them set this behaves
+ * exactly as the Billing page has always used it.
  */
 export function InvoiceForm({
   order,
   services,
   onGenerated,
   onCancel,
+  initialLines,
+  deliveryPolicy,
+  submitAction,
 }: {
   order: BillableOrder;
   services: Service[];
   onGenerated: (message: string) => void;
   onCancel: () => void;
+  /** Booked lines to start from, instead of one empty catalogue line. */
+  initialLines?: Array<{ serviceId: string; qty: number }>;
+  /** The store's delivery rule; applied until the admin overrides the charge. */
+  deliveryPolicy?: { freeAboveInr: number; chargeInr: number };
+  /** Save action to call; defaults to the Billing module's own. */
+  submitAction?: (input: InvoiceInput) => Promise<SubmitResult>;
 }) {
-  const [lines, setLines] = React.useState<DraftLine[]>(() => [
-    { key: lineKey(), serviceId: services[0]?.id ?? "", qty: 1 },
-  ]);
+  const [lines, setLines] = React.useState<DraftLine[]>(() => {
+    if (initialLines && initialLines.length > 0) {
+      return initialLines.map((line) => ({
+        key: lineKey(),
+        serviceId: line.serviceId,
+        qty: line.qty,
+      }));
+    }
+
+    return [{ key: lineKey(), serviceId: services[0]?.id ?? "", qty: 1 }];
+  });
   const [tax, setTax] = React.useState("0");
   const [discount, setDiscount] = React.useState("0");
-  const [deliveryCharge, setDeliveryCharge] = React.useState("0");
+  const [deliveryCharge, setDeliveryCharge] = React.useState(() => {
+    if (!deliveryPolicy) return "0";
+
+    /*
+     * The draft's opening shape decides the opening charge, so the dialog is
+     * right even before anyone touches a control.
+     */
+    const opening =
+      initialLines && initialLines.length > 0
+        ? initialLines
+        : [{ serviceId: services[0]?.id ?? "", qty: 1 }];
+
+    const openingSubtotal = opening.reduce(
+      (sum, line) =>
+        sum +
+        line.qty *
+          (services.find((service) => service.id === line.serviceId)?.price ??
+            0),
+      0,
+    );
+
+    return String(
+      openingSubtotal >= deliveryPolicy.freeAboveInr
+        ? 0
+        : deliveryPolicy.chargeInr,
+    );
+  });
   const [error, setError] = React.useState<string | null>(null);
   const [isPending, startTransition] = React.useTransition();
+
+  /*
+   * The delivery rule is one suggestion, not a constraint: while the admin has
+   * not touched the field it follows the policy as lines change, and the moment
+   * they type a figure the field belongs to them. That is why it is a text
+   * state rather than derived — an admin billing an awkward edge case wins over
+   * a form that refuses.
+   */
+  const [deliveryEdited, setDeliveryEdited] = React.useState(!deliveryPolicy);
 
   const priceOf = (serviceId: string) =>
     services.find((service) => service.id === serviceId)?.price ?? 0;
 
-  const subtotal = lines.reduce(
-    (sum, line) => sum + line.qty * priceOf(line.serviceId),
-    0,
-  );
+  function subtotalOf(draft: DraftLine[]) {
+    return draft.reduce(
+      (sum, line) => sum + line.qty * priceOf(line.serviceId),
+      0,
+    );
+  }
+
+  function policyChargeFor(draft: DraftLine[]) {
+    if (!deliveryPolicy) return "0";
+    return subtotalOf(draft) >= deliveryPolicy.freeAboveInr
+      ? "0"
+      : String(deliveryPolicy.chargeInr);
+  }
+
+  const subtotal = subtotalOf(lines);
   const total = Math.max(
     0,
-    subtotal + Number(tax || 0) + Number(deliveryCharge || 0) - Number(discount || 0),
+    subtotal +
+      Number(tax || 0) +
+      Number(deliveryCharge || 0) -
+      Number(discount || 0),
   );
 
   function addLine() {
-    setLines((current) => [
-      ...current,
-      { key: lineKey(), serviceId: services[0]?.id ?? "", qty: 1 },
-    ]);
+    const fresh = { key: lineKey(), serviceId: services[0]?.id ?? "", qty: 1 };
+    const next = [...lines, fresh];
+    setLines(next);
+    if (!deliveryEdited) setDeliveryCharge(policyChargeFor(next));
   }
 
   function removeLine(key: string) {
-    setLines((current) => current.filter((line) => line.key !== key));
+    const next = lines.filter((line) => line.key !== key);
+    setLines(next);
+    if (!deliveryEdited) setDeliveryCharge(policyChargeFor(next));
   }
 
   function updateLine(key: string, patch: Partial<DraftLine>) {
-    setLines((current) =>
-      current.map((line) =>
-        line.key === key ? { ...line, ...patch } : line,
-      ),
+    const next = lines.map((line) =>
+      line.key === key ? { ...line, ...patch } : line,
     );
+    setLines(next);
+    if (!deliveryEdited) setDeliveryCharge(policyChargeFor(next));
+  }
+
+  function handleDeliveryCharge(value: string) {
+    setDeliveryEdited(true);
+    setDeliveryCharge(value);
   }
 
   function handleSubmit(event: React.FormEvent) {
@@ -97,7 +182,7 @@ export function InvoiceForm({
     }
 
     startTransition(async () => {
-      const result = await generateInvoiceAction({
+      const result = await (submitAction ?? generateInvoiceAction)({
         orderId: order.id,
         tax: Number(tax || 0),
         discount: Number(discount || 0),
@@ -113,7 +198,7 @@ export function InvoiceForm({
         return;
       }
 
-      onGenerated(result.message);
+      onGenerated(result.message ?? "Invoice generated.");
     });
   }
 
@@ -144,13 +229,17 @@ export function InvoiceForm({
                       updateLine(line.key, { serviceId: value })
                     }
                   >
-                    <SelectTrigger id={`service-${line.key}`} className="w-full">
+                    <SelectTrigger
+                      id={`service-${line.key}`}
+                      className="w-full"
+                    >
                       <SelectValue placeholder="Choose a service" />
                     </SelectTrigger>
                     <SelectContent>
                       {services.map((service) => (
                         <SelectItem key={service.id} value={service.id}>
-                          {service.name} — {formatINR(service.price)}/{service.unit}
+                          {service.name} — {formatINR(service.price)}/
+                          {service.unit}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -195,7 +284,13 @@ export function InvoiceForm({
             ))}
           </div>
 
-          <Button type="button" variant="outline" size="sm" onClick={addLine} disabled={isPending}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addLine}
+            disabled={isPending}
+          >
             <Plus aria-hidden />
             Add another service
           </Button>
@@ -238,9 +333,17 @@ export function InvoiceForm({
             step="0.01"
             value={deliveryCharge}
             disabled={isPending}
-            onChange={(event) => setDeliveryCharge(event.target.value)}
+            onChange={(event) => handleDeliveryCharge(event.target.value)}
             className="text-right tabular-nums"
           />
+          {deliveryPolicy ? (
+            <p className="text-muted-foreground text-xs">
+              {subtotal >= deliveryPolicy.freeAboveInr
+                ? `Free delivery applies at this subtotal (above ${formatINR(deliveryPolicy.freeAboveInr)}).`
+                : `Standard ${formatINR(deliveryPolicy.chargeInr)} delivery below ${formatINR(deliveryPolicy.freeAboveInr)}.`}{" "}
+              You can override it.
+            </p>
+          ) : null}
         </div>
       </div>
 

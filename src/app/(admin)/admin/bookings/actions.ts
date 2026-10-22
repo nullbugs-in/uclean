@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { invoiceSchema, type InvoiceInput } from "@/lib/validation";
 import { requireAdmin } from "@/server/auth";
 import { createClient } from "@/db/server";
 import {
@@ -12,6 +13,8 @@ import {
   type OrderItemDraft,
 } from "@/server/admin-orders";
 import { assignPickupAgent } from "@/server/admin-pickups";
+import { createInvoice } from "@/server/billing";
+import { BillingError } from "@/lib/invoice";
 
 /**
  * Admin booking actions.
@@ -43,6 +46,16 @@ function revalidateBookingViews(orderId: string) {
   revalidatePath("/admin/pickups");
   revalidatePath("/admin/deliveries");
   revalidatePath("/account/orders");
+}
+
+/**
+ * A generated invoice shows up on Billing — which lists it — and on the staff
+ * bill list, so those are re-read alongside everything the stage change touches.
+ */
+function revalidateInvoiceViews(orderId: string) {
+  revalidateBookingViews(orderId);
+  revalidatePath("/admin/billing");
+  revalidatePath("/staff/bills");
 }
 
 const orderIdSchema = z.string().uuid("That booking could not be found");
@@ -139,6 +152,127 @@ const itemDraftSchema = z.object({
   qty: z.coerce.number().positive().max(999),
   unitPrice: z.coerce.number().min(0).max(1_000_000),
 });
+
+// ---------------------------------------------------------------------------
+// Analysis completion and invoice generation
+// ---------------------------------------------------------------------------
+
+/**
+ * Generates the invoice for a booking the analysis has been completed on, and
+ * records it on the booking's timeline.
+ *
+ * This is invoicing with a schedule attached: the card offers the button only
+ * once the booking sits at `under_analysis`, so the action repeats that gate —
+ * plus the "nothing billed yet" rule — so it is safe against any caller, not
+ * just the card that constrained itself. The database remains the authority:
+ * the `under_analysis → invoice_sent` move goes through the same
+ * expected-status transition the stage buttons use, which appends the timeline
+ * row, the audit entry and the customer's WhatsApp message.
+ *
+ * Order of operations matters. The invoice is created before the stage moves;
+ * if the stage move then fails (a colleague moved the booking in between),
+ * the invoice exists and is re-reportable as a success with a caveat — the
+ * retry path would otherwise hit "an invoice already exists" and look broken.
+ */
+export async function generateBookingInvoiceAction(
+  input: InvoiceInput,
+): Promise<AdminBookingResult> {
+  const parsed = invoiceSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message:
+        parsed.error.issues[0]?.message ?? "Check the invoice and try again.",
+    };
+  }
+
+  try {
+    const admin = await requireAdmin();
+    const orderId = parsed.data.orderId;
+    const client = await createClient();
+
+    const [orderResult, invoiceResult] = await Promise.all([
+      client.from("orders").select("status").eq("id", orderId).maybeSingle(),
+      client
+        .from("invoices")
+        .select("id")
+        .eq("order_id", orderId)
+        .maybeSingle(),
+    ]);
+
+    if (orderResult.error) throw new Error(orderResult.error.message);
+    if (invoiceResult.error) throw new Error(invoiceResult.error.message);
+
+    if (!orderResult.data) {
+      return { ok: false, message: "That booking could not be found." };
+    }
+
+    if (invoiceResult.data) {
+      return {
+        ok: false,
+        message: "An invoice already exists for this booking.",
+      };
+    }
+
+    if (orderResult.data.status !== "under_analysis") {
+      return {
+        ok: false,
+        message: "Complete the analysis before generating the invoice.",
+      };
+    }
+
+    const invoice = await createInvoice({
+      orderId,
+      items: parsed.data.items.map((item) => ({
+        serviceId: item.serviceId,
+        qty: item.qty,
+        notes: item.notes || null,
+        photoUrl: item.photoUrl || null,
+      })),
+      tax: parsed.data.tax,
+      discount: parsed.data.discount,
+      deliveryCharge: parsed.data.deliveryCharge,
+      createdBy: admin.profile.id,
+    });
+
+    /*
+     * Best effort: the invoice is saved and is the money record, so a stage
+     * conflict must not hide it behind an error. The warning tells the admin
+     * the stage did not follow and that the stage buttons can finish the move.
+     */
+    let stageWarning: string | undefined;
+
+    try {
+      await advanceOrderStatusForCurrentUser({
+        orderId,
+        to: "invoice_sent",
+        expectedStatus: "under_analysis",
+        note: `Invoice ${invoice.invoice_no} generated`,
+        reason: null,
+      });
+    } catch (stageError) {
+      console.error("Could not record the invoice stage", stageError);
+      stageWarning = `${invoice.invoice_no} was generated, but updating the stage failed: ${toOrderEditMessage(stageError)}`;
+    }
+
+    revalidateInvoiceViews(orderId);
+
+    return {
+      ok: true,
+      message: `${invoice.invoice_no} generated.`,
+      warning: stageWarning,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof BillingError
+          ? error.userMessage
+          : toOrderEditMessage(error),
+    };
+  }
+}
 
 /**
  * Saves the adjusted quantities and rates on a booking's lines.

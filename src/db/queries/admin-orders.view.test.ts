@@ -10,6 +10,7 @@ import { ORDER_STATUSES, allowedTransitions } from "@/lib/order-status";
 
 import {
   applyJoinedFilters,
+  bookingCardActions,
   buildTimeline,
   canEditOrderItems,
   countByGroup,
@@ -96,6 +97,7 @@ function row(overrides: Partial<AdminOrderRow> = {}): AdminOrderRow {
     slotLabel: "10:00 AM - 11:00 AM",
     items: [],
     itemCount: 0,
+    hasInvoice: false,
     ...overrides,
   } as AdminOrderRow;
 }
@@ -889,5 +891,97 @@ describe("itemsTotal", () => {
 
   it("is zero for an order with no lines", () => {
     expect(itemsTotal([])).toBe(0);
+  });
+});
+
+describe("bookingCardActions", () => {
+  it("locks both buttons before the pickup", () => {
+    for (const status of ["pickup_requested", "agent_assigned"] as const) {
+      const result = bookingCardActions({ status, hasInvoice: false });
+      expect(result.analysis, status).toBe("locked");
+      expect(result.analysisReason, status).toBeTruthy();
+      expect(result.invoice, status).toBe("locked");
+      expect(result.invoiceReason, status).toBeTruthy();
+    }
+  });
+
+  it("unlocks analysis as soon as the pickup is completed", () => {
+    const result = bookingCardActions({
+      status: "picked_up",
+      hasInvoice: false,
+    });
+    expect(result.analysis).toBe("ready");
+    expect(result.analysisReason).toBeNull();
+    expect(result.invoice).toBe("locked");
+    expect(result.invoiceReason).toBeTruthy();
+  });
+
+  it("records the analysis and unlocks the invoice at under_analysis", () => {
+    const result = bookingCardActions({
+      status: "under_analysis",
+      hasInvoice: false,
+    });
+    expect(result.analysis).toBe("done");
+    expect(result.invoice).toBe("ready");
+    expect(result.invoiceReason).toBeNull();
+  });
+
+  it("marks both done once an invoice exists", () => {
+    for (const status of [
+      "under_analysis",
+      "invoice_sent",
+      "payment_pending",
+      "paid",
+      "in_process",
+      "ready_for_delivery",
+      "out_for_delivery",
+      "delivered",
+    ] as const) {
+      const result = bookingCardActions({ status, hasInvoice: true });
+      expect(result.analysis, status).toBe("done");
+      expect(result.invoice, status).toBe("done");
+      expect(result.invoiceReason, status).toBeNull();
+    }
+  });
+
+  it("points an un-invoiced later stage at Billing", () => {
+    const result = bookingCardActions({
+      status: "in_process",
+      hasInvoice: false,
+    });
+    expect(result.analysis).toBe("done");
+    expect(result.invoice).toBe("locked");
+    expect(result.invoiceReason).toBeTruthy();
+  });
+
+  it("locks both buttons on a cancelled booking", () => {
+    const result = bookingCardActions({
+      status: "cancelled",
+      hasInvoice: false,
+    });
+    expect(result.analysis).toBe("locked");
+    expect(result.analysisReason).toBeTruthy();
+    expect(result.invoice).toBe("locked");
+    expect(result.invoiceReason).toBeTruthy();
+  });
+
+  it("always explains itself when locked", () => {
+    for (const [status, hasInvoice] of [
+      ["pickup_requested", false],
+      ["agent_assigned", false],
+      ["picked_up", false],
+      ["cancelled", false],
+      ["in_process", false],
+      ["delivered", false],
+    ] as const) {
+      const result = bookingCardActions({ status, hasInvoice });
+
+      if (result.analysis === "locked") {
+        expect(result.analysisReason).toBeTruthy();
+      }
+      if (result.invoice === "locked") {
+        expect(result.invoiceReason).toBeTruthy();
+      }
+    }
   });
 });
