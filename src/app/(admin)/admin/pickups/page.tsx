@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 
-import { AgentDirectory } from "../../_components/agent-directory";
 import { AgentWorkloadView } from "../../_components/agent-workload-view";
 import {
   PickupRequestList,
@@ -105,8 +104,6 @@ export default async function AdminPickupsPage({
             todayKey={todayKey}
           />
         )}
-
-        <AgentDirectory agents={agents} />
       </div>
     </PanelPage>
   );

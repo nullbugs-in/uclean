@@ -55,6 +55,19 @@ export function PickupAssignmentControls({
   const [notice, setNotice] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  /*
+   * The list is for handing work to people who are on duty: off-duty agents
+   * are hidden rather than suffix-marked, and they reappear the moment duty
+   * resumes. The one exception is whoever currently holds the pickup — they
+   * stay listed even if duty lapsed mid-shift, so the prefilled trigger keeps
+   * resolving to a real name and the reassign/unassign buttons keep working.
+   */
+  const assignable = agents.filter(
+    (agent) =>
+      agent.isAvailable ||
+      (assignment?.agent_id && agent.id === assignment.agent_id),
+  );
+
   function run(action: () => Promise<Outcome>) {
     setError(null);
     setNotice(null);
@@ -71,11 +84,11 @@ export function PickupAssignmentControls({
     });
   }
 
-  if (agents.length === 0) {
+  if (assignable.length === 0) {
     return (
       <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-2 text-xs">
-        No agents are configured yet. Add one in the roster below and it will
-        appear here.
+        No agents are on duty right now. Add one in the Staff module, or switch
+        duty back on, and they will appear here.
       </p>
     );
   }
@@ -100,12 +113,9 @@ export function PickupAssignmentControls({
           </SelectTrigger>
 
           <SelectContent>
-            {agents.map((agent) => (
+            {assignable.map((agent) => (
               <SelectItem key={agent.id} value={agent.id}>
-                {agent.fullName}
-                {agent.isAvailable ? "" : " (off duty)"}
-                {" - "}
-                {agent.currentLoad} open
+                {agent.fullName} - {agent.currentLoad} open
               </SelectItem>
             ))}
           </SelectContent>

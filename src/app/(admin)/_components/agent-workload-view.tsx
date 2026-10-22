@@ -38,9 +38,9 @@ export function AgentWorkloadView({
     return (
       <div className="border-border rounded-xl border border-dashed px-6 py-12 text-center">
         <Users className="text-muted-foreground mx-auto size-7" aria-hidden />
-        <p className="mt-3 font-medium">No agents are configured yet.</p>
+        <p className="mt-3 font-medium">No agents are on the roster yet.</p>
         <p className="text-muted-foreground mx-auto mt-1 max-w-sm text-sm">
-          Add one in the roster below. Until then, pickups can be assigned by
+          Add one in the Staff module. Until then, pickups can be assigned by
           hand but auto-assign has nobody to choose from.
         </p>
       </div>
