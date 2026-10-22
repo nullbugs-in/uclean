@@ -137,6 +137,14 @@ export function Footer() {
           </p>
           <div className="flex gap-4">
             <a
+              href="https://nullbugs.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground rounded transition-colors"
+            >
+              Powered by Null Bugs
+            </a>
+            <a
               href="#"
               className="hover:text-foreground rounded transition-colors"
             >
