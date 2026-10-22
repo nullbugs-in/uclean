@@ -4,120 +4,14 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { createClient, createServiceClient } from "@/db/server";
 import type { Invoice, OrderItem } from "@/db/types";
-import { BillingError, invoiceTotal, priceInvoiceLines } from "@/lib/invoice";
-import type { InvoiceLineInput } from "@/lib/invoice";
 
 import { invalidPaymentToken, paymentLinkExpired } from "./errors";
 import { paymentTokenSecret } from "./env";
 
 export { BillingError } from "@/lib/invoice";
-export type { InvoiceLineInput } from "@/lib/invoice";
-
-export type InvoiceDraft = {
-  orderId: string;
-  items: InvoiceLineInput[];
-  tax: number;
-  discount: number;
-  deliveryCharge: number;
-  /** Who generated the invoice, for the record. */
-  createdBy?: string | null;
-};
 
 /** How long a WhatsApp payment link stays usable. */
 export const PAY_LINK_TTL_DAYS = 7;
-
-/**
- * Creates or regenerates the invoice for an order.
- *
- * The price of every line is read from `services` here, never accepted from the
- * caller (section 8.4). `invoices.order_id` is unique, so re-generating replaces
- * the previous draft and its lines rather than stacking a second invoice on the
- * order.
- *
- * The subtotal is summed from the derived prices and the total is worked out
- * server side, so the numbers the customer is shown are the ones the server
- * computed and not the ones the browser sent.
- */
-export async function createInvoice(draft: InvoiceDraft): Promise<Invoice> {
-  if (draft.items.length === 0) {
-    throw new BillingError(
-      "invoice created with no lines",
-      "Add at least one service before generating the invoice.",
-    );
-  }
-
-  const supabase = await createClient();
-
-  const { data: order, error: orderError } = await supabase
-    .from("orders")
-    .select("customer_name, customer_mobile, address_snapshot")
-    .eq("id", draft.orderId)
-    .maybeSingle();
-
-  if (orderError) throw new Error(orderError.message);
-  if (!order) throw new Error("Order not found");
-
-  // One read for every distinct service on the draft. The catalogue is the
-  // authority, so each line is priced from the row it names.
-  const serviceIds = [...new Set(draft.items.map((item) => item.serviceId))];
-
-  const { data: services, error: servicesError } = await supabase
-    .from("services")
-    .select("id, name, price, is_active")
-    .in("id", serviceIds);
-
-  if (servicesError) throw new Error(servicesError.message);
-
-  const { lines, subtotal } = priceInvoiceLines(
-    draft.orderId,
-    draft.items,
-    services ?? [],
-  );
-  const total = invoiceTotal({
-    subtotal,
-    tax: draft.tax,
-    deliveryCharge: draft.deliveryCharge,
-    discount: draft.discount,
-  });
-
-  const service = createServiceClient();
-
-  const { data: invoice, error } = await service
-    .from("invoices")
-    .upsert(
-      {
-        order_id: draft.orderId,
-        customer_name: order.customer_name,
-        customer_mobile: order.customer_mobile,
-        billing_address: order.address_snapshot,
-        subtotal,
-        tax: draft.tax,
-        discount: draft.discount,
-        delivery_charge: draft.deliveryCharge,
-        total,
-        status: "draft",
-        created_by: draft.createdBy ?? null,
-      },
-      { onConflict: "order_id" },
-    )
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-
-  const { error: itemError } = await service
-    .from("order_items")
-    .delete()
-    .eq("order_id", draft.orderId);
-  if (itemError) throw new Error(itemError.message);
-
-  const { error: insertError } = await service
-    .from("order_items")
-    .insert(lines);
-  if (insertError) throw new Error(insertError.message);
-
-  return invoice;
-}
 
 /**
  * Issues the signed, expiring payment token used by /pay/[token].

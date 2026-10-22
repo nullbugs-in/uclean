@@ -17,14 +17,10 @@ export type {
 
 export {
   codSchema,
-  invoiceSchema,
-  orderItemSchema,
   statusChangeSchema,
 } from "./billing";
 export type {
   CodInput,
-  InvoiceInput,
-  OrderItemInput,
   StatusChangeInput,
 } from "./billing";
 

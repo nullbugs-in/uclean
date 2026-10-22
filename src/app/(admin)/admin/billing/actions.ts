@@ -3,28 +3,20 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { invoiceSchema } from "@/lib/validation";
-import type { InvoiceInput } from "@/lib/validation";
 import { requireAdmin } from "@/server/auth";
-import {
-  BillingError,
-  createInvoice,
-  recordCashOnDelivery,
-  sendInvoice,
-} from "@/server/billing";
+import { BillingError, recordCashOnDelivery, sendInvoice } from "@/server/billing";
 import { DomainError } from "@/server/errors";
 
 /**
  * Admin billing actions.
  *
  * Each opens with `requireAdmin()`, and the write is *also* gated by the RLS
- * policies on `invoices`, `order_items` and `payments`. `createInvoice` and
- * `sendInvoice` use the service role for the rows that have no insert policy of
- * their own, which is exactly why the check here is load-bearing rather than
- * ceremonial.
+ * policies on `invoices`, `order_items` and `payments`. Generating an invoice
+ * happens on a booking card instead, so this file only carries the actions over
+ * an invoice that already exists.
  *
- * Generating or sending an invoice changes money, so it revalidates the
- * dashboard and the staff bill list as well as this page.
+ * Sending an invoice changes money, so it revalidates the dashboard and the
+ * staff bill list as well as this page.
  */
 
 export type BillingActionResult =
@@ -49,57 +41,6 @@ function revalidateBillingViews(orderId: string) {
   revalidatePath(`/admin/bookings/${orderId}`);
   revalidatePath("/admin");
   revalidatePath("/staff/bills");
-}
-
-/**
- * Generates (or regenerates) the invoice for an order from catalogue lines.
- *
- * The prices are not sent and not accepted: `createInvoice` reads them from
- * `services`, so this only forwards service ids and quantities.
- */
-export async function generateInvoiceAction(
-  input: InvoiceInput,
-): Promise<BillingActionResult> {
-  const parsed = invoiceSchema.safeParse(input);
-
-  if (!parsed.success) {
-    return {
-      ok: false,
-      message:
-        parsed.error.issues[0]?.message ?? "Check the invoice and try again.",
-    };
-  }
-
-  try {
-    const admin = await requireAdmin();
-
-    const invoice = await createInvoice({
-      orderId: parsed.data.orderId,
-      items: parsed.data.items.map((item) => ({
-        serviceId: item.serviceId,
-        qty: item.qty,
-        notes: item.notes || null,
-        photoUrl: item.photoUrl || null,
-      })),
-      tax: parsed.data.tax,
-      discount: parsed.data.discount,
-      deliveryCharge: parsed.data.deliveryCharge,
-      createdBy: admin.profile.id,
-    });
-
-    revalidateBillingViews(parsed.data.orderId);
-
-    return { ok: true, message: `${invoice.invoice_no} generated.` };
-  } catch (error) {
-    return {
-      ok: false,
-      message: describeFailure(
-        error,
-        "We could not generate the invoice. Please try again.",
-        "Could not generate the invoice",
-      ),
-    };
-  }
 }
 
 const invoiceRefSchema = z.object({

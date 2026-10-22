@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 import { PanelPage } from "@/components/panel/panel-page";
-import { listActiveServices } from "@/db/queries/catalog";
-import { listBillableOrders, listInvoices } from "@/db/queries/billing";
+import { listInvoices } from "@/db/queries/billing";
+import { readInvoiceStatusFilter } from "@/db/queries/billing.view";
 import { createClient } from "@/db/server";
 
 import { BillingPanel } from "./billing-panel";
@@ -12,22 +12,27 @@ export const metadata: Metadata = { title: "Billing" };
 /**
  * Billing (section 8.4 and 8.5).
  *
- * The item entry prices from the `services` catalogue rather than a typed rate:
- * a line names a service and the server reads its price, so the figure the
- * customer is billed cannot disagree with the price list. The page then shows
- * the invoices and lets an admin send one, or record the cash on delivery.
+ * The page shows the whole invoice history — every bill the store has raised,
+ * at any stage. Invoices are generated from a booking card, so there is no
+ * entry form here; Billing is the registry and the actions over what exists.
  *
- * Three reads, each falling back to an empty list so a single failure still
- * renders the rest of the page rather than dropping to an error boundary.
+ * The read falls back to an empty list so a failure still renders the page
+ * rather than dropping to an error boundary. The fallback logs: a quiet empty
+ * list and a broken one must stay distinguishable, or a missing history would
+ * read as "nothing billed yet".
  */
-export default async function AdminBillingPage() {
+export default async function AdminBillingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string | string[] }>;
+}) {
+  const { status } = await searchParams;
   const supabase = await createClient();
 
-  const [invoices, billableOrders, services] = await Promise.all([
-    listInvoices(supabase).catch(() => []),
-    listBillableOrders(supabase).catch(() => []),
-    listActiveServices(supabase).catch(() => []),
-  ]);
+  const invoices = await listInvoices(supabase).catch((error: unknown) => {
+    console.error("Could not load the invoice history", error);
+    return [];
+  });
 
   return (
     <PanelPage
@@ -36,8 +41,7 @@ export default async function AdminBillingPage() {
     >
       <BillingPanel
         invoices={invoices}
-        billableOrders={billableOrders}
-        services={services}
+        statusFilter={readInvoiceStatusFilter(status)}
       />
     </PanelPage>
   );
