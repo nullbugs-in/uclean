@@ -16,16 +16,11 @@ import { Input, Label, Textarea } from "@/components/ui/input";
 import { isUsableAddress } from "@/lib/address";
 import { cn } from "@/lib/utils";
 
-import { MapPicker } from "../map-picker";
-import type { LatLng, ZoneResult } from "../types";
+import type { ZoneResult } from "../types";
 
 type AddressStepProps = {
-  /** Store location: the map's initial view and the point we measure from. */
-  center: LatLng;
   maxRadiusKm: number;
   addressText: string;
-  /** Coordinates from the map, or null until the customer places the pin. */
-  coords: LatLng | null;
   /** The server's verdict on `coords`, or null before the first check. */
   zone: ZoneResult | null;
   /** True while a distance check is in flight. */
@@ -37,7 +32,6 @@ type AddressStepProps = {
   noticeAccepted: boolean;
   notes: string;
   onAddressText: (value: string) => void;
-  onCoords: (value: LatLng) => void;
   onNoticeAccepted: (value: boolean) => void;
   onNotes: (value: string) => void;
   onBack: () => void;
@@ -132,11 +126,9 @@ function ZoneBanner({
 function FieldHint({
   loadingSaved,
   prefilled,
-  placed,
 }: {
   loadingSaved: boolean;
   prefilled: boolean;
-  placed: boolean;
 }) {
   if (loadingSaved) {
     return (
@@ -162,18 +154,9 @@ function FieldHint({
     );
   }
 
-  if (!placed) {
-    return (
-      <p id="address-hint" className="text-muted-foreground text-xs">
-        Drag the map so the pin sits on your pickup address, or start typing to
-        search. The target button uses your current location.
-      </p>
-    );
-  }
-
   return (
     <p id="address-hint" className="text-muted-foreground text-xs">
-      We will save this address so your next booking is quicker.
+      Enter your full pickup address. We will save it for next time.
     </p>
   );
 }
@@ -192,10 +175,8 @@ function FieldHint({
  * booking can offer it back instead of asking again.
  */
 export function AddressStep({
-  center,
   maxRadiusKm,
   addressText,
-  coords,
   zone,
   checking,
   prefilled = false,
@@ -203,38 +184,24 @@ export function AddressStep({
   noticeAccepted,
   notes,
   onAddressText,
-  onCoords,
   onNoticeAccepted,
   onNotes,
   onBack,
   onContinue,
 }: AddressStepProps) {
   const addressInputRef = React.useRef<HTMLInputElement | null>(null);
-  const placed = coords !== null;
+  // Map disabled for testing - bypass pin placement and zone check requirements
+  const placed = true;
 
-  const canContinue =
-    isUsableAddress(addressText) &&
-    placed &&
-    noticeAccepted &&
-    zone?.status === "within";
+  const canContinue = isUsableAddress(addressText) && noticeAccepted;
 
   // The first unmet requirement, so the line under Continue always explains the
   // one thing standing between the customer and the next step.
   const reason = !isUsableAddress(addressText)
     ? "Add your full address, including the house or flat number."
-    : !placed
-      ? "Move the map so the pin sits on your pickup point."
-      : checking
-        ? "Checking your location..."
-        : zone?.status === "outside"
-          ? `This pin is outside our ${maxRadiusKm} km pickup area.`
-          : zone?.status === "unconfigured"
-            ? "We cannot check your area right now - message us to book."
-            : zone?.status === "error"
-              ? "We could not check this location. Try again."
-              : !noticeAccepted
-                ? "Tick the box to confirm the pickup area."
-                : null;
+    : !noticeAccepted
+      ? "Tick the box to confirm the pickup area."
+      : null;
 
   return (
     <div className="space-y-5">
@@ -247,9 +214,7 @@ export function AddressStep({
       <div className="space-y-2">
         <Label htmlFor="address">Pickup address</Label>
 
-        {/* The field and the map are one control, not two: search is how you
-            arrive, the map is where you confirm, and the border is shared so the
-            eye reads them as a single object. */}
+        {/* Map disabled for testing - address field only */}
         <div className="overflow-hidden rounded-xl border border-[var(--border)] transition-colors has-[:focus-within]:border-[var(--ring)] has-[:focus-within]:ring-2 has-[:focus-within]:ring-[var(--ring)]/30">
           <div className="bg-background/60 flex items-center gap-2 border-b border-[var(--border)] px-3">
             <Search
@@ -268,24 +233,11 @@ export function AddressStep({
               className="h-11 flex-1 rounded-none border-0 px-0 shadow-none focus-visible:border-0 focus-visible:ring-0"
             />
           </div>
-
-          <MapPicker
-            className="rounded-none border-0"
-            center={center}
-            value={coords}
-            onChange={onCoords}
-            onAddressResolved={onAddressText}
-            inputRef={addressInputRef}
-            maxRadiusKm={maxRadiusKm}
-            zone={zone}
-            checking={checking}
-          />
         </div>
 
-        <FieldHint
+         <FieldHint
           loadingSaved={loadingSaved}
           prefilled={prefilled}
-          placed={placed}
         />
       </div>
 

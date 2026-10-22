@@ -51,3 +51,13 @@ export function cronSecret(): string {
 export function googleServerKey(): string {
   return required("GOOGLE_MAPS_SERVER_API_KEY");
 }
+
+/**
+ * Same as {@link googleServerKey} but null instead of throwing.
+ *
+ * The booking flow must not hard-fail while the Routes key is unconfigured
+ * (testing), so callers treat null as "skip the distance check".
+ */
+export function googleServerKeyOptional(): string | null {
+  return process.env["GOOGLE_MAPS_SERVER_API_KEY"] ?? null;
+}

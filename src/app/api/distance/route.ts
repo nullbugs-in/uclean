@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { DomainError } from "@/server/errors";
-import { googleServerKey } from "@/server/env";
+import { googleServerKeyOptional } from "@/server/env";
 import { checkDeliveryZone } from "@/server/maps";
 
 /**
@@ -32,7 +32,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await checkDeliveryZone(parsed.data, googleServerKey());
+    const result = await checkDeliveryZone(
+      parsed.data,
+      googleServerKeyOptional(),
+    );
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof DomainError) {

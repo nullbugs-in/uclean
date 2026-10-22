@@ -203,6 +203,7 @@ export async function createBookingAction(
   const parsed = pickupRequestSchema.safeParse(input);
 
   if (!parsed.success) {
+    console.error("Schema validation failed:", parsed.error.issues[0]);
     return {
       ok: false,
       message:
@@ -212,6 +213,7 @@ export async function createBookingAction(
   }
 
   const user = await getAuthUser();
+
   if (!user) {
     return {
       ok: false,
@@ -250,11 +252,15 @@ export async function createBookingAction(
 
     return { ok: true, data: result };
   } catch (error) {
+    console.error("Booking action error:", {
+      type: error?.constructor?.name,
+      message: error instanceof Error ? error.message : String(error),
+    });
+
     if (error instanceof DomainError) {
       return { ok: false, message: error.userMessage };
     }
 
-    console.error("Pickup booking failed", error);
     return {
       ok: false,
       message:

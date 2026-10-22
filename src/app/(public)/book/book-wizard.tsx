@@ -275,14 +275,6 @@ export function BookWizard({
     };
   }, [coords, maxRadiusKm]);
 
-  function handleCoords(next: LatLng) {
-    setCoords(next);
-    // Drop the previous verdict immediately so a moved pin never shows a stale
-    // "inside our zone" message while the new check is in flight.
-    setZone(null);
-    setChecking(true);
-  }
-
   /**
    * Fetches the saved address now that there is a session to fetch it for.
    *
@@ -334,14 +326,17 @@ export function BookWizard({
   function persistAddress() {
     const trimmed = addressText.trim();
 
-    if (!isUsableAddress(trimmed) || !coords) return;
+    if (!isUsableAddress(trimmed)) return;
+
+    // Map disabled for testing - use store center as fallback coords
+    const coordsToUse = coords ?? storeCenter;
 
     setAddressSaveState("saving");
 
     void saveAddressAction({
       addressText: trimmed,
-      lat: coords.lat,
-      lng: coords.lng,
+      lat: coordsToUse.lat,
+      lng: coordsToUse.lng,
     }).then((result) => {
       // A later success supersedes an earlier failure: the post-booking save is
       // a backstop and may well succeed after this one did not.
@@ -368,6 +363,8 @@ export function BookWizard({
   }
 
   function goToServices() {
+    // Map disabled for testing - ensure coords exist before proceeding
+    if (!coords) setCoords(storeCenter);
     persistAddress();
     setStep("services");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -380,7 +377,9 @@ export function BookWizard({
   }
 
   async function confirmBooking() {
-    if (!coords || !slotDate || !slotId || !noticeAcceptedAt) {
+    // Map disabled for testing - use store center as fallback coords
+    const coordsToUse = coords ?? storeCenter;
+    if (!coordsToUse || !slotDate || !slotId || !noticeAcceptedAt) {
       setConfirmError(
         "Something is missing from your booking. Please step back and try again.",
       );
@@ -400,8 +399,8 @@ export function BookWizard({
     // is no longer possible: the pin is required before this step is reachable.
     const result = await createBookingAction({
       address: addressText.trim(),
-      lat: coords.lat,
-      lng: coords.lng,
+      lat: coordsToUse.lat,
+      lng: coordsToUse.lng,
       notes: notes.trim() || undefined,
       slotDate,
       slotId,
@@ -449,10 +448,8 @@ export function BookWizard({
 
         {step === "address" ? (
           <AddressStep
-            center={storeCenter}
             maxRadiusKm={maxRadiusKm}
             addressText={addressText}
-            coords={coords}
             zone={zone}
             checking={checking}
             prefilled={Boolean(addressText) && !addressEdited}
@@ -460,7 +457,6 @@ export function BookWizard({
             noticeAccepted={noticeAccepted}
             notes={notes}
             onAddressText={handleAddressText}
-            onCoords={handleCoords}
             onNoticeAccepted={handleNoticeAccepted}
             onNotes={setNotes}
             onBack={() => setStep("details")}

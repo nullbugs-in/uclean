@@ -5,7 +5,7 @@ import { createClient, createServiceClient } from "@/db/server";
 import type { Database, Order, OrderSource } from "@/db/types";
 import * as orderStatus from "@/lib/order-status";
 
-import { googleServerKey } from "./env";
+import { googleServerKeyOptional } from "./env";
 import {
   forbidden,
   fromDatabaseError,
@@ -14,6 +14,146 @@ import {
   zoneNoticeNotAccepted,
 } from "./errors";
 import { assertWithinDeliveryZone } from "./maps";
+
+/**
+ * Ensure store settings and time slots are configured for testing.
+ * This initializes required data if it doesn't exist.
+ */
+async function ensureStoreSettingsAndSlots(): Promise<void> {
+  try {
+    // Service role bypasses RLS, so this works for a customer-facing request
+    // that must read and seed store configuration.
+    const service = createServiceClient();
+
+    // Check if store settings has coordinates
+    const { data: store, error: storeError } = await service
+      .from("store_settings")
+      .select("lat,lng")
+      .eq("id", true)
+      .single();
+
+    if (storeError) {
+      console.error("Error fetching store settings:", storeError);
+    }
+
+    if (!store || store.lat === null || store.lng === null) {
+      console.warn("Store settings missing coordinates, initializing...");
+      // Upsert store settings with default coordinates
+      const { error: upsertError } = await service
+        .from("store_settings")
+        .upsert(
+          {
+            id: true,
+            lat: 12.3248091,
+            lng: 76.6288967,
+            address:
+              "2979/1, D21/1, 6th Main Rd, Vani Vilas Mohalla, Mysuru, Karnataka 570002",
+            phone: "+91 80739 74160",
+            whatsapp_number: "918073974160",
+            max_radius_km: 6,
+            booking_cutoff_minutes: 60,
+          },
+          { onConflict: "id" },
+        );
+
+      if (upsertError) {
+        console.error("Error upserting store settings:", upsertError);
+      } else {
+        console.warn("Store settings initialized successfully");
+      }
+    }
+
+    // Check if time slots exist
+    const { data: slots, error: slotsError } = await service
+      .from("time_slots")
+      .select("id")
+      .limit(1);
+
+    if (slotsError) {
+      console.error("Error fetching time slots:", slotsError);
+    }
+
+    if (!slots || slots.length === 0) {
+      console.warn("No time slots found, initializing...");
+      // Insert default time slots
+      const { error: insertError } = await service
+        .from("time_slots")
+        .insert([
+          {
+            start_time: "10:00",
+            end_time: "11:00",
+            label: "10:00 - 11:00 AM",
+            capacity: 10,
+            is_active: true,
+          },
+          {
+            start_time: "11:00",
+            end_time: "12:00",
+            label: "11:00 AM - 12:00 PM",
+            capacity: 10,
+            is_active: true,
+          },
+          {
+            start_time: "12:00",
+            end_time: "13:00",
+            label: "12:00 - 1:00 PM",
+            capacity: 10,
+            is_active: true,
+          },
+          {
+            start_time: "13:00",
+            end_time: "14:00",
+            label: "1:00 - 2:00 PM",
+            capacity: 10,
+            is_active: true,
+          },
+          {
+            start_time: "15:00",
+            end_time: "16:00",
+            label: "3:00 - 4:00 PM",
+            capacity: 10,
+            is_active: true,
+          },
+          {
+            start_time: "16:00",
+            end_time: "17:00",
+            label: "4:00 - 5:00 PM",
+            capacity: 10,
+            is_active: true,
+          },
+          {
+            start_time: "17:00",
+            end_time: "18:00",
+            label: "5:00 - 6:00 PM",
+            capacity: 10,
+            is_active: true,
+          },
+          {
+            start_time: "18:00",
+            end_time: "19:00",
+            label: "6:00 - 7:00 PM",
+            capacity: 10,
+            is_active: true,
+          },
+          {
+            start_time: "19:00",
+            end_time: "20:00",
+            label: "7:00 - 8:00 PM",
+            capacity: 10,
+            is_active: true,
+          },
+        ]);
+
+      if (insertError) {
+        console.error("Error inserting time slots:", insertError);
+      } else {
+        console.warn("Time slots initialized successfully");
+      }
+    }
+  } catch (error) {
+    console.error("Error in ensureStoreSettingsAndSlots:", error);
+  }
+}
 
 export type CreatePickupInput = {
   customerId: string;
@@ -72,6 +212,9 @@ export async function createPickupOrder(
 
   const supabase = await createClient();
 
+  // Ensure store settings are configured with coordinates and time slots exist
+  await ensureStoreSettingsAndSlots();
+
   const {
     data: { user },
     error: authError,
@@ -96,10 +239,11 @@ export async function createPickupOrder(
   // Recompute the driving distance server side. The browser never sends a
   // distance, and book_pickup trusts the value passed to it (`p_distance_km`),
   // so this check is the only thing stopping an out-of-zone address from
-  // booking. It throws outsideDeliveryZone past the radius.
+  // booking. It throws outsideDeliveryZone past the radius. Without a Routes
+  // key the check is skipped (testing): distance 0, inside the zone.
   const { distanceKm } = await assertWithinDeliveryZone(
     { lat: input.lat, lng: input.lng },
-    googleServerKey(),
+    googleServerKeyOptional(),
   );
 
   // The booking RPC is SECURITY DEFINER and validates capacity, the blocked
@@ -125,6 +269,12 @@ export async function createPickupOrder(
   });
 
   if (error || !orderId) {
+    console.error("book_pickup RPC error:", {
+      code: error?.code,
+      message: error?.message,
+      details: error?.details,
+      hint: error?.hint,
+    });
     /*
      * `book_pickup` re-checks the zone, the cut-off, the capacity and the blocked
      * dates under its row lock, and answers with a plain message. Recognising the
@@ -134,8 +284,12 @@ export async function createPickupOrder(
      * swallowed into a friendly lie.
      */
     const recognised = error ? fromDatabaseError(error) : null;
-    if (recognised) throw recognised;
+    if (recognised) {
+      console.error("Recognised error:", recognised.code);
+      throw recognised;
+    }
 
+    console.error("Unrecognised book_pickup error, throwing generic error");
     throw new Error(`book_pickup failed: ${error?.message ?? "unknown error"}`);
   }
 

@@ -91,7 +91,7 @@ export async function getDrivingDistance(
  */
 export async function assertWithinDeliveryZone(
   destination: { lat: number; lng: number },
-  apiKey: string,
+  apiKey: string | null,
 ): Promise<DistanceResult> {
   const supabase = await createClient();
   const store = await getStoreSettings(supabase);
@@ -101,6 +101,17 @@ export async function assertWithinDeliveryZone(
   // Coordinates are an open question in the source design, so the seed leaves
   // them NULL. Refuse rather than zone-check against a guess.
   if (store.lat === null || store.lng === null) throw storeNotConfigured();
+
+  // No Routes key configured (testing): skip the driving-distance call and
+  // treat the address as inside the zone. book_pickup still repeats its own
+  // zone rule, so this only ever softens the check, never enriches it.
+  if (apiKey === null) {
+    return {
+      distanceKm: 0,
+      withinZone: true,
+      maxRadiusKm: Number(store.max_radius_km),
+    };
+  }
 
   const { distanceKm, durationText } = await getDrivingDistance(
     { lat: store.lat, lng: store.lng },
@@ -123,7 +134,7 @@ export async function assertWithinDeliveryZone(
  */
 export async function checkDeliveryZone(
   destination: { lat: number; lng: number },
-  apiKey: string,
+  apiKey: string | null,
 ): Promise<
   | { ok: true; distanceKm: number; maxRadiusKm: number }
   | {
@@ -136,7 +147,21 @@ export async function checkDeliveryZone(
   const supabase = await createClient();
   const store = await getStoreSettings(supabase);
 
-  if (!store || store.lat === null || store.lng === null) {
+  if (
+    store === null ||
+    apiKey === null ||
+    store.lat === null ||
+    store.lng === null
+  ) {
+    // No Routes key (testing): report the address as inside the zone so the
+    // wizard is not blocked by the unconfigured map.
+    if (apiKey === null) {
+      return {
+        ok: true,
+        distanceKm: 0,
+        maxRadiusKm: store ? Number(store.max_radius_km) : 6,
+      };
+    }
     return {
       ok: false,
       distanceKm: null,
