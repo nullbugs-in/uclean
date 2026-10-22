@@ -38,6 +38,8 @@ export type PickupAgent = {
   isAvailable: boolean;
   currentLoad: number;
   vehicle: string | null;
+  /** `profiles.is_active`: false means the account cannot sign in. */
+  isActive: boolean;
 };
 
 /** A pickup request as the admin page renders it. */
@@ -224,7 +226,7 @@ export function groupPickupsByDay(
 /** Resolves agent rows plus their profile identity, for the dropdown. */
 export function assemblePickupAgents(
   agents: Agent[],
-  profiles: Pick<Profile, "id" | "full_name" | "mobile">[],
+  profiles: Pick<Profile, "id" | "full_name" | "mobile" | "is_active">[],
 ): PickupAgent[] {
   const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
 
@@ -239,6 +241,7 @@ export function assemblePickupAgents(
       isAvailable: agent.is_available,
       currentLoad: agent.current_load,
       vehicle: agent.vehicle,
+      isActive: profile?.is_active ?? true,
     };
   });
 }

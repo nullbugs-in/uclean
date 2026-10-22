@@ -444,6 +444,7 @@ function agent(overrides: Partial<PickupAgent> = {}): PickupAgent {
     isAvailable: true,
     currentLoad: 0,
     vehicle: null,
+    isActive: true,
     ...overrides,
   };
 }

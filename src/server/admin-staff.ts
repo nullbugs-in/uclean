@@ -6,16 +6,16 @@ import type { AppRole, DbClient } from "@/db/types";
 import { writeAudit } from "./audit";
 
 /**
- * Staff account operations (section 8.12).
+ * Agent account operations for the Staff module.
  *
  * Every function writes through the service client, and that is the only reason
  * this module exists: migration 09 revoked `update on public.profiles` from
  * `authenticated` and granted back only `(full_name, mobile, email,
  * whatsapp_number)`, because `profiles_update_self` would otherwise have let a
- * signed-in customer run `update profiles set role = 'admin'`. So `role`,
- * `is_active` and `can_view_all_orders` can be written by nothing but the
- * service role - which means the `requireAdmin()` in the calling action is the
- * only gate standing here, and there is no policy behind it to fall back on.
+ * signed-in customer run `update profiles set role = 'admin'`. So `is_active`
+ * can be written by nothing but the service role - which means the
+ * `requireAdmin()` in the calling action is the only gate standing here, and
+ * there is no policy behind it to fall back on.
  *
  * Nothing here creates an account. `createAgent` in admin-pickups.ts already
  * does, and it has to: a profile row is built by the `on_auth_user_created`
@@ -37,7 +37,6 @@ type StaffRow = {
   full_name: string;
   role: AppRole;
   is_active: boolean;
-  can_view_all_orders: boolean;
 };
 
 async function readStaff(
@@ -46,7 +45,7 @@ async function readStaff(
 ): Promise<StaffRow> {
   const { data, error } = await client
     .from("profiles")
-    .select("id, full_name, role, is_active, can_view_all_orders")
+    .select("id, full_name, role, is_active")
     .eq("id", profileId)
     .maybeSingle();
 
@@ -101,40 +100,6 @@ async function refuseLastAdmin(
   );
 }
 
-/** Moves someone between customer, staff and admin. */
-export async function setStaffRole(
-  profileId: string,
-  role: AppRole,
-  actorId: string,
-): Promise<void> {
-  const service = createServiceClient();
-  const current = await readStaff(service, profileId);
-
-  if (current.role === role) return;
-
-  await refuseLastAdmin(
-    service,
-    current,
-    current.role === "admin" && role !== "admin",
-  );
-
-  const { error } = await service
-    .from("profiles")
-    .update({ role })
-    .eq("id", profileId);
-
-  if (error) throw new Error(error.message);
-
-  await writeAudit(service, {
-    actorId,
-    action: "staff.role_changed",
-    entity: "profile",
-    entityId: profileId,
-    before: { role: current.role },
-    after: { role },
-  });
-}
-
 /**
  * Takes access away, or gives it back.
  *
@@ -173,54 +138,5 @@ export async function setStaffActive(
     entityId: profileId,
     before: { is_active: current.is_active },
     after: { is_active: isActive },
-  });
-}
-
-/**
- * Store-wide order visibility.
- *
- * `is_store_staff()` is `role = 'staff' and can_view_all_orders`, so the flag is
- * meaningless on an admin, who already sees everything through `is_admin()`, and
- * on a customer, who has no panel to widen. Both are refused rather than
- * silently stored as a setting that does nothing.
- */
-export async function setStoreWideVisibility(
-  profileId: string,
-  canViewAllOrders: boolean,
-  actorId: string,
-): Promise<void> {
-  const service = createServiceClient();
-  const current = await readStaff(service, profileId);
-
-  if (current.role === "admin") {
-    throw new StaffAccountError(
-      `profile ${profileId} is an admin`,
-      "Admins already see every order.",
-    );
-  }
-
-  if (canViewAllOrders && current.role === "customer") {
-    throw new StaffAccountError(
-      `profile ${profileId} is a customer`,
-      "Only staff can see the whole order book.",
-    );
-  }
-
-  if (current.can_view_all_orders === canViewAllOrders) return;
-
-  const { error } = await service
-    .from("profiles")
-    .update({ can_view_all_orders: canViewAllOrders })
-    .eq("id", profileId);
-
-  if (error) throw new Error(error.message);
-
-  await writeAudit(service, {
-    actorId,
-    action: "staff.store_visibility_changed",
-    entity: "profile",
-    entityId: profileId,
-    before: { can_view_all_orders: current.can_view_all_orders },
-    after: { can_view_all_orders: canViewAllOrders },
   });
 }

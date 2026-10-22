@@ -140,7 +140,7 @@ export async function listPickupAgents(
 
   const { data: profileRows, error: profileError } = await client
     .from("profiles")
-    .select("id, full_name, mobile, role")
+    .select("id, full_name, mobile, role, is_active")
     .in(
       "id",
       agents.map((agent) => agent.id),
@@ -150,7 +150,7 @@ export async function listPickupAgents(
 
   const profiles = (profileRows ?? []) as Pick<
     Profile,
-    "id" | "full_name" | "mobile" | "role"
+    "id" | "full_name" | "mobile" | "role" | "is_active"
   >[];
 
   // An agent whose profile cannot be read is left out rather than shown blank:

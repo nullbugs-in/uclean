@@ -29,7 +29,7 @@ const SECTIONS: PanelNavSection[] = [
     title: "People",
     items: [
       { href: "/admin/customers", label: "Customers" },
-      { href: "/admin/agents", label: "Staff and agents" },
+      { href: "/admin/agents", label: "Staff" },
     ],
   },
   {

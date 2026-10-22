@@ -18,6 +18,7 @@ import { Input, Label } from "@/components/ui/input";
 import type { PickupAgent } from "@/db/queries/admin-pickups";
 import { cn } from "@/lib/utils";
 
+import { setStaffActiveAction } from "../admin/agents/actions";
 import {
   createAgentAction,
   removeAgentAction,
@@ -25,13 +26,19 @@ import {
 } from "../admin/pickups/actions";
 
 /**
- * The agent roster, and the only way to add to it.
+ * The delivery-agent roster for the Staff module, and the only way to add to
+ * it.
  *
  * It exists because `agents` ships empty and nothing else writes to it: the
- * assignment dropdown would otherwise have nothing to list and the automatic rule
- * would have nobody to choose from. This is deliberately the minimum needed to
- * make assignment usable — name, mobile, and an on/off duty toggle that the
- * automatic rule reads as `is_available`.
+ * assignment dropdowns in Pickups and Deliveries (and the automatic rule) would
+ * otherwise have nothing to list. This is deliberately the minimum needed to
+ * make assignment usable - name, mobile, an on/off duty toggle that the
+ * automatic rule reads as `is_available`, and a panel-access toggle that writes
+ * `profiles.is_active` so a deactivated agent cannot sign in.
+ *
+ * Deactivating an agent also takes them off duty first: the automatic rule
+ * reads `is_available` only, so an inactive account left on duty would still be
+ * auto-assigned pickups nobody can act on.
  *
  * Adding an agent creates a real auth user with a confirmed phone, so they sign
  * in with the same one-time-code flow as a customer. No password is created.
@@ -44,12 +51,12 @@ export function AgentDirectory({ agents }: { agents: PickupAgent[] }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Users className="text-muted-foreground size-4" aria-hidden />
-          Agents
+          Delivery agents
         </CardTitle>
         <CardDescription>
           {agents.length === 0
             ? "Nobody can be assigned a pickup until there is at least one agent."
-            : "The people pickups can be assigned to. Off-duty agents are skipped by auto-assign."}
+            : "The people pickups and deliveries are assigned to. Off-duty agents are skipped by auto-assign; deactivated agents cannot sign in."}
         </CardDescription>
 
         <CardAction>
@@ -91,11 +98,53 @@ function AgentRow({ agent }: { agent: PickupAgent }) {
   const [isPending, startTransition] = useTransition();
 
   function toggle() {
+    setError(null);
+
     startTransition(async () => {
-      await setAgentAvailabilityAction({
+      const result = await setAgentAvailabilityAction({
         agentId: agent.id,
         isAvailable: !agent.isAvailable,
       });
+
+      if (!result.ok) setError(result.message);
+    });
+  }
+
+  function toggleAccess() {
+    setError(null);
+
+    startTransition(async () => {
+      const activating = !agent.isActive;
+
+      if (activating) {
+        const result = await setStaffActiveAction({
+          profileId: agent.id,
+          isActive: true,
+        });
+
+        if (!result.ok) setError(result.message);
+        return;
+      }
+
+      // Off duty first, then deactivate: the automatic rule reads
+      // `is_available` only, so the account must leave the dispatch pool in the
+      // same edit that takes its sign-in away.
+      const dutyResult = await setAgentAvailabilityAction({
+        agentId: agent.id,
+        isAvailable: false,
+      });
+
+      if (!dutyResult.ok) {
+        setError(dutyResult.message);
+        return;
+      }
+
+      const accessResult = await setStaffActiveAction({
+        profileId: agent.id,
+        isActive: false,
+      });
+
+      if (!accessResult.ok) setError(accessResult.message);
     });
   }
 
@@ -124,7 +173,7 @@ function AgentRow({ agent }: { agent: PickupAgent }) {
             <AvatarFallback
               className={cn(
                 "text-xs font-semibold",
-                agent.isAvailable
+                agent.isActive && agent.isAvailable
                   ? "bg-primary/15 text-foreground"
                   : "bg-muted text-muted-foreground",
               )}
@@ -136,9 +185,13 @@ function AgentRow({ agent }: { agent: PickupAgent }) {
           <div className="min-w-0">
             <p className="flex items-center gap-2 text-sm font-medium">
               <span className="truncate">{agent.fullName}</span>
-              <Badge variant={agent.isAvailable ? "success" : "secondary"}>
-                {agent.isAvailable ? "On duty" : "Off duty"}
-              </Badge>
+              {agent.isActive ? (
+                <Badge variant={agent.isAvailable ? "success" : "secondary"}>
+                  {agent.isAvailable ? "On duty" : "Off duty"}
+                </Badge>
+              ) : (
+                <Badge variant="warning">Deactivated</Badge>
+              )}
             </p>
 
             <p className="text-muted-foreground truncate text-xs">
@@ -155,17 +208,32 @@ function AgentRow({ agent }: { agent: PickupAgent }) {
         </div>
 
         <div className="flex items-center gap-2">
+          {agent.isActive ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={isPending}
+              onClick={toggle}
+            >
+              {isPending ? (
+                <Loader2 className="animate-spin" aria-hidden />
+              ) : null}
+              {agent.isAvailable ? "Take off duty" : "Put on duty"}
+            </Button>
+          ) : null}
+
           <Button
             type="button"
             size="sm"
             variant="outline"
             disabled={isPending}
-            onClick={toggle}
+            onClick={toggleAccess}
           >
             {isPending ? (
               <Loader2 className="animate-spin" aria-hidden />
             ) : null}
-            {agent.isAvailable ? "Take off duty" : "Put on duty"}
+            {agent.isActive ? "Remove access" : "Grant access"}
           </Button>
 
           <Button
@@ -213,12 +281,6 @@ function AgentRow({ agent }: { agent: PickupAgent }) {
             </li>
           </ul>
 
-          {error ? (
-            <p role="alert" className="text-destructive text-xs">
-              {error}
-            </p>
-          ) : null}
-
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
@@ -248,6 +310,12 @@ function AgentRow({ agent }: { agent: PickupAgent }) {
             </Button>
           </div>
         </div>
+      ) : null}
+
+      {error ? (
+        <p role="alert" className="text-destructive mt-2 text-xs">
+          {error}
+        </p>
       ) : null}
     </li>
   );

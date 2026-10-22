@@ -3,13 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { StaffAccountError, setStaffActive, setStaffRole, setStoreWideVisibility } from "@/server/admin-staff";
+import { StaffAccountError, setStaffActive } from "@/server/admin-staff";
 import { requireAdmin } from "@/server/auth";
 import { DomainError } from "@/server/errors";
-import type { AppRole } from "@/db/types";
 
 /**
- * Admin staff actions (section 8.12).
+ * Agent access actions for the Staff module.
  *
  * Each opens with `requireAdmin()`, and unlike most of this app that is not
  * belt-and-braces: `admin-staff.ts` writes through the service client, which
@@ -18,11 +17,14 @@ import type { AppRole } from "@/db/types";
  * There is no policy to lean on here, so this check is the whole gate.
  */
 
-export type StaffActionResult = { ok: true; message?: string } | { ok: false; message: string };
+export type StaffActionResult =
+  { ok: true; message?: string } | { ok: false; message: string };
 
-const profileIdSchema = z.string().uuid("That staff account could not be found.");
+const profileIdSchema = z
+  .string()
+  .uuid("That staff account could not be found.");
 
-/** Refreshes the team list and any roster that reads the same profiles. */
+/** Refreshes the roster and any view that reads the same profiles. */
 function revalidateTeamViews() {
   revalidatePath("/admin/agents");
 }
@@ -36,31 +38,6 @@ function toMessage(error: unknown): string {
   return "We could not save that change. Please try again shortly.";
 }
 
-export async function setStaffRoleAction(input: {
-  profileId: string;
-  role: AppRole;
-}): Promise<StaffActionResult> {
-  const parsed = z
-    .object({ profileId: profileIdSchema, role: z.enum(["customer", "staff", "admin"]) })
-    .safeParse(input);
-
-  if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? "That role is not valid." };
-  }
-
-  try {
-    const admin = await requireAdmin();
-
-    await setStaffRole(parsed.data.profileId, parsed.data.role, admin.profile.id);
-
-    revalidateTeamViews();
-
-    return { ok: true, message: "Role updated." };
-  } catch (error) {
-    return { ok: false, message: toMessage(error) };
-  }
-}
-
 export async function setStaffActiveAction(input: {
   profileId: string;
   isActive: boolean;
@@ -70,46 +47,28 @@ export async function setStaffActiveAction(input: {
     .safeParse(input);
 
   if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? "That account could not be updated." };
+    return {
+      ok: false,
+      message:
+        parsed.error.issues[0]?.message ?? "That account could not be updated.",
+    };
   }
 
   try {
     const admin = await requireAdmin();
 
-    await setStaffActive(parsed.data.profileId, parsed.data.isActive, admin.profile.id);
-
-    revalidateTeamViews();
-
-    return { ok: true, message: parsed.data.isActive ? "Access restored." : "Access removed." };
-  } catch (error) {
-    return { ok: false, message: toMessage(error) };
-  }
-}
-
-export async function setStoreWideVisibilityAction(input: {
-  profileId: string;
-  canViewAllOrders: boolean;
-}): Promise<StaffActionResult> {
-  const parsed = z
-    .object({ profileId: profileIdSchema, canViewAllOrders: z.boolean() })
-    .safeParse(input);
-
-  if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? "That account could not be updated." };
-  }
-
-  try {
-    const admin = await requireAdmin();
-
-    await setStoreWideVisibility(
+    await setStaffActive(
       parsed.data.profileId,
-      parsed.data.canViewAllOrders,
+      parsed.data.isActive,
       admin.profile.id,
     );
 
     revalidateTeamViews();
 
-    return { ok: true, message: "Visibility updated." };
+    return {
+      ok: true,
+      message: parsed.data.isActive ? "Access restored." : "Access removed.",
+    };
   } catch (error) {
     return { ok: false, message: toMessage(error) };
   }

@@ -28,16 +28,6 @@ export async function getProfile(
   );
 }
 
-export async function listStaffAndAdmins(client: Client): Promise<Profile[]> {
-  return unwrap(
-    await client
-      .from("profiles")
-      .select("*")
-      .in("role", ["staff", "admin"])
-      .order("full_name", { ascending: true }),
-  );
-}
-
 export async function listAddresses(
   client: Client,
   userId: string,
