@@ -46,13 +46,11 @@ export type { StoreSettingsInput, StoreSettingsValues } from "./store";
 
 export {
   walkInCustomerSchema,
-  walkInItemSchema,
   walkInLookupSchema,
   walkInRequestSchema,
 } from "./walk-in";
 export type {
   WalkInCustomerInput,
-  WalkInItemInput,
   WalkInLookupInput,
   WalkInRequestInput,
 } from "./walk-in";

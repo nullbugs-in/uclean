@@ -11,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getStoreSettings, listActiveServices } from "@/db/queries/catalog";
+import { getStoreSettings } from "@/db/queries/catalog";
 import { createClient } from "@/db/server";
 import { addDays, storeNow, toDateKey } from "@/lib/dates";
 import { requireAdmin } from "@/server/auth";
@@ -49,11 +49,11 @@ function upcomingDateKeys(count: number): string[] {
  *
  * The counter takes an order for someone who did not book online. The design
  * decision worth stating is that this is **the same order** as an online one:
- * `source = walk_in`, the same services, the same slots, the same zone check, and
- * the same `createPickupOrder` path. Nothing here re-implements the booking rules,
- * so a walk-in cannot be booked into a full slot or an out-of-zone address that
- * the website would have refused, and the sales report needs no special case to
- * count it.
+ * `source = walk_in`, the same price list (`src/data/pricing.ts`), the same
+ * slots, the same zone check, and the same `createPickupOrder` path. Nothing
+ * here re-implements the booking rules, so a walk-in cannot be booked into a
+ * full slot or an out-of-zone address that the website would have refused, and
+ * the sales report needs no special case to count it.
  *
  * What is genuinely new is only the customer: a name and a mobile number with no
  * account behind them.
@@ -63,10 +63,7 @@ export default async function AdminWalkInPage() {
 
   const supabase = await createClient();
 
-  const [settings, services] = await Promise.all([
-    getStoreSettings(supabase),
-    listActiveServices(supabase),
-  ]);
+  const settings = await getStoreSettings(supabase);
 
   /*
    * The store's coordinates are what the 6 km check measures from, and the map is
@@ -130,12 +127,6 @@ export default async function AdminWalkInPage() {
         todayKey={todayKey}
         center={{ lat: settings.lat, lng: settings.lng }}
         maxRadiusKm={settings.max_radius_km}
-        services={services.map((service) => ({
-          id: service.id,
-          name: service.name,
-          unit: service.unit,
-          price: service.price,
-        }))}
         slotDays={slotDays}
       />
     </PanelPage>

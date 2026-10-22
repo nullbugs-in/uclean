@@ -10,13 +10,13 @@ import {
  * Guards the walk-in submit.
  *
  * A walk-in is verified the same way an online booking is, with two additions
- * the counter introduces: the customer's name and number, and a service line that
- * must point at a real catalogue entry. The name is the one field that gets
- * discarded when the number already belongs to a customer, so the schema's only
- * job here is to make sure something usable arrives.
+ * the counter introduces: the customer's name and number, and a basket that
+ * cannot be empty when submitted. The name is the one field that gets discarded
+ * when the number already belongs to a customer, so the schema's only job here
+ * is to make sure something usable arrives.
  */
 
-const SERVICE_ID = "53048928-73d0-4f56-be1d-d403a8201752";
+const slotUuid = "53048928-73d0-4f56-be1d-d403a8201752";
 
 const base = {
   fullName: "Asha Menon",
@@ -25,11 +25,9 @@ const base = {
   lat: 12.32,
   lng: 76.62,
   slotDate: "2026-10-20",
-  slotId: SERVICE_ID,
+  slotId: slotUuid,
   zoneNoticeAcceptedAt: new Date().toISOString(),
-  items: [
-    { serviceId: SERVICE_ID, name: "Wash and Iron", qty: 2, unitPrice: 80 },
-  ],
+  items: [{ name: "Wash & Fold", qty: 2, unitPrice: 89 }],
 };
 
 describe("walkInCustomerSchema", () => {
@@ -84,25 +82,25 @@ describe("walkInRequestSchema", () => {
     );
   });
 
-  it("requires every line to name the catalogue row it came from", () => {
+  it("takes the wizard's line shape, with no catalogue reference", () => {
     expect(
       walkInRequestSchema.safeParse({
         ...base,
-        items: [{ name: "Wash and Iron", qty: 2, unitPrice: 80 }],
+        items: [{ name: "Wash & Fold", qty: 2, unitPrice: 89 }],
+      }).success,
+    ).toBe(true);
+
+    expect(
+      walkInRequestSchema.safeParse({
+        ...base,
+        items: [{ name: "", qty: 2, unitPrice: 89 }],
       }).success,
     ).toBe(false);
 
     expect(
       walkInRequestSchema.safeParse({
         ...base,
-        items: [
-          {
-            serviceId: "not-a-uuid",
-            name: "Wash and Iron",
-            qty: 2,
-            unitPrice: 80,
-          },
-        ],
+        items: [{ name: "Wash & Fold", qty: 2 }],
       }).success,
     ).toBe(false);
   });

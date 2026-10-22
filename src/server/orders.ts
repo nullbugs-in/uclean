@@ -173,11 +173,12 @@ export type CreatePickupInput = {
     /**
      * The `services` row this line came from, when there is one.
      *
-     * The public wizard's price list has no row behind it, so this is null for an
-     * online booking. A walk-in is taken from the live catalogue at the counter,
-     * so it can carry the reference - which lets the sales report, the rate on the
-     * invoice and the catalogue all name the same service rather than three
-     * similar strings.
+     * The public wizard's price list has no row behind it, so this is null for
+     * an online booking. A walk-in books from the same price list, so it is
+     * null there too - which is the normal case these days. A line taken from
+     * the admin catalogue (as the add-items editor does) carries the reference,
+     * which keeps the sales report, the invoice's rate and the catalogue naming
+     * one service rather than three similar strings.
      */
     serviceId?: string | null;
   }>;

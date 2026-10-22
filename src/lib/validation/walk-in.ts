@@ -20,20 +20,14 @@ export const walkInCustomerSchema = z.object({
 export type WalkInCustomerInput = z.infer<typeof walkInCustomerSchema>;
 
 /**
- * One line, attached to the catalogue row it came from.
+ * One line the counter books, straight from the wizard.
  *
- * Distinct from `bookingItemSchema` in one respect: `serviceId` is required. The
- * public wizard offers lines from a price list that has no `services` row behind
- * it, but a walk-in is taken from the live catalogue, so keeping the reference is
- * free and worth having — the sales report groups by item name and the billing
- * step resolves the rate from `services`, and both agree more easily when the
- * link is actually recorded.
+ * A walk-in is authored from the same price list the website shows — the
+ * Regular/Express lists in `src/data/pricing.ts` — so a line carries the name
+ * the customer sees and the figure it will be billed at, and no `services`
+ * reference. That is exactly an online booking's line, which is the point: the
+ * invoice prices a walk-in the same way it prices every other booking.
  */
-export const walkInItemSchema = bookingItemSchema.extend({
-  serviceId: z.string().uuid("Choose a service from the catalogue"),
-});
-
-export type WalkInItemInput = z.infer<typeof walkInItemSchema>;
 
 /**
  * The full walk-in submit.
@@ -53,7 +47,7 @@ export const walkInRequestSchema = pickupRequestSchema.extend({
   fullName: walkInCustomerSchema.shape.fullName,
   mobile: walkInCustomerSchema.shape.mobile,
   items: z
-    .array(walkInItemSchema)
+    .array(bookingItemSchema)
     .min(1, "Add at least one service")
     .max(30, "Too many services selected"),
 });
