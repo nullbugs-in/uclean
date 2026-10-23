@@ -102,10 +102,14 @@ export function PanelSidebar({
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader>
+      {/* pb-0 + gap-0 + a shallow first group: the default spacing stacks
+          16px under the module name and 24px between sections, which made
+          the sidebar read as a floating list. The titles now sit ~4px under
+          the wordmark and 16px apart. */}
+      <SidebarHeader className="pb-0">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
+            <SidebarMenuButton size="lg" className="pb-0" asChild>
               <Link href={home} onClick={closeMobile}>
                 {/*
                   The favicon is the brand mark itself — a rounded green "U"
@@ -131,12 +135,26 @@ export function PanelSidebar({
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarContent>
-        {visible.map((section) => (
-          <SidebarGroup key={section.title}>
-            <SidebarGroupLabel>{section.title}</SidebarGroupLabel>
+      <SidebarContent className="gap-0">
+        {visible.map((section, sectionIndex) => (
+          <SidebarGroup
+            key={section.title}
+            // Nav rows pay for the title space: py-1.5 (32px rows, was 36px)
+            // funds each section's wider pt-5, so the list is ~20px SHORTER
+            // than the last round and the scrollbar stays away even on short
+            // tablet/landscape viewports.
+            className={sectionIndex === 0 ? "pt-0 pb-0" : "pt-5 pb-0"}
+          >
+            {/* h-7 per section row keeps the title rhythm; the first stays
+                h-5 flush under the wordmark. text-primary paints the
+                section titles in the brand's lime green. */}
+            <SidebarGroupLabel
+              className={`${sectionIndex === 0 ? "h-5" : "h-7"} text-primary`}
+            >
+              {section.title}
+            </SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu>
+              <SidebarMenu className="gap-0">
                 {section.items.map((item) => {
                   const Icon = panelIcon(item.href);
                   const active = item.href === activeHref;
@@ -146,6 +164,7 @@ export function PanelSidebar({
                         asChild
                         isActive={active}
                         tooltip={item.label}
+                        className="py-1.5"
                       >
                         <Link
                           href={item.href}
