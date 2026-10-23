@@ -100,6 +100,10 @@ export const siteConfig = {
       label: "Instagram",
       href: "https://www.instagram.com/uclean_v.v.mohalla?exln=MWd2ZDVxaHhvMDVsdw==",
     },
+    {
+      label: "Google Business",
+      href: "https://share.google/8tQQUWQr3PdreZ3vy",
+    },
   ] as SocialLink[],
 
   /** Driving-distance service radius, also mirrored in the database. */

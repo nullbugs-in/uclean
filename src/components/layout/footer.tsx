@@ -18,6 +18,29 @@ import { NAV_LINKS } from "@/config/nav";
 const TOP_RULE =
   "absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[var(--primary)] via-[var(--primary)] to-[var(--accent)]";
 
+/**
+ * The official Google "G", drawn with `currentColor` so it inherits exactly
+ * what the lucide Instagram glyph beside it inherits: the muted-chip gray at
+ * rest and the foreground tint on hover. Fill rather than stroke because the
+ * G's four strokes are solid shapes, not line art. Sits inside the same
+ * `aria-hidden` social chip the list renders for every entry.
+ */
+function GoogleBusinessIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="size-4"
+      fill="currentColor"
+    >
+      <path d="M21.35 12.18c0-.67-.06-1.32-.17-1.94H12v3.68h5.24a4.48 4.48 0 0 1-1.94 2.94v2.44h3.14c1.84-1.69 2.91-4.19 2.91-7.12z" />
+      <path d="M12 22c2.61 0 4.8-.86 6.4-2.34l-3.14-2.44c-.86.58-1.97.92-3.26.92-2.51 0-4.63-1.69-5.4-3.96H3.36v2.52A8.53 8.53 0 0 0 12 22z" />
+      <path d="M6.6 14.18A5.12 5.12 0 0 1 6.6 9.82V7.3H3.36a8.54 8.54 0 0 0 0 7.4l3.24-2.52z" />
+      <path d="M12 5.86c1.42 0 2.69.49 3.7 1.45l2.77-2.77C16.79 2.89 14.6 2 12 2a8.53 8.53 0 0 0-8.64 5.3l3.24 2.52c.77-2.27 2.89-3.96 5.4-3.96z" />
+    </svg>
+  );
+}
+
 export function Footer() {
   const year = new Date().getFullYear();
 
@@ -64,7 +87,11 @@ export function Footer() {
                   aria-label={`${siteConfig.name} on ${item.label}`}
                   className="border-border text-muted-foreground hover:border-primary/50 hover:text-foreground hover:shadow-primary/30 grid size-9 place-items-center rounded-full border text-sm font-semibold transition-all hover:shadow-md"
                 >
-                  <Instagram aria-hidden="true" className="size-4" />
+                  {item.label === "Instagram" ? (
+                    <Instagram aria-hidden="true" className="size-4" />
+                  ) : (
+                    <GoogleBusinessIcon />
+                  )}
                 </a>
               </li>
             ))}
