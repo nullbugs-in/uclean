@@ -22,14 +22,23 @@ function history(
 
 describe("OrderTimeline", () => {
   it("renders every customer step in order", () => {
-    render(<OrderTimeline status="picked_up" history={history([])} />);
+    render(<OrderTimeline status="under_analysis" history={history([])} />);
 
     const steps = screen
       .getAllByRole("listitem")
       .map((item) => item.textContent);
     expect(steps[0]).toContain("Pickup Scheduled");
     expect(steps[1]).toContain("Agent Assigned");
+    expect(steps[2]).toContain("Product Analysis");
     expect(steps.at(-1)).toContain("Delivered");
+  });
+
+  it("hides the collection handover from the tracked steps", () => {
+    render(<OrderTimeline status="under_analysis" history={history([])} />);
+
+    // "Picked Up" is not a customer tracking row: the card pill says it, the
+    // tracker below jumps from Agent Assigned to Product Analysis.
+    expect(screen.queryByText("Picked Up")).not.toBeInTheDocument();
   });
 
   it("marks the current status", () => {
@@ -42,7 +51,7 @@ describe("OrderTimeline", () => {
   it("shows timestamps for steps that have been reached", () => {
     render(
       <OrderTimeline
-        status="picked_up"
+        status="under_analysis"
         history={history([
           [null, "pickup_requested"],
           ["pickup_requested", "agent_assigned"],
@@ -51,8 +60,9 @@ describe("OrderTimeline", () => {
       />,
     );
 
-    // Three timestamps, one per completed step.
-    expect(screen.getAllByText(/2026/).length).toBeGreaterThanOrEqual(3);
+    // Two timestamps: Pickup Scheduled and Agent Assigned. The third entry
+    // (picked_up) has no dedicated row on the customer tracker.
+    expect(screen.getAllByText(/2026/).length).toBeGreaterThanOrEqual(2);
   });
 
   it("short circuits to a cancelled notice", () => {

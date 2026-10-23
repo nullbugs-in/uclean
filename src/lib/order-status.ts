@@ -28,11 +28,12 @@ export type OrderStatus = (typeof ORDER_STATUSES)[number];
 /**
  * Wording the customer sees, from the "Customer sees" column of section 7.
  *
- * `under_analysis` and `in_process` used to share the label "In Process", which
- * made the customer tracking timeline show two identical steps with no way to
- * tell which one had happened. They are distinct operations: the first is the
- * laundry being washed and pressed, the second is everything after the invoice
- * being settled. So the labels now say which one is meant.
+ * The labels have been renamed twice as the customer-facing wording changed:
+ * `under_analysis` first said "Laundry Processing" and now says "Product
+ * Analysis", while `in_process` first said "Processing Complete" and now says
+ * "Laundry Processing". They were once the same string ("In Process"), which
+ * made the tracking timeline show two identical steps that could not be told
+ * apart.
  *
  * Only these strings changed. The status values, the transition table and the
  * SQL are untouched, so `order-status.test.ts`'s parity check still holds and
@@ -42,11 +43,11 @@ export const CUSTOMER_STATUS_LABEL: Record<OrderStatus, string> = {
   pickup_requested: "Pickup Scheduled",
   agent_assigned: "Agent Assigned",
   picked_up: "Picked Up",
-  under_analysis: "Laundry Processing",
+  under_analysis: "Product Analysis",
   invoice_sent: "Invoice Sent",
   payment_pending: "Payment Pending",
   paid: "Payment Received",
-  in_process: "Processing Complete",
+  in_process: "Laundry Processing",
   ready_for_delivery: "Ready",
   out_for_delivery: "Out for Delivery",
   delivered: "Delivered",
@@ -106,11 +107,18 @@ export function isTerminalStatus(status: OrderStatus): boolean {
   return TRANSITIONS[status].length === 0;
 }
 
-/** The customer-facing timeline from section 6.3, in order. */
+/**
+ * The customer-facing tracking timeline, in order.
+ *
+ * `picked_up` is deliberately not a row: the customer's laundry is with the
+ * rider between "Agent Assigned" and "Product Analysis", and the booking
+ * card's status pill already says "Picked Up". This matches how the payment
+ * states are hidden below, and does not touch the state machine itself -
+ * `picked_up` still happens and history still records it.
+ */
 export const CUSTOMER_TIMELINE: readonly OrderStatus[] = [
   "pickup_requested",
   "agent_assigned",
-  "picked_up",
   "under_analysis",
   "invoice_sent",
   "in_process",
@@ -122,15 +130,15 @@ export const CUSTOMER_TIMELINE: readonly OrderStatus[] = [
 /**
  * Every stage an administrator sees, in order.
  *
- * `CUSTOMER_TIMELINE` deliberately hides `payment_pending` and `paid`: a customer
- * has no business tracking which side of an invoice a booking is on. An admin
- * does, so an admin timeline that reused the customer list would silently omit
- * two real billing stages and jump from "Invoice Sent" straight to "Processing
- * Complete".
+ * `CUSTOMER_TIMELINE` deliberately hides `picked_up`, `payment_pending` and
+ * `paid`: a customer follows the service, not who is holding the laundry or
+ * which side of an invoice the booking is on. An admin does, so an admin
+ * timeline that reused the customer list would silently omit a real collection
+ * stage and two real billing stages.
  *
- * The order is the same as `CUSTOMER_TIMELINE` with the two payment states
- * inserted after `invoice_sent`, which is where the state machine puts them:
- * `invoice_sent -> payment_pending -> paid -> in_process`.
+ * The order is the same as `CUSTOMER_TIMELINE` with `picked_up` inserted after
+ * `agent_assigned` and the two payment states after `invoice_sent`, which is
+ * where the state machine puts them.
  */
 export const ADMIN_TIMELINE: readonly OrderStatus[] = [
   "pickup_requested",

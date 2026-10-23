@@ -110,11 +110,10 @@ describe("order state machine", () => {
     expect(sources).toEqual(["out_for_delivery"]);
   });
 
-  it("orders the customer timeline as the architecture document describes", () => {
+  it("orders the customer timeline as the tracking page describes", () => {
     expect(CUSTOMER_TIMELINE).toEqual([
       "pickup_requested",
       "agent_assigned",
-      "picked_up",
       "under_analysis",
       "invoice_sent",
       "in_process",
@@ -122,6 +121,14 @@ describe("order state machine", () => {
       "out_for_delivery",
       "delivered",
     ]);
+  });
+
+  it("hides the collection handover and the payment states from the customer", () => {
+    // The tracking page follows the service; "Picked Up" and the billing
+    // stages already have a home on the booking card and the invoice.
+    expect(CUSTOMER_TIMELINE).not.toContain("picked_up");
+    expect(CUSTOMER_TIMELINE).not.toContain("payment_pending");
+    expect(CUSTOMER_TIMELINE).not.toContain("paid");
   });
 
   it("labels every status for customers and for staff", () => {

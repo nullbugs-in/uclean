@@ -11,10 +11,11 @@ import type { Order, OrderStatusHistory } from "@/db/types";
 /**
  * The audit trail an admin reads: who changed what, and when.
  *
- * Not the customer timeline. `OrderTimeline` renders only the nine
- * `CUSTOMER_TIMELINE` steps in customer wording, so it hides `payment_pending` and
- * `paid` entirely and carries no actor name. This is the record the
- * architecture doc asks for: every transition with who made it, newest first.
+ * Not the customer timeline. `OrderTimeline` renders only the eight
+ * `CUSTOMER_TIMELINE` steps in customer wording, so it hides `picked_up`,
+ * `payment_pending` and `paid` entirely and carries no actor name. This is the
+ * record the architecture doc asks for: every transition with who made it,
+ * newest first.
  *
  * The rows come from `order_status_history`, which a database trigger writes on
  * any change to `orders.status`. So this log cannot drift from what actually

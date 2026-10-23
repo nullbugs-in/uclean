@@ -494,10 +494,10 @@ export const SUMMARY_GROUPS: ReadonlyArray<{
 /**
  * The status log an admin reads: internal names, newest first.
  *
- * Distinct from the customer timeline on purpose. That one renders only the nine
- * `CUSTOMER_TIMELINE` steps in customer wording, so it hides `payment_pending`
- * and `paid` entirely and carries no actor. This is the record the architecture
- * doc asks the admin to see: who, when, from, to.
+ * Distinct from the customer timeline on purpose. That one renders only the eight
+ * `CUSTOMER_TIMELINE` steps in customer wording, so it hides `picked_up`,
+ * `payment_pending` and `paid` entirely and carries no actor. This is the record
+ * the architecture doc asks the admin to see: who, when, from, to.
  */
 export function orderStatusLog(
   history: OrderStatusHistory[],

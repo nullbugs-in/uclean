@@ -28,10 +28,10 @@ export function OrderTimeline({
       (entry) => entry.to_status === "cancelled",
     );
     return (
-      <div className="rounded-md border border-[var(--border)] p-4">
+      <div className="border-border rounded-md border p-4">
         <Badge variant="destructive">Cancelled</Badge>
         {cancelledAt ? (
-          <p className="mt-2 text-sm text-[var(--muted-foreground)]">
+          <p className="text-muted-foreground mt-2 text-sm">
             {formatDateTime(cancelledAt.created_at)}
           </p>
         ) : null}
@@ -60,22 +60,32 @@ export function OrderTimeline({
         return (
           <li key={step} className="flex gap-3">
             <div className="flex flex-col items-center">
-              <span
-                className={cn(
-                  "flex size-6 shrink-0 items-center justify-center rounded-full border text-xs",
-                  done
-                    ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]"
-                    : "border-[var(--border)] bg-transparent text-transparent",
-                )}
-                aria-hidden="true"
-              >
-                <Check className="size-3.5" />
-              </span>
+              {done ? (
+                <span
+                  className="bg-primary ring-border/40 flex size-6 shrink-0 items-center justify-center rounded-full ring-1"
+                  aria-hidden="true"
+                >
+                  {/* The colour is set twice on purpose: tailwind classes for
+                      the normal case, and an inline stroke because a browser
+                      extension rewriting currentColor can blank the icon
+                      while leaving the circle untouched. */}
+                  <Check
+                    className="text-primary-foreground size-3.5"
+                    style={{ stroke: "var(--primary-foreground)" }}
+                    strokeWidth={2.5}
+                  />
+                </span>
+              ) : (
+                <span
+                  className="border-border size-6 shrink-0 rounded-full border"
+                  aria-hidden="true"
+                />
+              )}
               {!last ? (
                 <span
                   className={cn(
                     "w-px flex-1",
-                    done ? "bg-[var(--primary)]" : "bg-[var(--border)]",
+                    done ? "bg-primary" : "bg-border",
                   )}
                 />
               ) : null}
@@ -84,18 +94,20 @@ export function OrderTimeline({
               <p
                 className={cn(
                   "text-sm",
-                  done ? "font-medium" : "text-[var(--muted-foreground)]",
+                  done
+                    ? "text-foreground font-medium"
+                    : "text-muted-foreground",
                 )}
               >
                 {CUSTOMER_STATUS_LABEL[step]}
                 {isCurrent ? (
-                  <span className="ml-2 text-xs text-[var(--muted-foreground)]">
+                  <span className="text-muted-foreground ml-2 text-xs">
                     current
                   </span>
                 ) : null}
               </p>
               {timestamps.has(step) ? (
-                <p className="text-xs text-[var(--muted-foreground)]">
+                <p className="text-muted-foreground text-xs">
                   {formatDateTime(timestamps.get(step))}
                 </p>
               ) : null}

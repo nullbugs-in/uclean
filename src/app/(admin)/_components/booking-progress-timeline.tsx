@@ -13,10 +13,11 @@ import { cn, formatDateTime } from "@/lib/utils";
  * The operational progress of a booking, top to bottom.
  *
  * Forward-looking, and deliberately not the customer's `OrderTimeline`. That one
- * renders the nine `CUSTOMER_TIMELINE` steps in customer wording and hides the
- * payment states entirely, because a customer has no business tracking which side
- * of an invoice they are on. An admin does, so this uses `ADMIN_TIMELINE`, which
- * is the same sequence with `payment_pending` and `paid` put back in.
+ * renders the eight `CUSTOMER_TIMELINE` steps in customer wording and hides the
+ * collection handover and the payment states entirely, because a customer has no
+ * business tracking which side of an invoice they are on. An admin does, so this
+ * uses `ADMIN_TIMELINE`, which is the same sequence with `picked_up`,
+ * `payment_pending` and `paid` put back in.
  *
  * The step state comes from `buildTimeline`, which reads the history rather than
  * the current status alone. That matters because it distinguishes four things a

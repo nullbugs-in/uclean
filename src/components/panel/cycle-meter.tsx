@@ -9,14 +9,17 @@ import {
 /**
  * Where a status sits when it has no step of its own on the customer timeline.
  *
- * The customer sees the bill go out and then work start, so the two payment
- * states live in between those two steps rather than falling back to zero -
- * which would make a paid order look less advanced than an unpaid one.
+ * `picked_up` lives between "Agent Assigned" (1) and "Product Analysis" (2),
+ * so the collection always reads as slightly ahead of the last confirmed
+ * customer step. The two payment states sit between "Invoice Sent" (3) and
+ * "Laundry Processing" (4) rather than falling back to zero - which would make
+ * a paid order look less advanced than an unpaid one.
  * Values are fractional indices into CUSTOMER_TIMELINE.
  */
 const OFF_TIMELINE: Partial<Record<OrderStatus, number>> = {
-  payment_pending: 4.35,
-  paid: 4.7,
+  picked_up: 1.5,
+  payment_pending: 3.35,
+  paid: 3.7,
 };
 
 /** 0..1 position of a status on the customer-facing timeline. */
@@ -53,7 +56,10 @@ export function CycleMeter({
   } else if (status === "delivered") {
     stepLabel = "complete";
   } else if (index < 0) {
-    stepLabel = "payment";
+    stepLabel =
+      status === "picked_up"
+        ? `${Math.floor(OFF_TIMELINE.picked_up ?? 0) + 1} of ${CUSTOMER_TIMELINE.length}`
+        : "payment";
   } else {
     stepLabel = `${index + 1} of ${CUSTOMER_TIMELINE.length}`;
   }
