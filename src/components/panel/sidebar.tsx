@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Sparkles } from "lucide-react";
+
+import UcleanIcon from "@/app/icon.png";
 
 import {
   Sidebar,
@@ -105,9 +107,18 @@ export function PanelSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href={home} onClick={closeMobile}>
-                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                  <Sparkles className="size-4" />
-                </div>
+                {/*
+                  The favicon is the brand mark itself — a rounded green "U"
+                  tile — so it replaces the whole logo tile rather than
+                  sitting inside one. alt="" because the wordmark beside it
+                  already reads UClean.
+                */}
+                <Image
+                  src={UcleanIcon}
+                  alt=""
+                  className="size-8 shrink-0 rounded-lg"
+                  aria-hidden
+                />
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">UClean</span>
                   <span className="truncate text-xs opacity-80">
