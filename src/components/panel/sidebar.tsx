@@ -16,6 +16,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import type { Profile } from "@/db/types";
 
@@ -67,6 +68,13 @@ export function PanelSidebar({
   panelName: string;
 }) {
   const pathname = usePathname() ?? "";
+  // The mobile sidebar is a Sheet, and nothing in the underlying `Link`s
+  // dismissed it: clicking a module navigated while the drawer stayed open.
+  // Selection itself now closes it — a silent no-op on desktop, where only
+  // openMobile drives the Sheet.
+  const { setOpenMobile } = useSidebar();
+
+  const closeMobile = () => setOpenMobile(false);
 
   const visible = sections
     .map((section) => ({
@@ -96,7 +104,7 @@ export function PanelSidebar({
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <Link href={home}>
+              <Link href={home} onClick={closeMobile}>
                 <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
                   <Sparkles className="size-4" />
                 </div>
@@ -130,6 +138,7 @@ export function PanelSidebar({
                       >
                         <Link
                           href={item.href}
+                          onClick={closeMobile}
                           aria-current={active ? "page" : undefined}
                         >
                           {Icon ? <Icon /> : null}

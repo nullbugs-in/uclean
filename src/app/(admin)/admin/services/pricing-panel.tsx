@@ -388,7 +388,10 @@ function GroupRow({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
+      {/* justify-center: the capsule row sits under the centered Express
+          toggle and matches the customer pricing page, which centers the same
+          row. */}
+      <div className="flex flex-wrap justify-center gap-2">
         {groups.map((group) => {
           const selected = group.id === activeId;
 
@@ -417,7 +420,7 @@ function GroupRow({
       </div>
 
       {active && !locked ? (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center justify-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => onEdit(active)}>
             <Pencil aria-hidden /> Edit category
           </Button>
