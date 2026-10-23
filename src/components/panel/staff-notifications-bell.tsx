@@ -236,7 +236,7 @@ export function StaffNotificationsBell({
         <div
           role="menu"
           aria-label="Notifications"
-          className="bg-card border-border absolute right-0 z-50 mt-2 w-80 origin-top-right rounded-2xl border p-2 shadow-lg"
+          className="bg-card border-border absolute right-0 z-50 mt-2 w-80 max-w-[calc(100vw-1.5rem)] origin-top-right rounded-2xl border p-2 shadow-lg"
         >
           {/*
             Header and "Read all" on one line. The button is only rendered when

@@ -98,86 +98,97 @@ export function StaffBillsPanel({ invoices }: { invoices: InvoiceRow[] }) {
               There are no bills on your orders yet.
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-muted-foreground border-b text-left text-xs">
-                    <th className="pr-3 pb-2 font-medium">Invoice</th>
-                    <th className="pr-3 pb-2 font-medium">Order</th>
-                    <th className="pr-3 pb-2 font-medium">Customer</th>
-                    <th className="pr-3 pb-2 text-right font-medium">Total</th>
-                    <th className="pr-3 pb-2 font-medium">Status</th>
-                    <th className="pb-2 text-right font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.map((invoice) => {
-                    const paid = invoice.status === "paid";
-                    const viewable =
-                      // A sent (or collected) bill is the one the customer
-                      // sees; a draft link would bill from unfinished
-                      // paperwork.
-                      (paid || invoice.status === "sent") &&
-                      Boolean(invoice.pay_token);
+            <>
+              <p className="text-muted-foreground text-xs md:hidden">
+                Slide the table horizontally for every column.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[480px] text-sm">
+                  <thead>
+                    <tr className="text-muted-foreground border-b text-left text-xs">
+                      <th className="bg-card sticky left-0 z-10 pr-3 pb-2 font-medium">
+                        Invoice
+                      </th>
+                      <th className="hidden pr-3 pb-2 font-medium sm:table-cell">
+                        Order
+                      </th>
+                      <th className="pr-3 pb-2 font-medium">Customer</th>
+                      <th className="pr-3 pb-2 text-right font-medium">
+                        Total
+                      </th>
+                      <th className="pr-3 pb-2 font-medium">Status</th>
+                      <th className="pb-2 text-right font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invoices.map((invoice) => {
+                      const paid = invoice.status === "paid";
+                      const viewable =
+                        // A sent (or collected) bill is the one the customer
+                        // sees; a draft link would bill from unfinished
+                        // paperwork.
+                        (paid || invoice.status === "sent") &&
+                        Boolean(invoice.pay_token);
 
-                    return (
-                      <tr
-                        key={invoice.id}
-                        className="border-border/60 border-b last:border-0"
-                      >
-                        <td className="py-2 pr-3 font-mono">
-                          {invoice.invoice_no}
-                        </td>
-                        <td className="py-2 pr-3 font-mono">
-                          {invoice.order_no}
-                        </td>
-                        <td className="py-2 pr-3">{invoice.customer_name}</td>
-                        <td className="py-2 pr-3 text-right tabular-nums">
-                          {formatINR(invoice.total)}
-                        </td>
-                        <td className="py-2 pr-3">
-                          <InvoiceStatusBadge status={invoice.status} />
-                        </td>
-                        <td className="py-2 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            {viewable ? (
-                              <Button
-                                asChild
-                                size="sm"
-                                variant="ghost"
-                                className="text-muted-foreground"
-                              >
-                                <Link href={`/pay/${invoice.pay_token}`}>
-                                  <Eye aria-hidden />
-                                  View
-                                </Link>
-                              </Button>
-                            ) : null}
-                            {paid ? (
-                              <span className="text-muted-foreground text-xs">
-                                Collected{" "}
-                                {invoice.paid_at
-                                  ? formatDate(invoice.paid_at)
-                                  : ""}
-                              </span>
-                            ) : (
-                              <Button
-                                size="sm"
-                                onClick={() => openCollect(invoice)}
-                                disabled={isPending}
-                              >
-                                <Wallet aria-hidden />
-                                Mark collected
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                      return (
+                        <tr
+                          key={invoice.id}
+                          className="border-border/60 border-b last:border-0"
+                        >
+                          <td className="bg-card sticky left-0 z-10 py-2 pr-3 font-mono break-words">
+                            {invoice.invoice_no}
+                          </td>
+                          <td className="hidden py-2 pr-3 font-mono break-words sm:table-cell">
+                            {invoice.order_no}
+                          </td>
+                          <td className="py-2 pr-3">{invoice.customer_name}</td>
+                          <td className="py-2 pr-3 text-right tabular-nums">
+                            {formatINR(invoice.total)}
+                          </td>
+                          <td className="py-2 pr-3">
+                            <InvoiceStatusBadge status={invoice.status} />
+                          </td>
+                          <td className="py-2 text-right">
+                            <div className="flex flex-wrap items-center justify-end gap-1">
+                              {viewable ? (
+                                <Button
+                                  asChild
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-muted-foreground"
+                                >
+                                  <Link href={`/pay/${invoice.pay_token}`}>
+                                    <Eye aria-hidden />
+                                    View
+                                  </Link>
+                                </Button>
+                              ) : null}
+                              {paid ? (
+                                <span className="text-muted-foreground text-xs break-words">
+                                  Collected{" "}
+                                  {invoice.paid_at
+                                    ? formatDate(invoice.paid_at)
+                                    : ""}
+                                </span>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  onClick={() => openCollect(invoice)}
+                                  disabled={isPending}
+                                >
+                                  <Wallet aria-hidden />
+                                  Mark collected
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

@@ -48,20 +48,24 @@ export default async function StaffOrdersPage() {
         </div>
       ) : (
         <div className="border-border rounded-lg border">
-          <Table>
+          <Table className="min-w-[480px]">
             <TableHeader>
               <TableRow>
-                <TableHead>Order</TableHead>
+                <TableHead className="bg-card sticky left-0 z-10">
+                  Order
+                </TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Pickup</TableHead>
                 <TableHead className="text-right">Distance</TableHead>
-                <TableHead className="min-w-[200px]">Status</TableHead>
+                <TableHead className="min-w-[150px] sm:min-w-[200px]">
+                  Status
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {orders.map((order) => (
                 <TableRow key={order.id}>
-                  <TableCell className="font-medium whitespace-nowrap">
+                  <TableCell className="bg-card sticky left-0 z-10 font-medium whitespace-nowrap">
                     {order.order_no}
                   </TableCell>
                   <TableCell>
@@ -83,6 +87,9 @@ export default async function StaffOrdersPage() {
               ))}
             </TableBody>
           </Table>
+          <p className="text-muted-foreground border-t px-4 py-2 text-xs md:hidden">
+            Slide the table horizontally for every column.
+          </p>
         </div>
       )}
     </PanelPage>
