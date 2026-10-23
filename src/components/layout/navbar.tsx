@@ -67,15 +67,14 @@ export type NavbarUser = {
 export function Navbar({ user = null }: { user?: NavbarUser | null }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const hamburgerRef = useRef<HTMLButtonElement | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open]);
+  /*
+   * Outside taps, Escape, and the toggle all close the panel now. The
+   * hamburger is deliberately inside the exempt refs: see useDismissable.
+   */
+  useDismissable([hamburgerRef, menuRef], open, () => setOpen(false));
 
   /*
    * Only route links can be highlighted from the pathname. The `/#section`
@@ -121,6 +120,7 @@ export function Navbar({ user = null }: { user?: NavbarUser | null }) {
       */}
       <div className="relative mx-auto grid h-16 w-full max-w-6xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-4 sm:gap-3 sm:px-6">
         <button
+          ref={hamburgerRef}
           type="button"
           className="border-border text-foreground hover:bg-accent grid size-9 shrink-0 place-items-center justify-self-start rounded-full border transition-colors sm:size-10 lg:hidden"
           aria-expanded={open}
@@ -198,6 +198,7 @@ export function Navbar({ user = null }: { user?: NavbarUser | null }) {
       */}
       <div
         id="mobile-menu"
+        ref={menuRef}
         hidden={!open}
         className="border-border bg-background absolute inset-x-0 top-full border-t shadow-[0_8px_24px_-16px_rgba(0,0,0,0.25)] lg:hidden"
       >
@@ -410,7 +411,7 @@ export function NotificationsBell({
     setSeen(unread);
   }
 
-  useDismissable(containerRef, open, () => setOpen(false));
+  useDismissable([containerRef], open, () => setOpen(false));
 
   function markAllRead() {
     // Clear first so the badge responds immediately; the action persists it.
@@ -598,14 +599,22 @@ function BookingsIcon({ className }: { className?: string }) {
 }
 
 /**
- * Closes a dropdown on Escape or a click outside it.
+ * Closes a dropdown on Escape or a tap outside it.
  *
- * Shared by the notification bell and the profile menu so both behave the same
- * way, which is also what a keyboard user would expect from two menus sitting
- * next to each other.
+ * Shared by the notification bell, the profile menu, and the mobile nav panel
+ * so all of them behave the same way, which is also what a keyboard user would
+ * expect from menus sitting next to each other.
+ *
+ * The refs are an array because the mobile menu is exempt twice over: the
+ * panel itself, and the hamburger that toggles it. Without the second ref a
+ * tap on the hamburger while open would dismiss on pointer-down and the
+ * button's click would toggle the state straight back open - a menu that
+ * never closes from its own button. `pointerdown` (not `mousedown`) is the
+ * listener so a touch on a phone or tablet dismisses as reliably as a mouse
+ * click; nothing is prevented, so the tap still lands where the user aimed.
  */
 function useDismissable(
-  ref: React.RefObject<HTMLElement | null>,
+  refs: Array<React.RefObject<HTMLElement | null>>,
   active: boolean,
   onDismiss: () => void,
 ) {
@@ -616,17 +625,19 @@ function useDismissable(
       if (event.key === "Escape") onDismiss();
     }
 
-    function onPointerDown(event: MouseEvent) {
-      if (!ref.current?.contains(event.target as Node)) onDismiss();
+    function onPointerDown(event: PointerEvent) {
+      const target = event.target as Node;
+      const inside = refs.some((ref) => ref.current?.contains(target));
+      if (!inside) onDismiss();
     }
 
     window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("mousedown", onPointerDown);
+    window.addEventListener("pointerdown", onPointerDown);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("mousedown", onPointerDown);
+      window.removeEventListener("pointerdown", onPointerDown);
     };
-  }, [active, onDismiss, ref]);
+  }, [active, onDismiss, refs]);
 }
 
 function initialsOf(fullName: string) {
@@ -650,7 +661,7 @@ function UserMenu({ user }: { user: NavbarUser }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  useDismissable(containerRef, open, () => setOpen(false));
+  useDismissable([containerRef], open, () => setOpen(false));
 
   return (
     <div className="relative" ref={containerRef}>
