@@ -71,10 +71,13 @@ export function BlockedDatesPanel({ dates }: { dates: BlockedDate[] }) {
         onSubmit={handleAdd}
         className="flex flex-wrap items-end gap-3"
       >
-        {/* The fixed 176/224px widths were the only reason this wrapped
-            three times on a phone; both fields flex and lose their fixed
-            width from sm. */}
-        <div className="min-w-0 flex-1 space-y-2 sm:flex-none">
+        {/*
+          Stacked on phones: date and reason each take their own row (the two
+          half-width fields squeezed the native date input's value and picker
+          icon), the submit button becomes the full-width last row. From sm the
+          fixed widths and the single-row form return.
+        */}
+        <div className="w-full space-y-2 sm:w-auto">
           <Label htmlFor="blocked_date">Date</Label>
           <Input
             id="blocked_date"
@@ -84,7 +87,7 @@ export function BlockedDatesPanel({ dates }: { dates: BlockedDate[] }) {
             required
           />
         </div>
-        <div className="min-w-0 flex-1 space-y-2 sm:flex-none">
+        <div className="w-full space-y-2 sm:w-auto">
           <Label htmlFor="blocked_reason">Reason</Label>
           <Input
             id="blocked_reason"
@@ -93,7 +96,12 @@ export function BlockedDatesPanel({ dates }: { dates: BlockedDate[] }) {
             className="w-full sm:w-56"
           />
         </div>
-        <Button type="submit" variant="secondary" disabled={isPending}>
+        <Button
+          type="submit"
+          variant="secondary"
+          className="w-full sm:w-auto"
+          disabled={isPending}
+        >
           {isPending ? (
             <Loader2 className="animate-spin" aria-hidden="true" />
           ) : (
