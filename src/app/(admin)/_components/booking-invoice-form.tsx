@@ -4,7 +4,6 @@ import { useMemo, useState, useTransition } from "react";
 import {
   Check,
   Copy,
-  Layers,
   Loader2,
   Plus,
   ReceiptText,
@@ -31,10 +30,8 @@ import type { BillableOrder } from "@/db/queries/billing";
 import type { CategorySlug } from "@/lib/pricing";
 import { deliveryChargeFor, type DeliveryPolicy } from "@/lib/invoice";
 import {
-  catalogueGroups,
   catalogueSections,
   categoryForSpeed,
-  defaultGroupForBooking,
   detectBookingSpeed,
   findOptionByName,
   type PricedOption,
@@ -66,10 +63,13 @@ import { generateBookingInvoiceAction } from "../admin/bookings/actions";
  * - The service the customer originally chose stays on every overridden line as
  *   a reference, so billing a more suitable service never erases what the
  *   booking asked for.
+ * - There is no category filter on the form: each line's dropdown lists the
+ *   price list's six subcategories — Laundry Services, Adult Wear, Kids Wear,
+ *   Shoe Cleaning, Household, Curtain Cleaning — and the services with their
+ *   prices of the chosen subcategory appear as a panel inside the form, not
+ *   in the popup. The booking's own choice stays the selected value on every
+ *   line meanwhile, so changing it never erases what the customer asked for.
  */
-
-/** The service category dropdown offers one price-list subcategory at a time. */
-type GroupSlug = string;
 
 type DraftLine = {
   key: string;
@@ -82,6 +82,11 @@ type DraftLine = {
   unitPrice: number;
   /** Set when the line names an option from the detected list. */
   catalogueKey: string | null;
+  /**
+   * The subcategory the line's dropdown is showing. Null until a subcategory
+   * is chosen, so a fresh line opens on the subcategory list alone.
+   */
+  groupSlug: string | null;
   /** Whether the admin bills something other than the booked service. */
   overridden: boolean;
 };
@@ -91,9 +96,6 @@ function lineKey() {
   nextKey += 1;
   return `line-${nextKey}`;
 }
-
-/** Radix reserves the empty string, so unset has a sentinel value. */
-const UNPICKED = "__none__";
 
 export function BookingInvoiceForm({
   order,
@@ -139,8 +141,16 @@ export function BookingInvoiceForm({
     () => categoryForSpeed(pricing, speed),
     [pricing, speed],
   );
-  const speedSections = useMemo(() => catalogueSections(activeCategory), [activeCategory]);
-  const speedGroups = useMemo(() => catalogueGroups(activeCategory), [activeCategory]);
+  const speedSections = useMemo(
+    () => catalogueSections(activeCategory),
+    [activeCategory],
+  );
+
+  /** Every service the detected list can bill, in price-list order. */
+  const allOptions = useMemo(
+    () => speedSections.flatMap((entry) => entry.options),
+    [speedSections],
+  );
 
   /** The option that a line can bill from, keyed as "<speed>/<group>/…". */
   const optionsByKey = useMemo(
@@ -151,10 +161,6 @@ export function BookingInvoiceForm({
           .map((option) => [option.key, option]),
       ),
     [speedSections],
-  );
-
-  const [groupSlug, setGroupSlug] = useState<GroupSlug>(() =>
-    defaultGroupForBooking(pricing, bookedLines, speed),
   );
 
   const [lines, setLines] = useState<DraftLine[]>(() =>
@@ -169,6 +175,10 @@ export function BookingInvoiceForm({
         qty: line.qty,
         unitPrice: line.unitPrice,
         catalogueKey: option?.key ?? null,
+        /* No subcategory preselected: the dropdown first opens on the
+           subcategory list alone, with the booked service as the value of the
+           line — changing it goes through the six subcategories. */
+        groupSlug: null,
         overridden: false,
       };
     }),
@@ -183,16 +193,6 @@ export function BookingInvoiceForm({
   } | null>(null);
   const [copied, setCopied] = useState(false);
   const [isPending, startTransition] = useTransition();
-
-  /** Only the selected category's options — the dropdown filters the list. */
-  const section = useMemo(
-    () =>
-      speedSections.find((entry) => entry.slug === groupSlug) ??
-      speedSections[0] ??
-      null,
-    [speedSections, groupSlug],
-  );
-  const options = section?.options ?? [];
 
   const policy: DeliveryPolicy = siteConfig.deliveryPolicy;
   const subtotal = lines.reduce(
@@ -209,21 +209,31 @@ export function BookingInvoiceForm({
       : null;
   }
 
+  /* Line updates are composed onto the latest state, not a render-time
+     snapshot: the dropdown's subcategory pick and a service pick can land in
+     the same commit, and map-with-latest keeps both. */
   function pickOption(key: string, next: string) {
-    setLines(
-      lines.map((line) => {
+    setLines((current) =>
+      current.map((line) => {
         if (line.key !== key) return line;
 
-        if (next === UNPICKED) return line;
+        /* Browsing to another subcategory narrows the list, but does not bill
+           the line until one of its services is picked. */
+        if (next.startsWith("cat:")) {
+          return { ...line, groupSlug: next.slice("cat:".length) };
+        }
 
         if (next.startsWith("booked:")) {
-          // "As booked" puts back exactly what the booking recorded.
+          // "As booked" puts back exactly what the booking recorded, and the
+          // panel closing behind it is the same bargain as any service pick.
+          const restored = findOptionByName(pricing, line.bookedName, speed);
+
           return {
             ...line,
             name: line.bookedName,
             unitPrice: line.bookedPrice,
-            catalogueKey:
-              findOptionByName(pricing, line.bookedName, speed)?.key ?? null,
+            catalogueKey: restored?.key ?? null,
+            groupSlug: null,
             overridden: false,
           };
         }
@@ -232,12 +242,13 @@ export function BookingInvoiceForm({
         if (!option) return line;
 
         // A deliberate pick bills that option at its list price; further edits
-        // are the admin's from there.
+        // are the admin's from there — and the panel closes, its job done.
         return {
           ...line,
           name: option.name,
           unitPrice: option.price,
           catalogueKey: option.key,
+          groupSlug: null,
           overridden: option.name !== line.bookedName,
         };
       }),
@@ -245,37 +256,41 @@ export function BookingInvoiceForm({
   }
 
   function addLine() {
-    const first = options[0];
-    setLines([
-      ...lines,
+    /* A new line starts on the subcategory list: the admin chooses the
+       subcategory, then the service — and only picking one bills it. */
+    setLines((current) => [
+      ...current,
       {
         key: lineKey(),
-        name: first?.name ?? "",
+        name: "",
         bookedName: "",
-        bookedPrice: first?.price ?? 0,
+        bookedPrice: 0,
         qty: 1,
-        unitPrice: first?.price ?? 0,
-        catalogueKey: first?.key ?? null,
+        unitPrice: 0,
+        catalogueKey: null,
+        groupSlug: null,
         overridden: false,
       },
     ]);
   }
 
   function removeLine(key: string) {
-    setLines(lines.filter((line) => line.key !== key));
+    setLines((current) => current.filter((line) => line.key !== key));
   }
 
   function restoreBooked(key: string) {
-    setLines(
-      lines.map((line) => {
+    setLines((current) =>
+      current.map((line) => {
         if (line.key !== key || !line.bookedName) return line;
+
+        const restored = findOptionByName(pricing, line.bookedName, speed);
 
         return {
           ...line,
           name: line.bookedName,
           unitPrice: line.bookedPrice,
-          catalogueKey:
-            findOptionByName(pricing, line.bookedName, speed)?.key ?? null,
+          catalogueKey: restored?.key ?? null,
+          groupSlug: null,
           overridden: false,
         };
       }),
@@ -283,8 +298,8 @@ export function BookingInvoiceForm({
   }
 
   function updateLine(key: string, patch: Partial<DraftLine>) {
-    setLines(
-      lines.map((line) => (line.key === key ? { ...line, ...patch } : line)),
+    setLines((current) =>
+      current.map((line) => (line.key === key ? { ...line, ...patch } : line)),
     );
   }
 
@@ -337,32 +352,112 @@ export function BookingInvoiceForm({
     }
   }
 
-  /** Options for one line: the selected category's services plus "As booked". */
+  /**
+   * The dropdown lists ONLY the six subcategories; picking one closes it and
+   * the services and prices of that subcategory then appear as a panel inside
+   * the form, under the line — never in the popup. The check marks the
+   * subcategory whose panel the line is browsing.
+   */
   function lineOptionsFor(line: DraftLine) {
-    const booked = !findOptionStored(line);
-
     return (
       <SelectContent>
         <SelectGroup>
           <SelectLabel className="text-muted-foreground">
-            {section?.name ?? "Services"}
+            Subcategory
           </SelectLabel>
-          {options.map((option) => (
-            <SelectItem key={option.key} value={option.key}>
-              {option.display} — {formatINR(option.price)}/{option.unit}
-            </SelectItem>
-          ))}
+          {speedSections.map((entry) =>
+            entry.options.length === 0 ? null : (
+              <SelectItem key={entry.slug} value={`cat:${entry.slug}`}>
+                <span className="flex items-center gap-2">
+                  <Check
+                    className={`size-3.5 ${
+                      entry.slug === line.groupSlug
+                        ? "text-primary"
+                        : "opacity-0"
+                    }`}
+                    aria-hidden
+                  />
+                  {entry.name}
+                </span>
+              </SelectItem>
+            ),
+          )}
         </SelectGroup>
-
-        {booked ? (
-          <SelectGroup>
-            <SelectLabel className="text-muted-foreground">As booked</SelectLabel>
-            <SelectItem value={`booked:${line.key}`}>
-              {line.bookedName || line.name} — {formatINR(line.bookedPrice)}
-            </SelectItem>
-          </SelectGroup>
-        ) : null}
       </SelectContent>
+    );
+  }
+
+  /**
+   * The services and prices of the line's chosen subcategory, inside the form.
+   * The first five rows are visible and the rest arrive through scrolling; a
+   * row bills that service at its list price and closes the panel — the
+   * check marks the service the line currently bills. Off-list booked lines
+   * get their booking back as the last row.
+   */
+  function servicesPanelFor(line: DraftLine) {
+    const active = speedSections.find((entry) => entry.slug === line.groupSlug);
+    if (!active) return null;
+
+    return (
+      <div className="bg-muted/30 overflow-hidden rounded-lg border">
+        <p className="text-muted-foreground bg-card border-b px-3 py-1.5 text-[11px] font-medium tracking-wide uppercase">
+          {active.name} — services &amp; prices
+        </p>
+        <div className="bg-card max-h-44 divide-y overflow-y-auto">
+          {active.options.map((option) => {
+            const billed = line.catalogueKey === option.key;
+
+            return (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => pickOption(line.key, option.key)}
+                disabled={isPending}
+                className={`hover:bg-accent/50 flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                  billed ? "bg-primary/5" : ""
+                }`}
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  {billed ? (
+                    <Check
+                      className="text-primary size-3.5 shrink-0"
+                      aria-hidden
+                    />
+                  ) : null}
+                  <span className="truncate">{option.display}</span>
+                </span>
+                <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                  {formatINR(option.price)}/{option.unit}
+                </span>
+              </button>
+            );
+          })}
+
+          {line.bookedName && (line.overridden || !findOptionStored(line)) ? (
+            <button
+              type="button"
+              onClick={() => pickOption(line.key, `booked:${line.key}`)}
+              disabled={isPending}
+              className={`hover:bg-accent/50 flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                !line.overridden ? "bg-primary/5" : ""
+              }`}
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                {!line.overridden ? (
+                  <Check
+                    className="text-primary size-3.5 shrink-0"
+                    aria-hidden
+                  />
+                ) : null}
+                <span className="truncate">{line.bookedName}</span>
+              </span>
+              <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                {formatINR(line.bookedPrice)}
+              </span>
+            </button>
+          ) : null}
+        </div>
+      </div>
     );
   }
 
@@ -432,38 +527,12 @@ export function BookingInvoiceForm({
         action buttons stay pinned in the footer below it, so the dialog itself
         never grows past the viewport.
       */}
-      <div className="border-border min-h-0 flex-1 space-y-3.5 overflow-y-auto border-b bg-muted/30 px-5 py-4">
-        <BookingContextCard order={order} speedLabel={speedLabel} speed={speed} />
-
-        <section className="bg-card space-y-2 rounded-xl border p-3.5 shadow-xs">
-          <div className="flex items-center gap-2">
-            <span
-              aria-hidden
-              className="bg-primary/12 text-primary grid size-5 shrink-0 place-items-center rounded-md"
-            >
-              <Layers className="size-3" />
-            </span>
-            <Label htmlFor={`category-${order.id}`}>Service category</Label>
-          </div>
-          <Select
-            value={section?.slug ?? groupSlug}
-            onValueChange={setGroupSlug}
-          >
-            <SelectTrigger id={`category-${order.id}`} className="w-full">
-              <SelectValue placeholder="Choose a category" />
-            </SelectTrigger>
-            <SelectContent>
-              {speedGroups.map((group) => (
-                <SelectItem key={group.slug} value={group.slug}>
-                  {group.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-muted-foreground text-xs">
-            Only the services and prices under the chosen category are shown.
-          </p>
-        </section>
+      <div className="border-border bg-muted/30 min-h-0 flex-1 space-y-3.5 overflow-y-auto border-b px-5 py-4">
+        <BookingContextCard
+          order={order}
+          speedLabel={speedLabel}
+          speed={speed}
+        />
 
         <div className="space-y-2.5">
           {lines.map((line, index) => {
@@ -516,10 +585,25 @@ export function BookingInvoiceForm({
                     className="w-full"
                     aria-label={`Service ${index + 1}`}
                   >
-                    <SelectValue placeholder="Choose a service" />
+                    {/* The trigger carries its own text: the dropdown holds
+                        only the subcategories, so Radix could otherwise not
+                        resolve the billed service's label. */}
+                    <SelectValue placeholder="Choose a service">
+                      <span className="truncate">
+                        {option
+                          ? `${option.display} — ${formatINR(option.price)}/${option.unit}`
+                          : line.bookedName
+                            ? `${line.bookedName} — ${formatINR(line.bookedPrice)}`
+                            : line.name || "Unset service"}
+                      </span>
+                    </SelectValue>
                   </SelectTrigger>
                   {lineOptionsFor(line)}
                 </Select>
+
+                {/* The chosen subcategory's services and prices, inside the
+                    form; the dropdown itself stays a six-item list. */}
+                {servicesPanelFor(line)}
 
                 {/*
                   The customer's original pick stays on the line until (and after)
@@ -599,7 +683,7 @@ export function BookingInvoiceForm({
           <button
             type="button"
             onClick={addLine}
-            disabled={isPending || options.length === 0}
+            disabled={isPending || allOptions.length === 0}
             className="border-primary/40 hover:bg-primary/5 text-foreground flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed py-2.5 text-sm font-medium transition-colors disabled:opacity-50"
           >
             <Plus className="text-primary size-4" aria-hidden />
@@ -725,7 +809,7 @@ function BookingContextCard({
   speed: CategorySlug;
 }) {
   return (
-    <div className="border-primary/20 from-primary/12 relative flex items-center gap-3 overflow-hidden rounded-xl border bg-gradient-to-br via-secondary/50 to-transparent p-3.5">
+    <div className="border-primary/20 from-primary/12 via-secondary/50 relative flex items-center gap-3 overflow-hidden rounded-xl border bg-gradient-to-br to-transparent p-3.5">
       <span
         aria-hidden
         className="bg-primary/25 pointer-events-none absolute -top-6 -right-6 size-20 rounded-full blur-xl"
@@ -734,9 +818,7 @@ function BookingContextCard({
         {order.customer_name.slice(0, 2).toUpperCase()}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold">
-          {order.customer_name}
-        </p>
+        <p className="truncate text-sm font-semibold">{order.customer_name}</p>
         <p className="text-muted-foreground truncate font-mono text-xs">
           {order.order_no}
         </p>
