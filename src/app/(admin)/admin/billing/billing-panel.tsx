@@ -245,12 +245,12 @@ export function BillingPanel({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-muted-foreground border-b text-left text-xs">
-                    <th className="pb-2 font-medium">Invoice</th>
-                    <th className="pb-2 font-medium">Order</th>
-                    <th className="pb-2 font-medium">Customer</th>
-                    <th className="pb-2 font-medium">Generated</th>
-                    <th className="pb-2 text-right font-medium">Total</th>
-                    <th className="pb-2 font-medium">Status</th>
+                    <th className="pr-3 pb-2 font-medium">Invoice</th>
+                    <th className="pr-3 pb-2 font-medium">Order</th>
+                    <th className="pr-3 pb-2 font-medium">Customer</th>
+                    <th className="pr-3 pb-2 font-medium">Generated</th>
+                    <th className="pr-3 pb-2 text-right font-medium">Total</th>
+                    <th className="pr-3 pb-2 font-medium">Status</th>
                     <th className="pb-2 text-right font-medium">Actions</th>
                   </tr>
                 </thead>
@@ -324,9 +324,7 @@ export function BillingPanel({
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleSend(invoice)}
-                                disabled={
-                                  isPending || sendingId === invoice.id
-                                }
+                                disabled={isPending || sendingId === invoice.id}
                               >
                                 {sendingId === invoice.id ? (
                                   <Loader2
@@ -371,9 +369,8 @@ export function BillingPanel({
               Record {collecting ? formatINR(collecting.total) : ""} collected?
             </DialogTitle>
             <DialogDescription>
-              This records the cash on delivery against{" "}
-              {collecting?.invoice_no} and marks the invoice paid. It cannot be
-              undone from here.
+              This records the cash on delivery against {collecting?.invoice_no}{" "}
+              and marks the invoice paid. It cannot be undone from here.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

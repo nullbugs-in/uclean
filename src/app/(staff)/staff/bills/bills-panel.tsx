@@ -102,25 +102,25 @@ export function StaffBillsPanel({ invoices }: { invoices: InvoiceRow[] }) {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-muted-foreground border-b text-left text-xs">
-                    <th className="pb-2 font-medium">Invoice</th>
-                    <th className="pb-2 font-medium">Order</th>
-                    <th className="pb-2 font-medium">Customer</th>
-                    <th className="pb-2 text-right font-medium">Total</th>
-                    <th className="pb-2 font-medium">Status</th>
+                    <th className="pr-3 pb-2 font-medium">Invoice</th>
+                    <th className="pr-3 pb-2 font-medium">Order</th>
+                    <th className="pr-3 pb-2 font-medium">Customer</th>
+                    <th className="pr-3 pb-2 text-right font-medium">Total</th>
+                    <th className="pr-3 pb-2 font-medium">Status</th>
                     <th className="pb-2 text-right font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                 {invoices.map((invoice) => {
-                     const paid = invoice.status === "paid";
-                     const viewable =
-                       // A sent (or collected) bill is the one the customer
-                       // sees; a draft link would bill from unfinished
-                       // paperwork.
-                       (paid || invoice.status === "sent") &&
-                       Boolean(invoice.pay_token);
+                  {invoices.map((invoice) => {
+                    const paid = invoice.status === "paid";
+                    const viewable =
+                      // A sent (or collected) bill is the one the customer
+                      // sees; a draft link would bill from unfinished
+                      // paperwork.
+                      (paid || invoice.status === "sent") &&
+                      Boolean(invoice.pay_token);
 
-                     return (
+                    return (
                       <tr
                         key={invoice.id}
                         className="border-border/60 border-b last:border-0"
