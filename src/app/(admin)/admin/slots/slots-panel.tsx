@@ -98,15 +98,22 @@ export function SlotsPanel({ slots }: { slots: TimeSlot[] }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/*
+        The window column is nowrap, so a tiny label/capacity would still make
+        the table scroll on phones. The label column flexes instead, capacity
+        shrinks on <sm, and the Status column waits for sm — the table fits a
+        360px viewport without hiding any editable control. Inputs stay tall
+        (h-9) because one mis-tap between rows toggles the wrong slot.
+      */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--border)] text-left">
-              <th className="p-3 font-medium">Window</th>
+              <th className="p-3 font-medium whitespace-nowrap">Window</th>
               <th className="p-3 font-medium">Label</th>
               <th className="p-3 font-medium">Capacity</th>
               <th className="p-3 font-medium">Active</th>
-              <th className="p-3 font-medium">Status</th>
+              <th className="hidden p-3 font-medium sm:table-cell">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -128,7 +135,7 @@ export function SlotsPanel({ slots }: { slots: TimeSlot[] }) {
                         update(draft.id, { label: event.target.value })
                       }
                       aria-label={`Label for the ${draft.window} slot`}
-                      className="h-8 min-w-40"
+                      className="h-9 min-w-20 flex-1 sm:min-w-40"
                     />
                   </td>
                   <td className="p-3">
@@ -141,7 +148,7 @@ export function SlotsPanel({ slots }: { slots: TimeSlot[] }) {
                         update(draft.id, { capacity: event.target.value })
                       }
                       aria-label={`Capacity for the ${draft.window} slot`}
-                      className="h-8 w-20"
+                      className="h-9 w-16 sm:w-20"
                     />
                   </td>
                   <td className="p-3">
@@ -153,7 +160,7 @@ export function SlotsPanel({ slots }: { slots: TimeSlot[] }) {
                       aria-label={`Offer the ${draft.window} slot to customers`}
                     />
                   </td>
-                  <td className="p-3">
+                  <td className="hidden p-3 sm:table-cell">
                     <SlotStatus capacity={capacity} isActive={draft.isActive} />
                   </td>
                 </tr>

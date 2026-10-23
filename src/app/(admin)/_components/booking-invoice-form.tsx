@@ -622,7 +622,9 @@ export function BookingInvoiceForm({
                   </button>
                 ) : null}
 
-                <div className="grid grid-cols-3 items-end gap-2">
+                {/* Three ~90px columns inside the phone dialog squeezed the
+                    number inputs; they line up in a row from sm instead. */}
+                <div className="grid items-end gap-2 sm:grid-cols-3">
                   <div className="space-y-1.5">
                     <Label htmlFor={`qty-${line.key}`}>Qty</Label>
                     <Input

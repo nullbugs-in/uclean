@@ -71,23 +71,26 @@ export function BlockedDatesPanel({ dates }: { dates: BlockedDate[] }) {
         onSubmit={handleAdd}
         className="flex flex-wrap items-end gap-3"
       >
-        <div className="space-y-2">
+        {/* The fixed 176/224px widths were the only reason this wrapped
+            three times on a phone; both fields flex and lose their fixed
+            width from sm. */}
+        <div className="min-w-0 flex-1 space-y-2 sm:flex-none">
           <Label htmlFor="blocked_date">Date</Label>
           <Input
             id="blocked_date"
             name="date"
             type="date"
-            className="w-44"
+            className="w-full sm:w-44"
             required
           />
         </div>
-        <div className="space-y-2">
+        <div className="min-w-0 flex-1 space-y-2 sm:flex-none">
           <Label htmlFor="blocked_reason">Reason</Label>
           <Input
             id="blocked_reason"
             name="reason"
             placeholder="Holiday, maintenance"
-            className="w-56"
+            className="w-full sm:w-56"
           />
         </div>
         <Button type="submit" variant="secondary" disabled={isPending}>

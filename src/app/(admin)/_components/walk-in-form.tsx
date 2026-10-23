@@ -841,11 +841,14 @@ export function WalkInForm({
                   : line.item;
 
                 return (
+                  // flex-wrap: the fixed control cluster (~252px) otherwise
+                  // crushes the item name to scraps on a 360px screen — on a
+                  // narrow row the controls take their own line instead.
                   <li
                     key={line.key}
-                    className="flex items-center justify-between gap-3 py-3"
+                    className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-3"
                   >
-                    <div className="min-w-0">
+                    <div className="min-w-24 flex-1 basis-32">
                       <p className="truncate text-sm font-medium">{name}</p>
                       <p className="text-muted-foreground text-xs">
                         {formatPrice(line.unitPrice)} each

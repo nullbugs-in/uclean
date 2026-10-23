@@ -52,11 +52,13 @@ export function PickupRequestCard({
          * The signature element: the slot, set in tabular figures so a column of
          * these lines up on the minutes the way a schedule does.
          */}
-        <div className="flex items-baseline gap-3">
-          <span className="text-base font-semibold tabular-nums">
+        {/* Same guard as the delivery card: long slot labels truncate instead
+            of pushing the order number out of the header row. */}
+        <div className="flex min-w-0 items-baseline gap-3">
+          <span className="truncate text-base font-semibold tabular-nums">
             {request.slotLabel ?? "No slot"}
           </span>
-          <span className="text-muted-foreground font-mono text-xs">
+          <span className="text-muted-foreground shrink-0 font-mono text-xs">
             {order.order_no}
           </span>
         </div>

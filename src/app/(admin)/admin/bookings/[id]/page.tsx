@@ -122,7 +122,10 @@ export default async function AdminBookingPage({
          * point rather than four equally weighted panels.
          */}
         <section className="bg-card overflow-hidden rounded-xl border shadow-sm">
-          <div className="bg-muted/40 space-y-4 border-b px-6 py-5">
+          {/* px-4 on phones, px-6 from sm: stacked on the page's own px-4 the
+              fixed 24px gutter left ~296px of content for text and the
+              progress strip on a 360px screen. */}
+          <div className="bg-muted/40 space-y-4 border-b px-4 py-5 sm:px-6">
             <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
               <div className="min-w-0 space-y-2">
                 <div className="flex flex-wrap items-center gap-2.5">
@@ -154,7 +157,7 @@ export default async function AdminBookingPage({
             </div>
           </div>
 
-          <div className="grid gap-3 px-6 py-5 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 px-4 py-5 sm:grid-cols-2 sm:px-6 xl:grid-cols-4">
             <FactTile
               icon={CalendarDays}
               label="Scheduled pickup"

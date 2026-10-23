@@ -84,7 +84,9 @@ export function PanelCommandMenu({
         size="sm"
         aria-label={`Search ${panelName.toLowerCase()}`}
         className={cn(
-          "text-muted-foreground h-8 w-8 justify-center gap-2 px-0 font-normal sm:w-56 sm:justify-start sm:px-2",
+          // h-9 everywhere keeps the phone trigger at a 36px touch target
+          // while the desktop pill keeps its compact height.
+          "text-muted-foreground h-9 w-8 justify-center gap-2 px-0 font-normal sm:w-56 sm:justify-start sm:px-2",
           className,
         )}
         onClick={() => setOpen(true)}

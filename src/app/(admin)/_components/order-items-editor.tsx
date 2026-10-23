@@ -167,7 +167,7 @@ export function OrderItemsEditor({
                                   ),
                                 )
                               }
-                              className="h-8 text-right tabular-nums"
+                              className="h-9 text-right tabular-nums"
                             />
                           </>
                         ) : (
@@ -204,7 +204,7 @@ export function OrderItemsEditor({
                                   ),
                                 )
                               }
-                              className="h-8 text-right tabular-nums"
+                              className="h-9 text-right tabular-nums"
                             />
                           </>
                         ) : (

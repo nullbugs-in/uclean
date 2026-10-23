@@ -206,7 +206,10 @@ function ConfirmTransition({
         </Button>
       </DialogTrigger>
 
-      <DialogContent>
+      {/* Height-cap + scroll, same as the other admin confirm dialogs: on a
+          short phone this cancel dialog (reason + note + footer) otherwise
+          overflows the viewport top and bottom. */}
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Move to {INTERNAL_STATUS_LABEL[next]}?</DialogTitle>
           <DialogDescription asChild>

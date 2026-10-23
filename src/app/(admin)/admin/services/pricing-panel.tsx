@@ -46,14 +46,10 @@ import {
  */
 
 type GroupFormState =
-  | { mode: "add" }
-  | { mode: "edit"; group: PricingGroup }
-  | null;
+  { mode: "add" } | { mode: "edit"; group: PricingGroup } | null;
 
 type ItemFormState =
-  | { mode: "add"; groupId: string }
-  | { mode: "edit"; item: PricingItem }
-  | null;
+  { mode: "add"; groupId: string } | { mode: "edit"; item: PricingItem } | null;
 
 type OptionFormState =
   | { mode: "add"; itemId: string }
@@ -90,7 +86,10 @@ type OptionDraft = {
   sortOrder: number;
 };
 
-function byOrder(a: { sort_order: number; name: string }, b: { sort_order: number; name: string }) {
+function byOrder(
+  a: { sort_order: number; name: string },
+  b: { sort_order: number; name: string },
+) {
   return a.sort_order - b.sort_order || a.name.localeCompare(b.name);
 }
 
@@ -152,9 +151,7 @@ export function PricingPanel({
 
   const itemsInGroup = React.useMemo(
     () =>
-      items
-        .filter((entry) => entry.group_id === activeGroup?.id)
-        .sort(byOrder),
+      items.filter((entry) => entry.group_id === activeGroup?.id).sort(byOrder),
     [items, activeGroup],
   );
 
@@ -268,7 +265,9 @@ export function PricingPanel({
               onDelete={() =>
                 setConfirming({ kind: "item", id: item.id, name: item.name })
               }
-              onAddOption={() => setOptionForm({ mode: "add", itemId: item.id })}
+              onAddOption={() =>
+                setOptionForm({ mode: "add", itemId: item.id })
+              }
               onEditOption={(option) => setOptionForm({ mode: "edit", option })}
               onDeleteOption={(option) =>
                 setConfirming({
@@ -400,7 +399,7 @@ function GroupRow({
               aria-pressed={selected}
               onClick={() => onSelect(group.id)}
               className={
-                "ring-border rounded-full px-4 py-1.5 text-sm font-semibold ring-1 ring-inset transition-colors focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none " +
+                "ring-border focus-visible:ring-ring rounded-full px-4 py-1.5 text-sm font-semibold ring-1 transition-colors ring-inset focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none " +
                 (selected
                   ? "bg-primary text-primary-foreground"
                   : "bg-background text-muted-foreground hover:text-foreground")
@@ -594,7 +593,9 @@ function DialogShell({
 }) {
   return (
     <Dialog open onOpenChange={(open) => !open && onDismiss()}>
-      <DialogContent className="sm:max-w-md">
+      {/* Height-cap + scroll: the option form's stacked fields exceed a short
+          phone viewport, and default DialogContent cannot scroll. */}
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -653,9 +654,7 @@ function GroupForm({
 }) {
   const source = state.mode === "edit" ? state.group : null;
   const [name, setName] = React.useState(source?.name ?? "");
-  const [turnaround, setTurnaround] = React.useState(
-    source?.turnaround ?? "",
-  );
+  const [turnaround, setTurnaround] = React.useState(source?.turnaround ?? "");
   const [sortOrder, setSortOrder] = React.useState(
     String(source?.sort_order ?? nextSortOrder),
   );
@@ -697,7 +696,9 @@ function GroupForm({
           onChange={(event) => setTurnaround(event.target.value)}
         />
       </Field>
-      <div className="grid grid-cols-2 gap-3">
+      {/* Two narrow columns squeeze a phone dialog to ~134px each; they stack
+          below sm instead. */}
+      <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Sort order" htmlFor="group-sort">
           <Input
             id="group-sort"
@@ -707,14 +708,18 @@ function GroupForm({
             onChange={(event) => setSortOrder(event.target.value)}
           />
         </Field>
-        <div className="flex items-end gap-2 pb-2">
-          <input
-            id="group-active"
-            type="checkbox"
-            checked={isActive}
-            onChange={(event) => setIsActive(event.target.checked)}
-          />
-          <label htmlFor="group-active" className="text-sm">
+        <div className="flex items-end pb-2">
+          {/* Whole-row label: the checkbox is 16px, so the tap target is the
+              row, not the box. */}
+          <label
+            htmlFor="group-active"
+            className="flex min-h-9 w-full cursor-pointer items-center gap-2 text-sm sm:ml-2"
+          >
+            <input
+              type="checkbox"
+              checked={isActive}
+              onChange={(event) => setIsActive(event.target.checked)}
+            />
             Visible to customers
           </label>
         </div>
@@ -780,7 +785,8 @@ function ItemForm({
           onChange={(event) => setImageUrl(event.target.value)}
         />
       </Field>
-      <div className="grid grid-cols-2 gap-3">
+      {/* Same stack-below-sm as the group form. */}
+      <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Sort order" htmlFor="item-sort">
           <Input
             id="item-sort"
@@ -790,14 +796,17 @@ function ItemForm({
             onChange={(event) => setSortOrder(event.target.value)}
           />
         </Field>
-        <div className="flex items-end gap-2 pb-2">
-          <input
-            id="item-active"
-            type="checkbox"
-            checked={isActive}
-            onChange={(event) => setIsActive(event.target.checked)}
-          />
-          <label htmlFor="item-active" className="text-sm">
+        <div className="flex items-end pb-2">
+          {/* Whole-row label for a 16px checkbox. */}
+          <label
+            htmlFor="item-active"
+            className="flex min-h-9 w-full cursor-pointer items-center gap-2 text-sm sm:ml-2"
+          >
+            <input
+              type="checkbox"
+              checked={isActive}
+              onChange={(event) => setIsActive(event.target.checked)}
+            />
             Visible to customers
           </label>
         </div>
@@ -826,9 +835,7 @@ function OptionForm({
   );
   const [price, setPrice] = React.useState(String(source?.price ?? ""));
   const [unit, setUnit] = React.useState(source?.unit ?? "piece");
-  const [turnaround, setTurnaround] = React.useState(
-    source?.turnaround ?? "",
-  );
+  const [turnaround, setTurnaround] = React.useState(source?.turnaround ?? "");
   const [formError, setFormError] = React.useState<string | null>(null);
 
   return (
@@ -880,7 +887,9 @@ function OptionForm({
           onChange={(event) => setLabel(event.target.value)}
         />
       </Field>
-      <div className="grid grid-cols-2 gap-3">
+      {/* Both price-field pairs in this dialog stack below sm: two ~130px
+          columns inside a 328px dialog squeeze the labels to 3 lines. */}
+      <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Original (struck through)" htmlFor="option-original">
           <Input
             id="option-original"
@@ -903,7 +912,7 @@ function OptionForm({
           />
         </Field>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Unit" htmlFor="option-unit">
           <Input
             id="option-unit"
@@ -923,7 +932,9 @@ function OptionForm({
           />
         </Field>
       </div>
-      {formError ? <p className="text-destructive text-sm">{formError}</p> : null}
+      {formError ? (
+        <p className="text-destructive text-sm">{formError}</p>
+      ) : null}
     </DialogShell>
   );
 }
@@ -948,7 +959,9 @@ function DeleteConfirm({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onDismiss()}>
-      <DialogContent className="sm:max-w-md">
+      {/* Height-cap + scroll, like the forms' shell: on a short phone the
+          default centered dialog overflows with no way to reach the footer. */}
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Delete {confirming.name}?</DialogTitle>
           <DialogDescription>{message}</DialogDescription>

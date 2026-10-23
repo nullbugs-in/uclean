@@ -161,9 +161,14 @@ function Detail({
         <dt className="text-muted-foreground text-xs tracking-wide uppercase">
           {label}
         </dt>
+        {/* break-words lets an unbreakable UUID wrap inside its cell instead
+            of clipping against a narrow column; ordinary sentences are
+            untouched. */}
         <dd
           className={
-            muted ? "text-muted-foreground text-sm" : "text-sm font-medium"
+            muted
+              ? "text-muted-foreground text-sm break-words"
+              : "text-sm font-medium break-words"
           }
         >
           {value}

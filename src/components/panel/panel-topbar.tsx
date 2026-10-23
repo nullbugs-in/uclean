@@ -85,7 +85,13 @@ export function PanelTopbar({
           {trail.map((crumb, index) => {
             const isLast = index === trail.length - 1;
             return (
-              <span key={crumb.href} className="contents">
+              // On phones the fixed-height bar only fits hamburger + the
+              // right-hand controls: middle pages drop out at <sm, the
+              // current page truncates against the remaining space.
+              <span
+                key={crumb.href}
+                className={isLast ? "contents" : "hidden sm:contents"}
+              >
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
                   {isLast ? (

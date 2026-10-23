@@ -295,8 +295,10 @@ export function WhatsAppSettingsForm({
           is recorded below and in the Notifications message log.
         </p>
 
+        {/* On phones select and number share one row evenly, and the button
+            wraps below; the fixed min-widths used to stack all three. */}
         <div className="flex flex-wrap items-end gap-2">
-          <div className="min-w-44 space-y-2">
+          <div className="min-w-0 flex-1 space-y-2 sm:min-w-44">
             <Label htmlFor="test_template">Template to send</Label>
             <Select
               name="test_template"
@@ -306,7 +308,7 @@ export function WhatsAppSettingsForm({
               }
               disabled={!credentialsConfigured}
             >
-              <SelectTrigger id="test_template">
+              <SelectTrigger id="test_template" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -319,7 +321,7 @@ export function WhatsAppSettingsForm({
             </Select>
           </div>
 
-          <div className="min-w-52 flex-1 space-y-2">
+          <div className="min-w-0 flex-1 space-y-2 sm:min-w-52">
             <Label htmlFor="test_destination">Send to (WhatsApp)</Label>
             <Input
               id="test_destination"

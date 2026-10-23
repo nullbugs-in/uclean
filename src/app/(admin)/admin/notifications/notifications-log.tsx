@@ -2,7 +2,13 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { CheckCheck, Hourglass, RotateCcw, Send, TriangleAlert } from "lucide-react";
+import {
+  CheckCheck,
+  Hourglass,
+  RotateCcw,
+  Send,
+  TriangleAlert,
+} from "lucide-react";
 
 import { StatCard } from "@/components/panel/stat-card";
 import { Badge } from "@/components/ui/badge";
@@ -86,7 +92,10 @@ export function NotificationsLog({
         />
       </div>
 
-      <nav aria-label="Filter messages" className="flex flex-wrap items-center gap-2">
+      <nav
+        aria-label="Filter messages"
+        className="flex flex-wrap items-center gap-2"
+      >
         {LOG_FILTERS.map((id) => {
           const active = id === filter;
 
@@ -139,19 +148,29 @@ export function NotificationsLog({
           <CardHeader>
             <CardTitle className="text-base">Messages</CardTitle>
             <CardDescription>
-              Newest first. Failures keep their last error until they are requeued.
+              Newest first. Failures keep their last error until they are
+              requeued.
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* "Queued" hides behind sm (the message cell already shows the
+                channel there), "To" behind md, so both money-free columns
+                stop forcing the phone scroll. */}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-muted-foreground border-b text-left text-xs">
                     <th className="pb-2 font-medium">Status</th>
                     <th className="pb-2 font-medium">Message</th>
-                    <th className="pb-2 font-medium">Order</th>
-                    <th className="pb-2 font-medium">To</th>
-                    <th className="pb-2 font-medium">Queued</th>
+                    <th className="hidden pb-2 font-medium sm:table-cell">
+                      Order
+                    </th>
+                    <th className="hidden pb-2 font-medium md:table-cell">
+                      To
+                    </th>
+                    <th className="hidden pb-2 font-medium md:table-cell">
+                      Queued
+                    </th>
                     <th className="pb-2 text-right font-medium">Actions</th>
                   </tr>
                 </thead>
@@ -161,18 +180,18 @@ export function NotificationsLog({
                       key={notification.id}
                       className="border-border/60 border-b last:border-0"
                     >
-                      <td className="py-2 pr-3 align-top">
+                      <td className="py-2 pr-3 align-top whitespace-nowrap">
                         <StatusBadge status={notification.status} />
                       </td>
-                      <td className="py-2 pr-3 align-top">
+                      <td className="min-w-24 py-2 pr-3 align-top">
                         {label}
                         <span className="text-muted-foreground ml-2 text-xs">
                           {notification.channel}
                         </span>
                         {notification.attempts > 1 ? (
                           <span className="text-muted-foreground block text-xs tabular-nums">
-                            {notification.attempts} of {notification.max_attempts}{" "}
-                            attempts
+                            {notification.attempts} of{" "}
+                            {notification.max_attempts} attempts
                           </span>
                         ) : null}
                         {notification.status === "failed" &&
@@ -182,7 +201,7 @@ export function NotificationsLog({
                           </span>
                         ) : null}
                       </td>
-                      <td className="py-2 pr-3 align-top font-mono">
+                      <td className="hidden py-2 pr-3 align-top font-mono sm:table-cell">
                         {orderNo ? (
                           <Link
                             href={`/admin/bookings/${notification.order_id}`}
@@ -194,10 +213,10 @@ export function NotificationsLog({
                           <span className="text-muted-foreground">-</span>
                         )}
                       </td>
-                      <td className="py-2 pr-3 align-top">
+                      <td className="hidden py-2 pr-3 align-top md:table-cell">
                         {notification.destination ?? "-"}
                       </td>
-                      <td className="py-2 pr-3 align-top tabular-nums">
+                      <td className="text-muted-foreground hidden py-2 pr-3 align-top whitespace-nowrap tabular-nums md:table-cell">
                         {formatDateTime(notification.created_at)}
                       </td>
                       <td className="py-2 text-right align-top">

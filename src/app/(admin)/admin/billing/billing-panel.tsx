@@ -241,118 +241,147 @@ export function BillingPanel({
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-muted-foreground border-b text-left text-xs">
-                    <th className="pr-3 pb-2 font-medium">Invoice</th>
-                    <th className="pr-3 pb-2 font-medium">Order</th>
-                    <th className="pr-3 pb-2 font-medium">Customer</th>
-                    <th className="pr-3 pb-2 font-medium">Generated</th>
-                    <th className="pr-3 pb-2 text-right font-medium">Total</th>
-                    <th className="pr-3 pb-2 font-medium">Status</th>
-                    <th className="pb-2 text-right font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visible.map((invoice) => {
-                    const paid = invoice.status === "paid";
+            <>
+              <div className="overflow-x-auto">
+                {/*
+                A phone only shows Invoice / Customer / Total / Status / Actions
+                natively: the Order column waits for sm and the Generated date
+                for md, so the money columns and row actions start on screen.
+                The invoice cell is sticky so the row keeps its anchor while the
+                rest scrolls (billing-panel horizontal scroll was silent
+                before).
+              */}
+                <table className="w-full min-w-[480px] text-sm">
+                  <thead>
+                    <tr className="text-muted-foreground border-b text-left text-xs">
+                      <th className="bg-card sticky left-0 z-10 pr-3 pb-2 font-medium whitespace-nowrap">
+                        Invoice
+                      </th>
+                      <th className="hidden pr-3 pb-2 font-medium whitespace-nowrap sm:table-cell">
+                        Order
+                      </th>
+                      <th className="pr-3 pb-2 font-medium whitespace-nowrap">
+                        Customer
+                      </th>
+                      <th className="hidden pr-3 pb-2 font-medium whitespace-nowrap md:table-cell">
+                        Generated
+                      </th>
+                      <th className="pr-3 pb-2 text-right font-medium whitespace-nowrap">
+                        Total
+                      </th>
+                      <th className="pr-3 pb-2 font-medium whitespace-nowrap">
+                        Status
+                      </th>
+                      <th className="pb-2 text-right font-medium whitespace-nowrap">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visible.map((invoice) => {
+                      const paid = invoice.status === "paid";
 
-                    return (
-                      <tr
-                        key={invoice.id}
-                        className="border-border/60 border-b last:border-0"
-                      >
-                        <td className="py-2 pr-3 font-mono">
-                          {invoice.invoice_no}
-                        </td>
-                        <td className="py-2 pr-3 font-mono">
-                          {invoice.order_no}
-                        </td>
-                        <td className="py-2 pr-3">{invoice.customer_name}</td>
-                        <td className="text-muted-foreground py-2 pr-3">
-                          {formatDate(invoice.created_at)}
-                        </td>
-                        <td className="py-2 pr-3 text-right tabular-nums">
-                          {formatINR(invoice.total)}
-                        </td>
-                        <td className="py-2 pr-3">
-                          <InvoiceStatusBadge status={invoice.status} />
-                        </td>
-                        <td className="py-2 text-right">
-                          {paid ? (
-                            <div className="flex items-center justify-end gap-2">
-                              {!invoice.pay_token ? null : (
-                                <Button
-                                  asChild
-                                  size="sm"
-                                  variant="ghost"
-                                  disabled={isPending}
-                                >
-                                  <Link
-                                    href={`/pay/${invoice.pay_token}`}
-                                    target="_blank"
+                      return (
+                        <tr
+                          key={invoice.id}
+                          className="border-border/60 border-b last:border-0"
+                        >
+                          <td className="bg-card sticky left-0 z-10 py-2 pr-3 font-mono whitespace-nowrap">
+                            {invoice.invoice_no}
+                          </td>
+                          <td className="hidden py-2 pr-3 font-mono sm:table-cell">
+                            {invoice.order_no}
+                          </td>
+                          <td className="py-2 pr-3">{invoice.customer_name}</td>
+                          <td className="text-muted-foreground hidden py-2 pr-3 whitespace-nowrap md:table-cell">
+                            {formatDate(invoice.created_at)}
+                          </td>
+                          <td className="py-2 pr-3 text-right whitespace-nowrap tabular-nums">
+                            {formatINR(invoice.total)}
+                          </td>
+                          <td className="py-2 pr-3">
+                            <InvoiceStatusBadge status={invoice.status} />
+                          </td>
+                          <td className="py-2 text-right">
+                            {paid ? (
+                              <div className="flex flex-wrap items-center justify-end gap-2">
+                                {!invoice.pay_token ? null : (
+                                  <Button
+                                    asChild
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={isPending}
                                   >
-                                    <Eye aria-hidden />
-                                    View
-                                  </Link>
-                                </Button>
-                              )}
-                              <span className="text-muted-foreground text-xs">
-                                Settled
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="flex justify-end gap-2">
-                              {!invoice.pay_token ? null : (
-                                <Button
-                                  asChild
-                                  size="sm"
-                                  variant="ghost"
-                                  disabled={isPending}
-                                >
-                                  <Link
-                                    href={`/pay/${invoice.pay_token}`}
-                                    target="_blank"
-                                  >
-                                    <Eye aria-hidden />
-                                    View
-                                  </Link>
-                                </Button>
-                              )}
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleSend(invoice)}
-                                disabled={isPending || sendingId === invoice.id}
-                              >
-                                {sendingId === invoice.id ? (
-                                  <Loader2
-                                    className="animate-spin"
-                                    aria-hidden
-                                  />
-                                ) : (
-                                  <Send aria-hidden />
+                                    <Link
+                                      href={`/pay/${invoice.pay_token}`}
+                                      target="_blank"
+                                    >
+                                      <Eye aria-hidden />
+                                      View
+                                    </Link>
+                                  </Button>
                                 )}
-                                Send
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => openCollect(invoice)}
-                                disabled={isPending}
-                              >
-                                <Wallet aria-hidden />
-                                Mark collected
-                              </Button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                                <span className="text-muted-foreground text-xs">
+                                  Settled
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="flex flex-wrap justify-end gap-2">
+                                {!invoice.pay_token ? null : (
+                                  <Button
+                                    asChild
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={isPending}
+                                  >
+                                    <Link
+                                      href={`/pay/${invoice.pay_token}`}
+                                      target="_blank"
+                                    >
+                                      <Eye aria-hidden />
+                                      View
+                                    </Link>
+                                  </Button>
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleSend(invoice)}
+                                  disabled={
+                                    isPending || sendingId === invoice.id
+                                  }
+                                >
+                                  {sendingId === invoice.id ? (
+                                    <Loader2
+                                      className="animate-spin"
+                                      aria-hidden
+                                    />
+                                  ) : (
+                                    <Send aria-hidden />
+                                  )}
+                                  Send
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => openCollect(invoice)}
+                                  disabled={isPending}
+                                >
+                                  <Wallet aria-hidden />
+                                  Mark collected
+                                </Button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-muted-foreground mt-2 text-xs md:hidden">
+                Slide the table horizontally for every column.
+              </p>
+            </>
           )}
         </CardContent>
       </Card>

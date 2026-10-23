@@ -229,7 +229,13 @@ function AnalysisButton({
         </DialogTrigger>
       )}
 
-      <DialogContent>
+      {/*
+        Default DialogContent is fixed-centered with no height cap, which on a
+        phone (or a landscape phone with the keyboard open) runs confirm
+        dialogs both above and below the viewport with no way to reach the
+        footer. Every confirm body here is short enough to scroll instead.
+      */}
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Confirm analysis completed?</DialogTitle>
           <DialogDescription asChild>
@@ -390,7 +396,7 @@ function InvoiceButton({
         lines can never push the form past the viewport (the overlap that grid
         + no height cap produced).
       */}
-      <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
         <DialogHeader className="border-primary/15 from-primary/10 via-secondary/50 relative shrink-0 space-y-0 overflow-hidden border-b bg-gradient-to-br to-transparent px-5 py-4 pr-14 text-left">
           <span
             aria-hidden
@@ -518,7 +524,7 @@ function ReadyButton({
         </DialogTrigger>
       )}
 
-      <DialogContent>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Mark the laundry ready for delivery?</DialogTitle>
           <DialogDescription asChild>
@@ -652,7 +658,7 @@ function SendInvoiceButton({
         </DialogTrigger>
       )}
 
-      <DialogContent>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Send the invoice to the customer?</DialogTitle>
           <DialogDescription>

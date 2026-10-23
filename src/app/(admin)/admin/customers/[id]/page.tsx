@@ -186,8 +186,14 @@ export default async function AdminCustomerPage({
                           />
                         </span>
 
-                        <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                          <CalendarDays className="size-3.5" aria-hidden />
+                        {/* min-w-0 on the wrapper span: the truncate inside
+                            never engaged without it, so a long slot label
+                            pushed the row (and the page) wide. */}
+                        <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
+                          <CalendarDays
+                            className="size-3.5 shrink-0"
+                            aria-hidden
+                          />
                           Pickup {formatDate(order.pickup_slot_date)}
                           <span className="truncate">
                             {order.slotLabel ?? ""}
@@ -279,8 +285,10 @@ export default async function AdminCustomerPage({
 
                 <Row label="Email">
                   {profile.email ? (
-                    <span className="inline-flex items-center gap-1.5">
-                      <Mail className="size-3.5" aria-hidden />
+                    // An email has no natural break points; a long one
+                    // overflowed the narrow fact column otherwise.
+                    <span className="inline-flex min-w-0 items-start gap-1.5 break-all">
+                      <Mail className="size-3.5 shrink-0" aria-hidden />
                       {profile.email}
                     </span>
                   ) : (

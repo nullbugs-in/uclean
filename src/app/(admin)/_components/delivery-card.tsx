@@ -54,9 +54,13 @@ export function DeliveryCard({
   return (
     <Card className={cn("gap-4 py-4", !assigned && "border-warning/50")}>
       <CardHeader className="px-4">
-        <div className="flex items-baseline gap-3">
-          <span className="text-base font-semibold">{order.customer_name}</span>
-          <span className="text-muted-foreground font-mono text-xs">
+        {/* min-w-0 lets a long customer name shrink into its own truncation
+            instead of pushing the mono order number off the card. */}
+        <div className="flex min-w-0 items-baseline gap-3">
+          <span className="truncate text-base font-semibold">
+            {order.customer_name}
+          </span>
+          <span className="text-muted-foreground shrink-0 font-mono text-xs">
             {order.order_no}
           </span>
         </div>

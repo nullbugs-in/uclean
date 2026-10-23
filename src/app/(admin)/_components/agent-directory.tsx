@@ -207,7 +207,9 @@ function AgentRow({ agent }: { agent: PickupAgent }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* flex-wrap: three nowrap buttons are ~320px, which overflows a
+            296px phone row — the third action dropped off the card edge. */}
+        <div className="flex flex-wrap items-center gap-2">
           {agent.isActive ? (
             <Button
               type="button"
