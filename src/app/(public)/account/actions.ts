@@ -41,12 +41,14 @@ const editableProfileSchema = z.object({
     .max(160)
     .optional()
     .or(z.literal("")),
-  whatsappNumber: z
-    .string()
-    .trim()
-    .regex(/^\+?[1-9]\d{9,14}$/, "Enter a valid WhatsApp number")
-    .optional()
-    .or(z.literal("")),
+  /*
+   * WhatsApp shares the mobile field's strict canonicalisation. The loose
+   * regex it used to have accepted anything E.164-shaped and stored it verbatim,
+   * so `919876543210` and `+919876543210` described one person while reading
+   * like two; the same customer must have one string for every consumer. An
+   * empty value means `clear it`, just like the email field above.
+   */
+  whatsappNumber: mobileSchema.optional().or(z.literal("")),
 });
 
 /**

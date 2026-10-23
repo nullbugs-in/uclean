@@ -144,9 +144,13 @@ export function SignUpForm({
           autoComplete="tel"
           placeholder=""
           aria-invalid={Boolean(errors.mobile)}
-          aria-describedby={errors.mobile ? "mobile-error" : undefined}
+          aria-describedby={errors.mobile ? "mobile-error" : "mobile-hint"}
           className="h-11"
         />
+        <p id="mobile-hint" className="text-muted-foreground text-xs">
+          Please enter your WhatsApp number, as you&apos;ll receive OTPs and all
+          your booking and order notifications through WhatsApp.
+        </p>
         {errors.mobile ? (
           <p
             id="mobile-error"
