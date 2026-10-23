@@ -19,6 +19,7 @@ import {
 import Link from "next/link";
 import * as React from "react";
 
+import { DatePicker } from "@/app/(public)/book/steps/date-picker";
 import { MapPicker } from "@/app/(public)/book/map-picker";
 import { formatFullDate } from "@/app/(public)/book/format";
 import type { LatLng, ZoneResult } from "@/app/(public)/book/types";
@@ -38,13 +39,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input, Label, Textarea } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   deriveExpressCategory,
   type CategorySlug,
@@ -95,7 +89,13 @@ function dayLabel(dateKey: string, todayKey: string): string {
 }
 
 /** The verdict spelled out, for the cases where "drag the pin" is not enough. */
-function ZoneNote({ zone, maxRadiusKm }: { zone: ZoneResult; maxRadiusKm: number }) {
+function ZoneNote({
+  zone,
+  maxRadiusKm,
+}: {
+  zone: ZoneResult;
+  maxRadiusKm: number;
+}) {
   if (zone.status === "within") return null;
 
   if (zone.status === "outside") {
@@ -209,10 +209,7 @@ export function WalkInForm({
     [activeCategory, selection],
   );
 
-  const subtotal = React.useMemo(
-    () => selectionTotal(lines),
-    [lines],
-  );
+  const subtotal = React.useMemo(() => selectionTotal(lines), [lines]);
 
   /*
    * Every distance check is numbered. Dragging the map fires a request per drop,
@@ -427,8 +424,8 @@ export function WalkInForm({
             Customer
           </CardTitle>
           <CardDescription>
-            The mobile number decides whether this is a new account or a returning
-            customer.
+            The mobile number decides whether this is a new account or a
+            returning customer.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -522,7 +519,10 @@ export function WalkInForm({
         <CardContent className="space-y-4">
           <div className="border-border has-[:focus-within]:border-ring has-[:focus-within]:ring-ring/30 overflow-hidden rounded-xl border transition-colors has-[:focus-within]:ring-2">
             <div className="bg-background/60 border-border flex items-center gap-2 border-b px-3">
-              <Search className="text-muted-foreground size-4 shrink-0" aria-hidden />
+              <Search
+                className="text-muted-foreground size-4 shrink-0"
+                aria-hidden
+              />
               <Input
                 id="walk-in-address"
                 ref={addressInputRef}
@@ -571,24 +571,19 @@ export function WalkInForm({
             <>
               <div className="space-y-2">
                 <Label htmlFor="walk-in-date">Date</Label>
-                <Select
-                  value={slotDate}
-                  onValueChange={(next) => {
-                    setSlotDate(next);
-                    setSlotId("");
-                  }}
-                >
-                  <SelectTrigger id="walk-in-date" className="w-full sm:w-72">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {bookableDays.map((day) => (
-                      <SelectItem key={day.dateKey} value={day.dateKey}>
-                        {dayLabel(day.dateKey, todayKey)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-3">
+                  <DatePicker
+                    days={bookableDays}
+                    selectedDate={slotDate}
+                    onSelectDate={(next) => {
+                      setSlotDate(next);
+                      setSlotId("");
+                    }}
+                  />
+                  <span className="text-sm font-medium">
+                    {dayLabel(slotDate, todayKey) ?? formatFullDate(slotDate)}
+                  </span>
+                </div>
               </div>
 
               <fieldset className="space-y-2">
@@ -628,7 +623,7 @@ export function WalkInForm({
 
       {/* Services */}
       <Card>
-        <CardHeader>
+        <CardHeader className="items-center justify-items-center text-center">
           <CardTitle className="flex items-center gap-2 text-base">
             <ShoppingBasket className="size-4" aria-hidden />
             Services
@@ -921,7 +916,9 @@ export function WalkInForm({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="walk-in-notes">Note for the driver (optional)</Label>
+            <Label htmlFor="walk-in-notes">
+              Note for the driver (optional)
+            </Label>
             <Textarea
               id="walk-in-notes"
               placeholder="Gate code, landmark, anything helpful."
