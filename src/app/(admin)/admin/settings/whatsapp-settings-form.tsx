@@ -295,10 +295,14 @@ export function WhatsAppSettingsForm({
           is recorded below and in the Notifications message log.
         </p>
 
-        {/* On phones select and number share one row evenly, and the button
-            wraps below; the fixed min-widths used to stack all three. */}
-        <div className="flex flex-wrap items-end gap-2">
-          <div className="min-w-0 flex-1 space-y-2 sm:min-w-44">
+        {/* On phones every control takes its own full-width line - the
+            button included - instead of the two half-width fields
+            truncating the template name and phone number. From sm up the
+            row becomes a strict grid: the two fields sit in equal 1fr
+            tracks (no flex-basis skew) with the button in an auto column
+            on the end, at the panel's gap-3 rhythm. */}
+        <div className="grid items-end gap-2 sm:grid-cols-[1fr_1fr_auto] sm:gap-3">
+          <div className="min-w-0 flex-1 space-y-2">
             <Label htmlFor="test_template">Template to send</Label>
             <Select
               name="test_template"
@@ -308,7 +312,7 @@ export function WhatsAppSettingsForm({
               }
               disabled={!credentialsConfigured}
             >
-              <SelectTrigger id="test_template" className="w-full">
+              <SelectTrigger id="test_template" className="h-9 w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -321,7 +325,7 @@ export function WhatsAppSettingsForm({
             </Select>
           </div>
 
-          <div className="min-w-0 flex-1 space-y-2 sm:min-w-52">
+          <div className="min-w-0 flex-1 space-y-2">
             <Label htmlFor="test_destination">Send to (WhatsApp)</Label>
             <Input
               id="test_destination"
@@ -331,6 +335,7 @@ export function WhatsAppSettingsForm({
               placeholder="919845012345"
               disabled={!credentialsConfigured}
               autoComplete="off"
+              className="h-9"
             />
           </div>
 
