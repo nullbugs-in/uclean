@@ -15,14 +15,8 @@ export type {
   SlotBookingInput,
 } from "./booking";
 
-export {
-  codSchema,
-  statusChangeSchema,
-} from "./billing";
-export type {
-  CodInput,
-  StatusChangeInput,
-} from "./billing";
+export { codSchema, statusChangeSchema } from "./billing";
+export type { CodInput, StatusChangeInput } from "./billing";
 
 export {
   blockedDateSchema,
@@ -38,10 +32,17 @@ export type {
   SlotSettingsValues,
 } from "./slot";
 
-
-
 export { storeSettingsSchema } from "./store";
 export type { StoreSettingsInput, StoreSettingsValues } from "./store";
+
+export { whatsappSettingsSchema, whatsappTestSchema } from "./whatsapp";
+export type {
+  WhatsAppSettingsInput,
+  WhatsAppSettingsValues,
+  WhatsAppTestInput,
+  WhatsAppTestValues,
+  WhatsAppTestTemplate,
+} from "./whatsapp";
 
 export {
   pricingGroupCreateSchema,

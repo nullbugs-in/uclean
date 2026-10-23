@@ -119,8 +119,11 @@ async function sendOne(notification: Notification): Promise<SendResult> {
 /**
  * Sends one message through the provider.
  *
- * WhatsApp is the primary channel and SMS the fallback (section 13). The
- * provider call itself lands in Milestone 6; this is the seam where it goes.
+ * WhatsApp is the primary channel and SMS the fallback (section 13). The send
+ * itself is the injected {@link setNotificationSender sender}, wired by the
+ * cron route from the WhatsApp Cloud API integration (see
+ * `src/server/whatsapp-provider.ts`), so a disabled or unconfigured
+ * integration keeps reporting a failure rather than pretending to send.
  */
 async function dispatch(notification: Notification): Promise<string> {
   const rendered = renderTemplate(notification.template, notification.payload);
@@ -128,6 +131,7 @@ async function dispatch(notification: Notification): Promise<string> {
   const providerId = await sendViaProvider(
     notification.channel,
     notification.destination,
+    notification.template,
     rendered,
   );
 
@@ -161,16 +165,18 @@ export function renderTemplate(
 
 type ProviderSender = (
   channel: "whatsapp" | "sms",
-  destination: string | null,
+  destination: string,
+  template: NotificationTemplate,
   body: string,
 ) => Promise<string>;
 
 let sender: ProviderSender | null = null;
 
 /**
- * Injects the provider implementation. Milestone 6 wires the WhatsApp Cloud API
- * client here; until then the worker reports a failure rather than pretending
- * to send, so nothing is silently marked delivered.
+ * Injects the provider implementation. The cron route wires the WhatsApp
+ * Cloud API client here from the admin panel's integration settings; without
+ * an injected sender the worker reports a failure rather than pretending to
+ * send, so nothing is silently marked delivered.
  */
 export function setNotificationSender(next: ProviderSender): void {
   sender = next;
@@ -179,6 +185,7 @@ export function setNotificationSender(next: ProviderSender): void {
 async function sendViaProvider(
   channel: "whatsapp" | "sms",
   destination: string | null,
+  template: NotificationTemplate,
   body: string,
 ): Promise<string> {
   if (!destination) {
@@ -189,7 +196,7 @@ async function sendViaProvider(
       "No notification sender configured. Call setNotificationSender() during bootstrap.",
     );
   }
-  return sender(channel, destination, body);
+  return sender(channel, destination, template, body);
 }
 
 /**

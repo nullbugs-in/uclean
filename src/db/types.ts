@@ -310,6 +310,34 @@ export type Notification = {
   updated_at: string;
 };
 
+/** One Meta-approved template the queue sends an internal template as. */
+export type WhatsAppTemplateConfig = {
+  name: string;
+  language: string;
+};
+
+/** The admin panel's template mapping: internal template -> Meta config. */
+export type WhatsAppTemplateMapping = Partial<
+  Record<NotificationTemplate, WhatsAppTemplateConfig>
+>;
+
+export type WhatsAppSettings = {
+  id: boolean;
+  /**
+   * The integration switch. Off means the notification queue worker keeps
+   * reporting a "no sender configured" failure rather than sending.
+   */
+  enabled: boolean;
+  /** Internal template name -> Meta-approved template config. */
+  template_mapping: Json;
+  /** Outcome of the admin panel's test-message action; null until tested. */
+  last_test_ok: boolean | null;
+  last_test_at: string | null;
+  last_test_error: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type StaffNotificationType =
   | "pickup_assigned"
   | "delivery_assigned"
@@ -614,6 +642,19 @@ export type Database = {
         Optional<
           StaffNotification,
           "id" | "order_id" | "payload" | "read_at" | "created_at"
+        >
+      >;
+      whatsapp_settings: Table<
+        WhatsAppSettings,
+        Optional<
+          WhatsAppSettings,
+          | "enabled"
+          | "template_mapping"
+          | "last_test_ok"
+          | "last_test_at"
+          | "last_test_error"
+          | "created_at"
+          | "updated_at"
         >
       >;
       audit_logs: Table<
