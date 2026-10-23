@@ -11,7 +11,7 @@ export function WhatsAppFloat() {
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Chat with UClean on WhatsApp"
-      className="group fixed right-4 bottom-4 z-50 inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-black/20 transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25D366] sm:right-6 sm:bottom-6"
+      className="fixed right-4 bottom-4 z-50 grid size-12 place-items-center rounded-full bg-[#25D366] text-white shadow-lg shadow-black/20 transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25D366] sm:right-6 sm:bottom-6"
     >
       <span className="relative grid place-items-center">
         <span
@@ -20,7 +20,6 @@ export function WhatsAppFloat() {
         />
         <WhatsAppGlyph />
       </span>
-      <span className="hidden sm:inline">Chat on WhatsApp</span>
     </a>
   );
 }
