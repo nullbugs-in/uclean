@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-
 import { CycleMeter } from "@/components/panel/cycle-meter";
 import {
   Table,
@@ -63,13 +61,8 @@ export default async function StaffOrdersPage() {
             <TableBody>
               {orders.map((order) => (
                 <TableRow key={order.id}>
-                  <TableCell className="whitespace-nowrap">
-                    <Link
-                      href={`/staff/orders/${order.id}`}
-                      className="font-medium underline-offset-4 hover:underline"
-                    >
-                      {order.order_no}
-                    </Link>
+                  <TableCell className="font-medium whitespace-nowrap">
+                    {order.order_no}
                   </TableCell>
                   <TableCell>
                     <span className="block">{order.customer_name}</span>

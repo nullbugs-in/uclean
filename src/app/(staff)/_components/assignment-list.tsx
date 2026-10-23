@@ -51,14 +51,7 @@ export async function AssignmentList({ type }: { type: AssignmentType }) {
   return (
     <div className="grid gap-3">
       {rows.map((row) => (
-        <AssignmentCard
-          key={row.order.id}
-          row={row}
-          type={type}
-          // Pickups can be closed out from the card itself; deliveries and the
-          // overview round keep their cards read-only.
-          showStatusActions={type === "pickup"}
-        />
+        <AssignmentCard key={row.order.id} row={row} type={type} />
       ))}
     </div>
   );

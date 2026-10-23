@@ -11,7 +11,7 @@ export type UpdateOrderStatusResult =
   { ok: true } | { ok: false; message: string };
 
 /**
- * Moves an order to the next status from the staff order page.
+ * Moves an order to the next status from a staff panel card.
  *
  * Authorisation is layered. requireStaff() rejects anyone who is not staff or
  * admin, changeOrderStatus() re-checks the transition against the state
@@ -31,8 +31,8 @@ export async function updateOrderStatusAction(
     await requireStaff();
     await changeOrderStatus(orderId, next);
 
-    revalidatePath(`/staff/orders/${orderId}`);
     revalidatePath("/staff");
+    revalidatePath("/staff/orders");
     revalidatePath("/staff/pickups");
     revalidatePath("/staff/deliveries");
 

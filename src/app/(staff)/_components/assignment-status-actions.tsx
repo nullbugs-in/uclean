@@ -5,15 +5,15 @@ import { useState } from "react";
 import { OrderStatusActions } from "@/components/order-status-actions";
 import type { OrderStatus } from "@/db/types";
 
-import { updateOrderStatusAction } from "../staff/orders/[id]/actions";
+import { updateOrderStatusAction } from "../staff/orders/actions";
 
 /**
  * Status transition buttons for a stop on an agent's round.
  *
- * Lets a staff member mark a pickup picked up (or cancel it) from the card
- * itself rather than opening My Orders. The shared OrderStatusActions owns
- * which transitions are offered and the pending state, and the status update
- * runs through the same server action the order page uses, so authorisation
+ * Lets a staff member move an order along from the card itself — the cards are
+ * now the only surface for it. The shared OrderStatusActions owns which
+ * transitions are offered and the pending state, and the status update runs
+ * through the one server action behind the staff panel, so authorisation
  * (requireStaff, the state machine, RLS and the transition trigger) is
  * identical no matter which surface the button is on.
  *

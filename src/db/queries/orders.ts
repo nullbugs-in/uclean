@@ -1,4 +1,4 @@
-import type { DbClient, Order, OrderItem, OrderStatusHistory } from "../types";
+import type { DbClient, Order, OrderStatusHistory } from "../types";
 
 type Client = DbClient;
 
@@ -11,11 +11,6 @@ function unwrap<T>(result: {
   }
   return result.data as T;
 }
-
-export type OrderWithItems = Order & {
-  order_items: OrderItem[];
-  order_status_history: OrderStatusHistory[];
-};
 
 /** A customer's own orders, newest first. RLS already scopes this to them. */
 export async function listOrdersForCustomer(
@@ -101,39 +96,6 @@ export async function listOrderHistoryForCustomer(
   }
 
   return grouped;
-}
-
-/** A single order with its items and full status history for the timeline. */
-export async function getOrderDetail(
-  client: Client,
-  orderId: string,
-): Promise<OrderWithItems | null> {
-  const order = await client
-    .from("orders")
-    .select("*")
-    .eq("id", orderId)
-    .maybeSingle();
-
-  if (order.error) throw new Error(order.error.message);
-  if (!order.data) return null;
-
-  const [items, history] = await Promise.all([
-    client.from("order_items").select("*").eq("order_id", orderId),
-    client
-      .from("order_status_history")
-      .select("*")
-      .eq("order_id", orderId)
-      .order("created_at", { ascending: true }),
-  ]);
-
-  if (items.error) throw new Error(items.error.message);
-  if (history.error) throw new Error(history.error.message);
-
-  return {
-    ...order.data,
-    order_items: items.data ?? [],
-    order_status_history: history.data ?? [],
-  };
 }
 
 /**

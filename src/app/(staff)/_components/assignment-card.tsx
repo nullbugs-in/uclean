@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  ArrowRight,
   MapPin,
   Navigation,
   Phone,
@@ -81,25 +80,18 @@ function monogramOf(name: string): string {
  * previously only offered them for pickups, so a driver had no shortcut to the
  * address they were driving to.
  *
- * Status transitions are the one deliberate difference: the pickups screen opts
- * in (`showStatusActions`), where the row reads Navigate, then the allowed
- * transitions (Picked Up / Cancelled); a staff member can close out a pickup
- * without opening the order. The overview round and the delivery list keep
- * Navigate and Open order and stay read-only.
+ * Every card carries the status transitions too — the staff order detail page
+ * was removed, so the cards are the leg's only surface for moving an order
+ * along. The transitions sit after Navigate and wrap onto their own line under
+ * it when the row runs out of width; the assignment phase (assigned / en
+ * route) stays as the quiet note on the right.
  */
 export function AssignmentCard({
   row,
   type,
-  showStatusActions = false,
 }: {
   row: AssignedOrder;
   type: AssignmentType;
-  /**
-   * Opt-in status buttons on the card. Only the pickups screen sets it: the
-   * overview round is intentionally a read of the day, and the delivery list
-   * has its own transitions it does not make on the doorstep.
-   */
-  showStatusActions?: boolean;
 }) {
   const { order, assignmentStatus } = row;
   const slotDate =
@@ -239,27 +231,13 @@ export function AssignmentCard({
               />
             </a>
           </Button>
-          {showStatusActions ? (
-            /*
-             * Pickup stops close out from the card: Navigate, then the
-             * status transitions, replacing "Open order". The transitions
-             * wrap onto their own line under Navigate when the row runs out
-             * of width.
-             */
-            <AssignmentStatusActions orderId={order.id} status={order.status} />
-          ) : (
-            <>
-              <Button asChild size="sm" variant="ghost">
-                <Link href={`/staff/orders/${order.id}`}>
-                  Open order
-                  <ArrowRight />
-                </Link>
-              </Button>
-              <span className="text-muted-foreground ml-auto text-xs capitalize">
-                {assignmentStatus.replace("_", " ")}
-              </span>
-            </>
-          )}
+          {/* Status transitions close a stop straight from the card, on every
+          leg. The transitions wrap onto their own line under Navigate when
+          the row runs out of width. */}
+          <AssignmentStatusActions orderId={order.id} status={order.status} />
+          <span className="text-muted-foreground ml-auto text-xs capitalize">
+            {assignmentStatus.replace("_", " ")}
+          </span>
         </div>
       </CardContent>
     </Card>

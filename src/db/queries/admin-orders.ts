@@ -273,7 +273,8 @@ async function enrichOrders(
       itemCount: orderItems.length,
       hasInvoice: invoiced.has(order.id),
       invoiceStatus:
-        statusByOrderId.get(order.id) ?? (invoiced.has(order.id) ? "draft" : null),
+        statusByOrderId.get(order.id) ??
+        (invoiced.has(order.id) ? "draft" : null),
       analysisNote: analysisNotes.get(order.id) ?? null,
     } satisfies AdminOrderRow;
   });
@@ -357,12 +358,11 @@ export type AdminOrderDetail = Order & {
  * history read on its own does not give: who acted, and whether an invoice
  * already exists for this booking.
  *
- * `getOrderDetail` in the shared module resolves items and history, but resolves
- * neither actor names nor invoice state, and changing it would change the staff
- * page too. So this reads them alongside rather than through it.
+ * The plain reads (items, history) do not resolve actor names or invoice
+ * state, so this reads them alongside rather than through them.
  *
- * Everything the detail page renders comes from here in one round trip, so the
- * page does not fan out into per-section queries.
+ * Everything the admin booking detail renders comes from here in one round
+ * trip, so the page does not fan out into per-section queries.
  */
 export async function getAdminOrderDetail(
   client: DbClient,
