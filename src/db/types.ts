@@ -310,6 +310,44 @@ export type Notification = {
   updated_at: string;
 };
 
+export type StaffNotificationType =
+  | "pickup_assigned"
+  | "delivery_assigned"
+  | "pickup_reminder"
+  | "delivery_reminder";
+
+/**
+ * What the staff bell renders, written by the assignment trigger
+ * (migration 20260101000022) and the slots cron. Kept denormalised so the
+ * bell never has to join orders.
+ */
+export type StaffNotificationPayload = {
+  leg?: AssignmentType;
+  order_no?: string;
+  customer_name?: string;
+  address?: string;
+  slot_date?: string;
+  slot_label?: string | null;
+  slot_start?: string | null;
+  assigned_by_type?: "auto" | "manual";
+  assigned_by_name?: string | null;
+};
+
+export type StaffNotification = {
+  id: number;
+  user_id: string;
+  order_id: string | null;
+  type: StaffNotificationType;
+  payload: Json;
+  /**
+   * When the recipient saw the notification in the panel bell. Null means
+   * unread. Written only through the SECURITY DEFINER functions from
+   * migration 20260101000022, never by a direct table update.
+   */
+  read_at: string | null;
+  created_at: string;
+};
+
 export type OtpLog = {
   id: number;
   mobile: string;
@@ -374,14 +412,24 @@ export type Database = {
         PricingItem,
         Optional<
           PricingItem,
-          "id" | "image_url" | "sort_order" | "is_active" | "created_at" | "updated_at"
+          | "id"
+          | "image_url"
+          | "sort_order"
+          | "is_active"
+          | "created_at"
+          | "updated_at"
         >
       >;
       pricing_options: Table<
         PricingOption,
         Optional<
           PricingOption,
-          "id" | "label" | "turnaround" | "sort_order" | "created_at" | "updated_at"
+          | "id"
+          | "label"
+          | "turnaround"
+          | "sort_order"
+          | "created_at"
+          | "updated_at"
         >
       >;
       hero_slides: Table<
@@ -561,6 +609,13 @@ export type Database = {
           | "request_ip"
         >
       >;
+      staff_notifications: Table<
+        StaffNotification,
+        Optional<
+          StaffNotification,
+          "id" | "order_id" | "payload" | "read_at" | "created_at"
+        >
+      >;
       audit_logs: Table<
         AuditLog,
         Optional<
@@ -640,6 +695,26 @@ export type Database = {
        * regenerate with `supabase gen types` if the signature ever changes.
        */
       mark_notification_read: {
+        Args: { p_notification_id: number };
+        Returns: boolean;
+      };
+      /**
+       * Added by migration 20260101000022_staff_notifications.sql. Marks the
+       * caller's own unread staff notifications read and returns how many it
+       * touched. Hand-written to match that migration; regenerate with
+       * `supabase gen types` if the signature ever changes.
+       */
+      mark_all_staff_notifications_read: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
+      /**
+       * Added by migration 20260101000022_staff_notifications.sql. Marks one
+       * of the caller's own staff notifications read and reports whether it
+       * actually changed a row. Hand-written to match that migration;
+       * regenerate with `supabase gen types` if the signature ever changes.
+       */
+      mark_staff_notification_read: {
         Args: { p_notification_id: number };
         Returns: boolean;
       };

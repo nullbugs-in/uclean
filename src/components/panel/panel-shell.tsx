@@ -3,6 +3,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { PanelProviders } from "./panel-providers";
 import { PanelTopbar } from "./panel-topbar";
 import { PanelSidebar, type PanelNavSection, type PanelUser } from "./sidebar";
+import type { StaffBellNotifications } from "./staff-notifications-bell";
 
 export type { PanelNavSection, PanelNavItem } from "./sidebar";
 
@@ -23,11 +24,18 @@ export function PanelShell({
   panelName,
   sections,
   user,
+  notifications,
   children,
 }: {
   panelName: string;
   sections: PanelNavSection[];
   user: PanelUser;
+  /**
+   * Notification data for the staff bell, passed through untouched. Only the
+   * staff panel layout supplies it; the prop contract of the shell is
+   * otherwise unchanged, so the customer account panel keeps working as-is.
+   */
+  notifications?: StaffBellNotifications;
   children: React.ReactNode;
 }) {
   return (
@@ -39,6 +47,7 @@ export function PanelShell({
             panelName={panelName}
             sections={sections}
             role={user.role}
+            notifications={notifications}
           />
           <main className="min-w-0 flex-1">
             {/* One shared width cap so every page lines up; padding stays with

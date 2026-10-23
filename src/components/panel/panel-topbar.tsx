@@ -16,6 +16,10 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import type { Profile } from "@/db/types";
 
 import { PanelCommandMenu } from "./panel-command-menu";
+import {
+  StaffNotificationsBell,
+  type StaffBellNotifications,
+} from "./staff-notifications-bell";
 import type { PanelNavSection } from "./sidebar";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -38,10 +42,17 @@ export function PanelTopbar({
   panelName,
   sections,
   role,
+  notifications,
 }: {
   panelName: string;
   sections: PanelNavSection[];
   role: Profile["role"];
+  /**
+   * Notification data for the staff bell. Present only when the panel layout
+   * supplies it, so panels without a bell (today: the admin panel) keep the
+   * chrome they had.
+   */
+  notifications?: StaffBellNotifications;
 }) {
   const pathname = usePathname() ?? "";
 
@@ -94,6 +105,9 @@ export function PanelTopbar({
       </Breadcrumb>
 
       <div className="ml-auto flex items-center gap-2">
+        {notifications ? (
+          <StaffNotificationsBell notifications={notifications} />
+        ) : null}
         <PanelCommandMenu
           sections={sections}
           role={role}
