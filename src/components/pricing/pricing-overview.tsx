@@ -17,9 +17,10 @@ import { useState } from "react";
 import {
   pricingCategories,
   type CategorySlug,
+  type PriceCategory,
   type PriceGroup,
   type PriceOption,
-} from "@/data/pricing";
+} from "@/lib/pricing";
 import { formatPrice } from "@/lib/utils";
 
 import { SpeedToggle } from "./speed-toggle";
@@ -55,15 +56,16 @@ function cheapestInGroup(group: PriceGroup) {
  * filter: tapping one deep-links to /pricing with that speed and category
  * seeded, so the visitor lands on the full price list for what they picked.
  *
- * The figures shown here come from the same `src/data/pricing.ts` the pricing
- * page reads, so they can never disagree.
+ * The figures shown here come from the same price list the pricing page reads —
+ * the database assembled by `src/db/queries/pricing.ts` — so they can never
+ * disagree.
  */
-export function PricingOverview() {
+export function PricingOverview({ regular }: { regular: PriceCategory }) {
   const [speed, setSpeed] = useState<CategorySlug>("regular");
 
+  const categories = pricingCategories(regular);
   const category =
-    pricingCategories.find((entry) => entry.slug === speed) ??
-    pricingCategories[0];
+    categories.find((entry) => entry.slug === speed) ?? categories[0];
 
   if (!category) return null;
 

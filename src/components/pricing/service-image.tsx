@@ -8,7 +8,7 @@ import {
   Baby,
 } from "lucide-react";
 
-import type { PriceGroup, PriceItem } from "@/data/pricing";
+import type { PriceGroup, PriceItem } from "@/lib/pricing";
 
 /**
  * Artwork for a price item, or a deterministic placeholder while the real

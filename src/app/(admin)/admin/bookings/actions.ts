@@ -187,7 +187,6 @@ const bookingInvoiceItemSchema = z.object({
     .number()
     .min(0, "Amount cannot be negative")
     .max(1_000_000, "Amount cannot be more than ₹10,00,000"),
-  serviceId: z.string().uuid().optional(),
 });
 
 /**
@@ -220,7 +219,6 @@ export async function generateBookingInvoiceAction(input: {
     name: string;
     qty: number;
     unitPrice: number;
-    serviceId?: string;
   }>;
   feedback?: string;
 }): Promise<AdminBookingResult> {
@@ -285,7 +283,6 @@ export async function generateBookingInvoiceAction(input: {
         name: item.name,
         qty: item.qty,
         unitPrice: item.unitPrice,
-        serviceId: item.serviceId ?? null,
       })),
       feedback: parsed.data.feedback || null,
     });

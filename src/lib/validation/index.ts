@@ -38,11 +38,32 @@ export type {
   SlotSettingsValues,
 } from "./slot";
 
-export { serviceSchema } from "./service";
-export type { ServiceInput, ServiceValues } from "./service";
+
 
 export { storeSettingsSchema } from "./store";
 export type { StoreSettingsInput, StoreSettingsValues } from "./store";
+
+export {
+  pricingGroupCreateSchema,
+  pricingGroupSchema,
+  pricingItemCreateSchema,
+  pricingItemSchema,
+  pricingOptionCreateSchema,
+  pricingOptionSchema,
+  pricingOptionUpdateSchema,
+} from "./pricing";
+export type {
+  PricingGroupCreateInput,
+  PricingGroupInput,
+  PricingGroupValues,
+  PricingItemCreateInput,
+  PricingItemInput,
+  PricingItemValues,
+  PricingOptionCreateInput,
+  PricingOptionInput,
+  PricingOptionUpdateInput,
+  PricingOptionValues,
+} from "./pricing";
 
 export {
   walkInCustomerSchema,

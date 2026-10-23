@@ -5,7 +5,7 @@ import { MapPin } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SpeedToggle } from "@/components/pricing/speed-toggle";
-import type { CategorySlug } from "@/data/pricing";
+import { deriveExpressCategory, type CategorySlug, type PriceCategory } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
 import {
@@ -28,6 +28,8 @@ const SCROLLABLE_GROUPS: ReadonlySet<string> = new Set([
 
 type ServicesStepProps = {
   category: CategorySlug;
+  /** The stored Regular list; Express is derived from it for the toggle. */
+  pricing: PriceCategory;
   selection: ServiceSelection;
   onCategoryChange: (category: CategorySlug) => void;
   onSelectionChange: (selection: ServiceSelection) => void;
@@ -43,7 +45,7 @@ type ServicesStepProps = {
  * toggle - so the two read as one product. The one deliberate difference is
  * that no money appears here: the customer picks what needs cleaning and
  * nothing else, and every figure is assessed by the team once the items are
- * received. The price list in `src/data/pricing.ts` still backs the selection
+ * received. The price list in the `pricing_*` tables still backs the selection
  * behind the scenes, because the booking has to be saved with a unit price for
  * the team's own records, but none of it is surfaced to the customer.
  *
@@ -58,20 +60,25 @@ type ServicesStepProps = {
  */
 export function ServicesStep({
   category,
+  pricing,
   selection,
   onCategoryChange,
   onSelectionChange,
   onBack,
   onContinue,
 }: ServicesStepProps) {
-  const groups = groupsForCategory(category);
+  // The same stored list at either speed; switching re-prices what was picked.
+  const priceList =
+    category === "express" ? deriveExpressCategory(pricing) : pricing;
+
+  const groups = groupsForCategory(priceList);
   const [activeGroup, setActiveGroup] = useState(groups[0]?.slug ?? "");
 
-  const lines = resolveSelection(selection, category);
+  const lines = resolveSelection(priceList, selection);
   const itemCount = selectionCount(lines);
 
   const group = groups.find((entry) => entry.slug === activeGroup) ?? groups[0];
-  const items = group ? itemsForGroup(category, group.slug) : [];
+  const items = group ? itemsForGroup(priceList, group.slug) : [];
   const scrollable = group ? SCROLLABLE_GROUPS.has(group.slug) : false;
 
   /**
@@ -111,7 +118,7 @@ export function ServicesStep({
         <div className="flex flex-wrap justify-center gap-2">
           {groups.map((entry) => {
             const active = entry.slug === group?.slug;
-            const count = groupCounts(category, selection)[entry.slug] ?? 0;
+            const count = groupCounts(priceList, selection)[entry.slug] ?? 0;
 
             return (
               <button
@@ -303,11 +310,14 @@ function selectedClass(selected: boolean) {
 }
 
 /** How many selected lines each group holds, for the chips. */
-function groupCounts(category: CategorySlug, selection: ServiceSelection) {
+function groupCounts(
+  priceList: PriceCategory,
+  selection: ServiceSelection,
+) {
   const counts: Record<string, number> = {};
 
-  for (const group of groupsForCategory(category)) {
-    counts[group.slug] = itemsForGroup(category, group.slug).reduce(
+  for (const group of groupsForCategory(priceList)) {
+    counts[group.slug] = itemsForGroup(priceList, group.slug).reduce(
       (total, item) => total + (selection[item.optionKey] ?? 0),
       0,
     );

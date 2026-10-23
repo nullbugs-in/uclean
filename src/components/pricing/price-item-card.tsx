@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatPrice } from "@/lib/utils";
-import type { PriceGroup, PriceItem } from "@/data/pricing";
+import type { PriceGroup, PriceItem } from "@/lib/pricing";
 
 import { ServiceImage } from "./service-image";
 

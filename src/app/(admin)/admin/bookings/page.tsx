@@ -7,6 +7,7 @@ import {
   listAdminOrders,
   readBookingFilter,
 } from "@/db/queries/admin-orders";
+import { readPricingCatalog } from "@/db/queries/pricing";
 import { requireAdmin } from "@/server/auth";
 
 import { AdminOrderList } from "../../_components/admin-order-list";
@@ -40,7 +41,7 @@ export default async function AdminBookingsPage({
   const filter = readBookingFilter(await searchParams);
   const supabase = await createClient();
 
-  const [summary, result] = await Promise.all([
+  const [summary, result, pricing] = await Promise.all([
     /*
      * The figures are a nicety; the list is the page. A failed count must not
      * take the page with it, so it settles to zeroes rather than throwing.
@@ -68,6 +69,30 @@ export default async function AdminBookingsPage({
         truncated: false,
       };
     }),
+    /*
+     * The price list the invoice form matches booking lines against. A failed
+     * read must not take the bookings list with it — the form still works on
+     * the booked lines' own figures — so it settles to an empty pair.
+     */
+    readPricingCatalog(supabase).catch((error: unknown) => {
+      console.error("Could not load the price list", error);
+      return {
+        regular: {
+          slug: "regular" as const,
+          name: "Regular",
+          tagline: "",
+          turnaround: "2 to 3 days",
+          groups: [],
+        },
+        express: {
+          slug: "express" as const,
+          name: "Express",
+          tagline: "",
+          turnaround: "5 hours",
+          groups: [],
+        },
+      };
+    }),
   ]);
 
   return (
@@ -78,7 +103,7 @@ export default async function AdminBookingsPage({
       <div className="space-y-6">
         <BookingSummaryCards summary={summary} />
 
-        <AdminOrderList result={result} filter={filter} />
+        <AdminOrderList result={result} pricing={pricing} filter={filter} />
       </div>
     </PanelPage>
   );

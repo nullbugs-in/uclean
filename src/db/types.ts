@@ -81,14 +81,37 @@ export type Address = {
   updated_at: string;
 };
 
-export type Service = {
+export type PricingGroup = {
   id: string;
+  slug: string;
   name: string;
-  description: string | null;
-  unit: string;
-  price: number;
-  image_url: string | null;
+  turnaround: string | null;
+  sort_order: number;
   is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PricingItem = {
+  id: string;
+  group_id: string;
+  slug: string;
+  name: string;
+  image_url: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PricingOption = {
+  id: string;
+  item_id: string;
+  label: string | null;
+  original_price: number;
+  price: number;
+  unit: string;
+  turnaround: string | null;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -169,7 +192,6 @@ export type Order = {
 export type OrderItem = {
   id: string;
   order_id: string;
-  service_id: string | null;
   item_name: string;
   qty: number;
   unit_price: number;
@@ -341,16 +363,25 @@ export type Database = {
           "id" | "distance_km" | "is_default" | "created_at" | "updated_at"
         >
       >;
-      services: Table<
-        Service,
+      pricing_groups: Table<
+        PricingGroup,
         Optional<
-          Service,
-          | "id"
-          | "unit"
-          | "is_active"
-          | "sort_order"
-          | "created_at"
-          | "updated_at"
+          PricingGroup,
+          "id" | "sort_order" | "is_active" | "created_at" | "updated_at"
+        >
+      >;
+      pricing_items: Table<
+        PricingItem,
+        Optional<
+          PricingItem,
+          "id" | "image_url" | "sort_order" | "is_active" | "created_at" | "updated_at"
+        >
+      >;
+      pricing_options: Table<
+        PricingOption,
+        Optional<
+          PricingOption,
+          "id" | "label" | "turnaround" | "sort_order" | "created_at" | "updated_at"
         >
       >;
       hero_slides: Table<

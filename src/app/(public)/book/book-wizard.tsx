@@ -12,13 +12,14 @@ import {
   saveAddressAction,
 } from "./actions";
 import { resolveSelection, type ServiceSelection } from "./service-selection";
+import { deriveExpressCategory } from "@/lib/pricing";
 import { AddressStep } from "./steps/address-step";
 import { ConfirmStep } from "./steps/confirm-step";
 import { DetailsStep } from "./steps/details-step";
 import { ServicesStep } from "./steps/services-step";
 import { SlotStep } from "./steps/slot-step";
 import { SuccessStep } from "./steps/success-step";
-import type { CategorySlug } from "@/data/pricing";
+import type { CategorySlug, PriceCategory } from "@/lib/pricing";
 import type {
   AddressSaveState,
   BookingSummary,
@@ -35,6 +36,12 @@ type BookWizardProps = {
   initialIdentity: { name: string; mobile: string } | null;
   /** The customer's last saved address, so it can be prefilled. */
   initialAddress?: string;
+  /**
+   * The Regular price list read from the database by the page. The services
+   * step books from whatever it holds, so an admin's price edit is live for
+   * the next customer without a code change.
+   */
+  pricing: PriceCategory;
 };
 
 /** Shape of POST /api/distance's body, as far as this wizard cares about it. */
@@ -130,6 +137,7 @@ export function BookWizard({
   devTestCode,
   initialIdentity,
   initialAddress = "",
+  pricing,
 }: BookWizardProps) {
   const [step, setStep] = React.useState<WizardStep>(
     initialIdentity ? "address" : "details",
@@ -173,9 +181,18 @@ export function BookWizard({
   const [category, setCategory] = React.useState<CategorySlug>("regular");
   const [serviceSelection, setServiceSelection] =
     React.useState<ServiceSelection>({});
+  // Express is the Regular list times the configured multiple, computed from
+  // the same stored data so the two speeds cannot disagree.
+  const priceList = React.useMemo(
+    () =>
+      category === "express"
+        ? deriveExpressCategory(pricing)
+        : pricing,
+    [category, pricing],
+  );
   const selectedServices = React.useMemo(
-    () => resolveSelection(serviceSelection, category),
-    [serviceSelection, category],
+    () => resolveSelection(priceList, serviceSelection),
+    [priceList, serviceSelection],
   );
 
   const [upcomingDays, setUpcomingDays] = React.useState<SlotDay[] | null>(
@@ -467,6 +484,7 @@ export function BookWizard({
         {step === "services" ? (
           <ServicesStep
             category={category}
+            pricing={pricing}
             selection={serviceSelection}
             onCategoryChange={setCategory}
             onSelectionChange={setServiceSelection}

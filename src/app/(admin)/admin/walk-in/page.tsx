@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getStoreSettings } from "@/db/queries/catalog";
+import { readPricingCatalog, categoryFromCatalog } from "@/db/queries/pricing";
 import { createClient } from "@/db/server";
 import { addDays, storeNow, toDateKey } from "@/lib/dates";
 import { requireAdmin } from "@/server/auth";
@@ -102,6 +103,13 @@ export default async function AdminWalkInPage() {
   const availability = await getSlotsForRange(supabase, dateKeys);
   const todayKey = dateKeys[0] ?? toDateKey(new Date());
 
+  // The counter books from the same stored list /pricing shows, so an admin's
+  // price edit is on this page the next time it opens.
+  const pricing = categoryFromCatalog(
+    await readPricingCatalog(supabase),
+    "regular",
+  );
+
   const slotDays = dateKeys.map((dateKey) => {
     const day = availability.get(dateKey);
 
@@ -127,6 +135,7 @@ export default async function AdminWalkInPage() {
         todayKey={todayKey}
         center={{ lat: settings.lat, lng: settings.lng }}
         maxRadiusKm={settings.max_radius_km}
+        pricing={pricing}
         slotDays={slotDays}
       />
     </PanelPage>

@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 
+import { createClient } from "@/db/server";
+import { readPricingCatalog } from "@/db/queries/pricing";
 import { PricingBrowser } from "@/components/pricing/pricing-browser";
 import { PricingNotes } from "@/components/pricing/pricing-notes";
-import { getPricingCategory, type CategorySlug } from "@/data/pricing";
+import type { CategorySlug } from "@/lib/pricing";
 
 export const metadata: Metadata = {
   title: "Pricing",
@@ -19,9 +21,9 @@ type PricingSearchParams = Promise<{ speed?: string; group?: string }>;
  * defaults the page has always opened on - and `/pricing` with no params is
  * unchanged.
  *
- * Reading `searchParams` makes this route dynamically rendered instead of
- * static; the prices still render into the HTML, so nothing is lost for
- * crawlers.
+ * The prices are read from the `pricing_*` tables, which is what makes edits
+ * from /admin/services appear here on the next request: this module is where
+ * every client-side figure this page renders originates.
  */
 export default async function PricingPage({
   searchParams,
@@ -29,12 +31,14 @@ export default async function PricingPage({
   searchParams: PricingSearchParams;
 }) {
   const { speed, group } = await searchParams;
+  const supabase = await createClient();
+  const catalog = await readPricingCatalog(supabase);
 
   const initialSpeed: CategorySlug | undefined =
     speed === "regular" || speed === "express" ? speed : undefined;
 
-  const category = getPricingCategory(initialSpeed ?? "regular");
-  const initialGroup = category?.groups.some((entry) => entry.slug === group)
+  const category = catalog.regular;
+  const initialGroup = category.groups.some((entry) => entry.slug === group)
     ? group
     : undefined;
 
@@ -56,7 +60,7 @@ export default async function PricingPage({
         </p>
       </header>
 
-      <PricingBrowser initialSpeed={initialSpeed} initialGroup={initialGroup} />
+      <PricingBrowser regular={catalog.regular} initialSpeed={initialSpeed} initialGroup={initialGroup} />
 
       <PricingNotes />
     </div>

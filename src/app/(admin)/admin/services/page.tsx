@@ -1,45 +1,57 @@
 import type { Metadata } from "next";
 
-import { PanelPage } from "@/components/panel/panel-page";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { listServices } from "@/db/queries/catalog";
+import { readPricingRows } from "@/db/queries/pricing";
 import { createClient } from "@/db/server";
+import { requireAdmin } from "@/server/auth";
 
-import { ServicesPanel } from "./services-panel";
+import { PricingPanel } from "./pricing-panel";
 
 export const metadata: Metadata = { title: "Services and prices" };
 
 /**
- * Service and price list (section 8.13).
+ * Services & Pricing (architecture doc, section 8.5).
  *
- * The billing catalogue: invoices price line items from these rows, so an edit
- * here changes what an order is billed without a deploy.
+ * The price list every customer surface quotes from lives in the `pricing_*`
+ * tables, and this page edits exactly those rows: categories, the services in
+ * each, and the price lines that are actually quoted. Saving here is saving
+ * everywhere — /pricing, the /book wizard, the walk-in counter, the invoice
+ * lookup and the home overview read the same tables and are revalidated by the
+ * actions — so there is no second list to keep in step and no dummy data.
  *
- * The public /pricing page is a separate, static list (`src/data/pricing.ts`,
- * transcribed from `laundry_price_list_updated.md`), so a change here does not
- * move the marketing pages. That split is deliberate: one is marketing copy with
- * Regular and Express tiers, the other is what the store bills.
+ * Express deliberately has no editor of its own. It is the Regular list at the
+ * configured multiple, computed at read time, which is why the view shows
+ * derived figures and refuses edits.
  *
- * Reads fall back to an empty list on error so the page still renders its forms
- * rather than dropping to an error boundary.
+ * The raw rows are read rather than the assembled public category: a retired
+ * service or an emptied category has to stay visible and editable here even
+ * though the public list hides them.
  */
 export default async function AdminServicesPage() {
+  await requireAdmin();
   const supabase = await createClient();
-  const services = await listServices(supabase).catch(() => []);
+
+  const { groups, items, options } = await readPricingRows(supabase).catch(
+    (error: unknown) => {
+      console.error("Could not load the price list", error);
+      return { groups: [], items: [], options: [] };
+    },
+  );
 
   return (
-    <PanelPage
-      title="Services and prices"
-      description="The billing catalogue that invoices price from."
-    >
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Billing catalogue</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ServicesPanel services={services} />
-        </CardContent>
-      </Card>
-    </PanelPage>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">
+          Categories, services and prices
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <PricingPanel
+          groups={groups}
+          items={items}
+          options={options}
+        />
+      </CardContent>
+    </Card>
   );
 }

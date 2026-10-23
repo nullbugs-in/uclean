@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 
+import { readPricingCatalog } from "@/db/queries/pricing";
+import { createClient } from "@/db/server";
+
 import { About } from "@/components/sections/about";
 import { Contact } from "@/components/sections/contact";
 import { Hero } from "@/components/sections/hero";
@@ -18,7 +21,16 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  /*
+   * The pricing overview reads the `pricing_*` tables directly instead of a
+   * checked-in list, so an admin price edit shows up here on the next request.
+   * A read failure is not worth a dead home page: the section just renders its
+   * categories from nothing rather than dropping the whole route.
+   */
+  const supabase = await createClient();
+  const catalog = await readPricingCatalog(supabase).catch(() => null);
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
@@ -55,7 +67,7 @@ export default function HomePage() {
       />
       <Hero />
       <About />
-      <Services />
+      {catalog ? <Services regular={catalog.regular} /> : null}
       <WhyUClean />
       <HowItWorks />
       <Contact />

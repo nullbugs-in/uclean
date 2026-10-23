@@ -3,22 +3,30 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 
+import { createClient } from "@/db/server";
+import { readPricingCatalog } from "@/db/queries/pricing";
 import { PriceItemCard } from "@/components/pricing/price-item-card";
 import { PricingNotes } from "@/components/pricing/pricing-notes";
-import { getPricingCategory, pricingCategories } from "@/data/pricing";
+import { getPricingCategory } from "@/lib/pricing";
 
 type CategoryParams = { params: Promise<{ category: string }> };
 
-/** Pre-renders /pricing/regular and /pricing/express at build time. */
-export function generateStaticParams() {
-  return pricingCategories.map((category) => ({ category: category.slug }));
-}
-
+/**
+ * The standalone category page, read from the `pricing_*` tables like /pricing.
+ * Not pre-rendered with generateStaticParams any more: the admin edits prices
+ * between builds, so both `/pricing/regular` and `/pricing/express` render on
+ * demand and always show what the database currently says.
+ */
 export async function generateMetadata({
   params,
 }: CategoryParams): Promise<Metadata> {
   const { category: slug } = await params;
-  const category = getPricingCategory(slug);
+  const supabase = await createClient();
+  const catalog = await readPricingCatalog(supabase).catch(() => null);
+
+  if (!catalog) return { title: "Pricing" };
+
+  const category = getPricingCategory(catalog.regular, slug);
 
   if (!category) return { title: "Pricing" };
 
@@ -30,7 +38,9 @@ export async function generateMetadata({
 
 export default async function CategoryPage({ params }: CategoryParams) {
   const { category: slug } = await params;
-  const category = getPricingCategory(slug);
+  const supabase = await createClient();
+  const catalog = await readPricingCatalog(supabase);
+  const category = getPricingCategory(catalog.regular, slug);
 
   // Guards against /pricing/anything-else being requested.
   if (!category) notFound();

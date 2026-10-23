@@ -9,13 +9,11 @@ import { issuePaymentToken } from "./billing";
  * Invoices generated from the bookings cards.
  *
  * This is the booking channel's own persistence path, deliberately parallel to
- * `createInvoice` in `src/server/billing.ts` rather than a mode on it. The
- * Billing page bills catalogue services, so its lines are priced server-side
- * from the `services` catalogue. Bookings are different twice over: their
- * services come from the public price list (`src/data/pricing.ts`), which has
- * no rows behind it, and the admin who confirmed the analysis is expected to
- * adjust what each line bills — so here the line's name and unit price are
- * submitted, validated and stored as the invoice says.
+ * `createInvoice` in `src/server/billing.ts` rather than a mode on it. Bookings
+ * line up against the public price list (`pricing_items`/`pricing_options`),
+ * and the admin who confirmed the analysis is expected to adjust what each line
+ * bills — so here the line's name and unit price are submitted, validated and
+ * stored as the invoice says.
  *
  * Everything else matches the billing path: the invoice is upserted with the
  * service client (one invoice per order by design, so re-generating replaces
@@ -31,12 +29,6 @@ export type BookingInvoiceLineInput = {
   qty: number;
   /** The final unit price the admin confirmed. */
   unitPrice: number;
-  /**
-   * Set when the line names an actual `services` row (walk-in bookings).
-   * Price-list lines from online bookings carry no row and stay null, which is
-   * exactly how those bookings already store their lines.
-   */
-  serviceId?: string | null;
 };
 
 export type BookingInvoiceDraft = {
@@ -116,7 +108,6 @@ export async function createBookingInvoice(
   const { error: insertError } = await service.from("order_items").insert(
     draft.lines.map((line) => ({
       order_id: draft.orderId,
-      service_id: line.serviceId || null,
       item_name: line.name,
       qty: line.qty,
       unit_price: line.unitPrice,

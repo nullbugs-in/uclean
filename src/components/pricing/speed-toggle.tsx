@@ -1,6 +1,6 @@
 "use client";
 
-import type { CategorySlug } from "@/data/pricing";
+import type { CategorySlug } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
 /**

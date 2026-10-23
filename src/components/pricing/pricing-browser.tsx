@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 
-import { pricingCategories, type CategorySlug } from "@/data/pricing";
+import type { CategorySlug, PriceCategory } from "@/lib/pricing";
+import { pricingCategories } from "@/lib/pricing";
 import { cn, formatPrice } from "@/lib/utils";
 
 import { SpeedToggle } from "./speed-toggle";
@@ -32,9 +33,16 @@ const SCROLLABLE_GROUPS: ReadonlySet<string> = new Set([
  * /pricing/[category] are left in place.
  */
 export function PricingBrowser({
+  regular,
   initialSpeed,
   initialGroup,
 }: {
+  /**
+   * The Regular list this page's data is read from. Regular is displayed as
+   * stored and Express is derived from it, so both speeds agree with whatever
+   * the admin last saved.
+   */
+  regular: PriceCategory;
   /** Speed to open on, from `?speed=`. Falls back to Regular. */
   initialSpeed?: CategorySlug;
   /** Group to open on, from `?group=`. Falls back to the first group. */
@@ -44,12 +52,13 @@ export function PricingBrowser({
     initialSpeed ?? "regular",
   );
   const [activeGroup, setActiveGroup] = useState(
-    () => initialGroup ?? pricingCategories[0]?.groups[0]?.slug ?? "",
+    () => initialGroup ?? regular.groups[0]?.slug ?? "",
   );
 
+  const categories = pricingCategories(regular);
   const activeCategory =
-    pricingCategories.find((entry) => entry.slug === category) ??
-    pricingCategories[0];
+    categories.find((entry) => entry.slug === category) ??
+    categories[0];
   const groups = activeCategory?.groups ?? [];
   const group = groups.find((entry) => entry.slug === activeGroup) ?? groups[0];
 

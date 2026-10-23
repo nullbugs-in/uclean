@@ -28,15 +28,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { BillableOrder } from "@/db/queries/billing";
-import type { CategorySlug } from "@/data/pricing";
+import type { CategorySlug } from "@/lib/pricing";
 import { deliveryChargeFor, type DeliveryPolicy } from "@/lib/invoice";
 import {
   catalogueGroups,
   catalogueSections,
+  categoryForSpeed,
   defaultGroupForBooking,
   detectBookingSpeed,
   findOptionByName,
   type PricedOption,
+  type PricingCatalogPair,
 } from "@/lib/pricing-options";
 import { formatINR } from "@/lib/utils";
 
@@ -49,7 +51,7 @@ import { generateBookingInvoiceAction } from "../admin/bookings/actions";
  *
  * Four things make this its own form rather than the Billing page's:
  *
- * - The services are the store's actual price list (`src/data/pricing.ts` —
+ * - The services are the store's actual price list (the `pricing_*` tables, as
  *   Regular and Express, identical to what the customer saw on Book Now), not
  *   the admin catalogue, because online bookings carry those items and no
  *   catalogue row behind them.
@@ -78,7 +80,6 @@ type DraftLine = {
   bookedPrice: number;
   qty: number;
   unitPrice: number;
-  serviceId: string | null;
   /** Set when the line names an option from the detected list. */
   catalogueKey: string | null;
   /** Whether the admin bills something other than the booked service. */
@@ -96,18 +97,23 @@ const UNPICKED = "__none__";
 
 export function BookingInvoiceForm({
   order,
+  pricing,
   bookedLines,
   feedback,
   onGenerated,
   onCancel,
 }: {
   order: BillableOrder;
+  /**
+   * The price list pair, read from the database by the page for this request,
+   * so the form quotes the same figures /pricing shows today.
+   */
+  pricing: PricingCatalogPair;
   /** The services the booking itself recorded, opening the line-up. */
   bookedLines: Array<{
     name: string;
     qty: number;
     unitPrice: number;
-    serviceId?: string | null;
   }>;
   /** The analysis findings recorded on the booking, or null. */
   feedback: string | null;
@@ -125,12 +131,16 @@ export function BookingInvoiceForm({
    * booking's quoted prices are the record of which one the customer chose.
    */
   const speed = useMemo<CategorySlug>(
-    () => detectBookingSpeed(bookedLines),
-    [bookedLines],
+    () => detectBookingSpeed(pricing, bookedLines),
+    [pricing, bookedLines],
   );
 
-  const speedSections = useMemo(() => catalogueSections(speed), [speed]);
-  const speedGroups = useMemo(() => catalogueGroups(speed), [speed]);
+  const activeCategory = useMemo(
+    () => categoryForSpeed(pricing, speed),
+    [pricing, speed],
+  );
+  const speedSections = useMemo(() => catalogueSections(activeCategory), [activeCategory]);
+  const speedGroups = useMemo(() => catalogueGroups(activeCategory), [activeCategory]);
 
   /** The option that a line can bill from, keyed as "<speed>/<group>/…". */
   const optionsByKey = useMemo(
@@ -144,12 +154,12 @@ export function BookingInvoiceForm({
   );
 
   const [groupSlug, setGroupSlug] = useState<GroupSlug>(() =>
-    defaultGroupForBooking(bookedLines, speed),
+    defaultGroupForBooking(pricing, bookedLines, speed),
   );
 
   const [lines, setLines] = useState<DraftLine[]>(() =>
     bookedLines.map((line) => {
-      const option = findOptionByName(line.name, speed);
+      const option = findOptionByName(pricing, line.name, speed);
 
       return {
         key: lineKey(),
@@ -158,7 +168,6 @@ export function BookingInvoiceForm({
         bookedPrice: line.unitPrice,
         qty: line.qty,
         unitPrice: line.unitPrice,
-        serviceId: line.serviceId ?? null,
         catalogueKey: option?.key ?? null,
         overridden: false,
       };
@@ -213,7 +222,8 @@ export function BookingInvoiceForm({
             ...line,
             name: line.bookedName,
             unitPrice: line.bookedPrice,
-            catalogueKey: findOptionByName(line.bookedName, speed)?.key ?? null,
+            catalogueKey:
+              findOptionByName(pricing, line.bookedName, speed)?.key ?? null,
             overridden: false,
           };
         }
@@ -245,7 +255,6 @@ export function BookingInvoiceForm({
         bookedPrice: first?.price ?? 0,
         qty: 1,
         unitPrice: first?.price ?? 0,
-        serviceId: null,
         catalogueKey: first?.key ?? null,
         overridden: false,
       },
@@ -265,7 +274,8 @@ export function BookingInvoiceForm({
           ...line,
           name: line.bookedName,
           unitPrice: line.bookedPrice,
-          catalogueKey: findOptionByName(line.bookedName, speed)?.key ?? null,
+          catalogueKey:
+            findOptionByName(pricing, line.bookedName, speed)?.key ?? null,
           overridden: false,
         };
       }),
@@ -289,7 +299,6 @@ export function BookingInvoiceForm({
           name: line.name,
           qty: line.qty,
           unitPrice: line.unitPrice,
-          serviceId: line.serviceId ?? undefined,
         })),
         feedback: feedbackText.trim() || undefined,
       });

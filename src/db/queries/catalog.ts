@@ -2,7 +2,6 @@ import type {
   BlockedDate,
   DbClient,
   HeroSlide,
-  Service,
   StoreSettings,
   TimeSlot,
 } from "../types";
@@ -17,35 +16,6 @@ function unwrap<T>(result: {
     throw new Error(result.error.message);
   }
   return result.data as T;
-}
-
-/** Active services in display order. Retired ones are filtered out. */
-export async function listActiveServices(client: Client): Promise<Service[]> {
-  return unwrap(
-    await client
-      .from("services")
-      .select("*")
-      .eq("is_active", true)
-      .order("sort_order", { ascending: true })
-      .order("name", { ascending: true }),
-  );
-}
-
-/**
- * Every service, active or not, for the admin catalogue.
- *
- * Distinct from `listActiveServices`: an admin has to see a retired service to
- * bring it back, and `services_public_read` lets an admin read inactive rows
- * anyway.
- */
-export async function listServices(client: Client): Promise<Service[]> {
-  return unwrap(
-    await client
-      .from("services")
-      .select("*")
-      .order("sort_order", { ascending: true })
-      .order("name", { ascending: true }),
-  );
 }
 
 /** Active hero slides for the home page carousel. */

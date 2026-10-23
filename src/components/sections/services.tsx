@@ -1,6 +1,8 @@
+import type { PriceCategory } from "@/lib/pricing";
+
 import { PricingOverview } from "@/components/pricing/pricing-overview";
 
-export function Services() {
+export function Services({ regular }: { regular: PriceCategory }) {
   return (
     <section
       id="services"
@@ -23,7 +25,7 @@ export function Services() {
           </p>
         </div>
 
-        <PricingOverview />
+        <PricingOverview regular={regular} />
       </div>
     </section>
   );

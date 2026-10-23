@@ -1,9 +1,8 @@
-import {
-  pricingCategories,
-  type CategorySlug,
-  type PriceGroup,
-  type PriceOption,
-} from "@/data/pricing";
+import type {
+  PriceCategory,
+  PriceGroup,
+  PriceOption,
+} from "@/lib/pricing";
 
 /**
  * The customer's chosen services, and the helpers the wizard shares between the
@@ -11,7 +10,9 @@ import {
  *
  * A selection is keyed by "<group>/<item>/<option index>" rather than by price,
  * so switching between Regular and Express keeps what was chosen and only
- * re-prices it.
+ * re-prices it. Every function takes the `PriceCategory` being browsed rather
+ * than importing global data — the regular list comes from the database now
+ * (see `src/db/queries/pricing.ts`), and Express is a derivation of it.
  */
 
 export type SelectedService = {
@@ -39,12 +40,8 @@ export function selectionKey(
 }
 
 /** Flattens a category's groups into the selectable lines. */
-export function linesForCategory(category: CategorySlug) {
-  const source = pricingCategories.find((entry) => entry.slug === category);
-
-  if (!source) return [];
-
-  return source.groups.flatMap((group) =>
+export function linesForCategory(category: PriceCategory) {
+  return category.groups.flatMap((group) =>
     group.items.flatMap((item) =>
       item.options.map((option, optionIndex) => ({
         key: selectionKey(group.slug, item.slug, optionIndex),
@@ -89,12 +86,10 @@ export type SelectableItem = {
  * switches over.
  */
 export function resolveSelection(
+  category: PriceCategory,
   selection: ServiceSelection,
-  category: CategorySlug,
 ): SelectedService[] {
-  const lines = linesForCategory(category);
-
-  return lines.flatMap((line) => {
+  return linesForCategory(category).flatMap((line) => {
     const qty = selection[line.key];
     if (!qty || qty < 1) return [];
 
@@ -122,10 +117,10 @@ export function selectionCount(lines: SelectedService[]) {
 }
 
 /** Groups in a category, used by the group selector. */
-export function groupsForCategory(category: CategorySlug): PriceGroup[] {
-  return (
-    pricingCategories.find((entry) => entry.slug === category)?.groups ?? []
-  );
+export function groupsForCategory(
+  category: PriceCategory,
+): PriceGroup[] {
+  return category.groups;
 }
 
 /**
@@ -136,12 +131,10 @@ export function groupsForCategory(category: CategorySlug): PriceGroup[] {
  * sees.
  */
 export function itemsForGroup(
-  category: CategorySlug,
+  category: PriceCategory,
   groupSlug: string,
 ): SelectableItem[] {
-  const group = groupsForCategory(category).find(
-    (entry) => entry.slug === groupSlug,
-  );
+  const group = category.groups.find((entry) => entry.slug === groupSlug);
 
   if (!group) return [];
 

@@ -1,4 +1,4 @@
-import { EXPRESS_MULTIPLIER, pricingCategories, type CategorySlug } from "@/data/pricing";
+import { EXPRESS_MULTIPLIER, type CategorySlug, type PriceCategory } from "@/lib/pricing";
 
 /**
  * The public price list flattened into dropdown options, plus the helper that
@@ -8,7 +8,16 @@ import { EXPRESS_MULTIPLIER, pricingCategories, type CategorySlug } from "@/data
  * names and figures the customer saw on /pricing — and by nothing else, so the
  * invoice channel cannot quietly drift from the price list the wizard books
  * from.
+ *
+ * Everything here is a pure function of the `PriceCategory` handed in: the
+ * regular list is read from the database now, so the caller (the server page
+ * that loads it) provides it rather than this module reaching for global data.
  */
+
+export type PricingCatalogPair = {
+  regular: PriceCategory;
+  express: PriceCategory;
+};
 
 export type PricedOption = {
   key: string;
@@ -27,6 +36,14 @@ export type PricedSection = {
   options: PricedOption[];
 };
 
+/** The category of a speed, from the pair a page read for this request. */
+export function categoryForSpeed(
+  catalog: PricingCatalogPair,
+  category: CategorySlug,
+): PriceCategory {
+  return category === "express" ? catalog.express : catalog.regular;
+}
+
 /**
  * The priced options of one category, grouped by subcategory.
  *
@@ -36,33 +53,30 @@ export type PricedSection = {
  * wizard preselects.
  */
 export function catalogueSections(
-  category: CategorySlug,
+  category: PriceCategory,
 ): PricedSection[] {
-  return pricingCategories
-    .filter((entry) => entry.slug === category)
-    .flatMap((entry) =>
-      entry.groups.map((group) => ({
-        slug: group.slug,
-        name: group.name,
-        options: group.items.flatMap((item) =>
-          item.options.map((option, index) => ({
-            key: `${category}/${group.slug}/${item.slug}/${index}`,
-            display: option.label ? `${item.name} — ${option.label}` : item.name,
-            name: option.label ? `${item.name} (${option.label})` : item.name,
-            price: option.price,
-            unit: option.unit,
-          })),
-        ),
+  return category.groups.map((group) => ({
+    slug: group.slug,
+    name: group.name,
+    options: group.items.flatMap((item) =>
+      item.options.map((option, index) => ({
+        key: `${category.slug}/${group.slug}/${item.slug}/${index}`,
+        display: option.label ? `${item.name} — ${option.label}` : item.name,
+        name: option.label ? `${item.name} (${option.label})` : item.name,
+        price: option.price,
+        unit: option.unit,
       })),
-    );
+    ),
+  }));
 }
 
 /** The price-list option whose stored name equals the line, if there is one. */
 export function findOptionByName(
+  catalog: PricingCatalogPair,
   name: string,
   category: CategorySlug,
 ): PricedOption | null {
-  for (const section of catalogueSections(category)) {
+  for (const section of catalogueSections(categoryForSpeed(catalog, category))) {
     for (const option of section.options) {
       if (option.name === name) return option;
     }
@@ -72,15 +86,14 @@ export function findOptionByName(
 }
 
 /** The six subcategories of one speed, for the invoice form's category picker. */
-export function catalogueGroups(category: CategorySlug): Array<{
+export function catalogueGroups(category: PriceCategory): Array<{
   slug: string;
   name: string;
 }> {
-  return pricingCategories
-    .filter((entry) => entry.slug === category)
-    .flatMap((entry) =>
-      entry.groups.map((group) => ({ slug: group.slug, name: group.name })),
-    );
+  return category.groups.map((group) => ({
+    slug: group.slug,
+    name: group.name,
+  }));
 }
 
 /**
@@ -97,10 +110,10 @@ function sameAmount(a: number, b: number): boolean {
  *
  * No Express/Regular flag is stored on a booking — its lines carry only the
  * figure they were quoted — so the speed is inferred by matching each booked
- * line against the public price list: a name that matches a Regular option at
+ * line against the regular price list: a name that matches a Regular option at
  * the Regular price votes Regular, at `EXPRESS_MULTIPLIER` times it votes
- * Express, and everything else (catalogue-only walk-in lines, edited prices) is
- * a non-vote.
+ * Express, and everything else (edited prices, lines whose service has since
+ * been renamed or removed) is a non-vote.
  *
  * Majority decides, so a mixed booking still resolves rather than showing one
  * list while another explains a different total; ties and no-vote bookings fall
@@ -108,13 +121,14 @@ function sameAmount(a: number, b: number): boolean {
  * either way.
  */
 export function detectBookingSpeed(
+  catalog: PricingCatalogPair,
   lines: ReadonlyArray<{ name: string; unitPrice: number }>,
 ): CategorySlug {
   let regular = 0;
   let express = 0;
 
   for (const line of lines) {
-    const option = findOptionByName(line.name, "regular");
+    const option = findOptionByName(catalog, line.name, "regular");
     if (!option) continue;
 
     if (sameAmount(line.unitPrice, option.price)) regular += 1;
@@ -142,22 +156,24 @@ export function groupForOption(
  * that matches the price list, falling back to the list's own first group.
  */
 export function defaultGroupForBooking(
+  catalog: PricingCatalogPair,
   lines: ReadonlyArray<{ name: string; unitPrice: number }>,
   speed: CategorySlug,
 ): PricedSection["slug"] {
   for (const line of lines) {
-    const groupSlug = groupForOptionKey(line.name, speed);
+    const groupSlug = groupForOptionKey(catalog, line.name, speed);
     if (groupSlug) return groupSlug;
   }
 
-  return catalogueSections(speed)[0]?.slug ?? "";
+  return catalogueSections(categoryForSpeed(catalog, speed))[0]?.slug ?? "";
 }
 
 /** Matches a booked name to a price-list option and returns its group. */
 function groupForOptionKey(
+  catalog: PricingCatalogPair,
   bookedName: string,
   speed: CategorySlug,
 ): string | null {
-  const option = findOptionByName(bookedName, speed);
+  const option = findOptionByName(catalog, bookedName, speed);
   return option ? groupForOption(option.key) : null;
 }

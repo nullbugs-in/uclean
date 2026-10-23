@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Zap } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cheapestPrice, itemCount, type PriceCategory } from "@/data/pricing";
+import { cheapestPrice, itemCount, type PriceCategory } from "@/lib/pricing";
 import { formatPrice } from "@/lib/utils";
 
 /**

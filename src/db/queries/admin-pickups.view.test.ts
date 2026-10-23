@@ -57,7 +57,6 @@ function item(overrides: Partial<OrderItem> = {}): OrderItem {
   return {
     id: "i1",
     order_id: "o1",
-    service_id: null,
     item_name: "Wash and Iron",
     qty: 2,
     unit_price: 80,

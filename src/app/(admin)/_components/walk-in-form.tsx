@@ -22,6 +22,12 @@ import * as React from "react";
 import { MapPicker } from "@/app/(public)/book/map-picker";
 import { formatFullDate } from "@/app/(public)/book/format";
 import type { LatLng, ZoneResult } from "@/app/(public)/book/types";
+import {
+  resolveSelection,
+  selectionKey,
+  selectionTotal,
+  type ServiceSelection,
+} from "@/app/(public)/book/service-selection";
 import { SpeedToggle } from "@/components/pricing/speed-toggle";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,14 +45,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { pricingCategories, type CategorySlug } from "@/data/pricing";
-import { isUsableAddress } from "@/lib/address";
 import {
-  resolveSelection,
-  selectionKey,
-  selectionTotal,
-  type ServiceSelection,
-} from "@/app/(public)/book/service-selection";
+  deriveExpressCategory,
+  type CategorySlug,
+  type PriceCategory,
+} from "@/lib/pricing";
+import { isUsableAddress } from "@/lib/address";
 import { cn, formatPrice } from "@/lib/utils";
 
 import {
@@ -125,11 +129,17 @@ export function WalkInForm({
   todayKey,
   center,
   maxRadiusKm,
+  pricing,
   slotDays,
 }: {
   todayKey: string;
   center: LatLng;
   maxRadiusKm: number;
+  /**
+   * The Regular price list, read unchanged from the database by the page, so
+   * the counter quotes exactly what /pricing shows. Express is derived here.
+   */
+  pricing: PriceCategory;
   slotDays: SlotDayView[];
 }) {
   // Only days that can actually take a booking: a blocked date, or a day whose
@@ -164,13 +174,12 @@ export function WalkInForm({
    */
   const [speed, setSpeed] = React.useState<CategorySlug>("regular");
   const [activeGroup, setActiveGroup] = React.useState(
-    () => pricingCategories[0]?.groups[0]?.slug ?? "",
+    () => pricing.groups[0]?.slug ?? "",
   );
   const [selection, setSelection] = React.useState<ServiceSelection>({});
 
   const activeCategory =
-    pricingCategories.find((entry) => entry.slug === speed) ??
-    pricingCategories[0];
+    speed === "express" ? deriveExpressCategory(pricing) : pricing;
 
   const groups = activeCategory?.groups ?? [];
   const group = groups.find((entry) => entry.slug === activeGroup) ?? groups[0];
@@ -196,8 +205,8 @@ export function WalkInForm({
    * come back priced for Express, which is the whole trick of the shared key.
    */
   const lines = React.useMemo(
-    () => resolveSelection(selection, speed),
-    [selection, speed],
+    () => resolveSelection(activeCategory, selection),
+    [activeCategory, selection],
   );
 
   const subtotal = React.useMemo(

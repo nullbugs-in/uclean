@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { getStoreSettings } from "@/db/queries/catalog";
+import { readPricingCatalog } from "@/db/queries/pricing";
 import { listAddresses } from "@/db/queries/profiles";
 import { createClient } from "@/db/server";
 import { siteConfig } from "@/config/site";
@@ -50,6 +51,14 @@ export default async function BookPage() {
         .catch(() => "")
     : "";
 
+  /*
+   * The services step books from this list, so an admin's price edit is live
+   * for the next customer. A read failure cannot be papered over - the wizard
+   * needs at least the group menu to render - so an error here falls to the
+   * route's error boundary.
+   */
+  const regular = (await readPricingCatalog(supabase)).regular;
+
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
       <header className="mb-8 space-y-3">
@@ -68,6 +77,7 @@ export default async function BookPage() {
         maxRadiusKm={maxRadiusKm}
         devTestCode={devOtpCode()}
         initialAddress={savedAddress}
+        pricing={regular}
         initialIdentity={
           session
             ? {

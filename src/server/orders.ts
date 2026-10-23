@@ -170,17 +170,6 @@ export type CreatePickupInput = {
     name: string;
     qty: number;
     unitPrice: number;
-    /**
-     * The `services` row this line came from, when there is one.
-     *
-     * The public wizard's price list has no row behind it, so this is null for
-     * an online booking. A walk-in books from the same price list, so it is
-     * null there too - which is the normal case these days. A line taken from
-     * the admin catalogue (as the add-items editor does) carries the reference,
-     * which keeps the sales report, the invoice's rate and the catalogue naming
-     * one service rather than three similar strings.
-     */
-    serviceId?: string | null;
   }>;
   source?: OrderSource;
   createdBy?: string | null;
@@ -298,9 +287,8 @@ export async function createPickupOrder(
    * The services the customer chose, recorded once the order row exists.
    *
    * order_items has no insert policy, so the service role is used here, as it is
-   * for the RPC call above. `service_id` is whatever the caller knew: the public
-   * wizard's price-list lines have no `services` row behind them and pass null,
-   * while a walk-in taken from the catalogue passes the row it came from.
+   * for the RPC call above. Every line names its priced option as booked — the
+   * name is the record; there is no separate service reference.
    *
    * Best effort on purpose. The booking is already committed at this point, and
    * failing the whole request over a line item would leave the customer with a
@@ -311,7 +299,6 @@ export async function createPickupOrder(
     const { error: itemsError } = await service.from("order_items").insert(
       input.items.map((item) => ({
         order_id: orderId,
-        service_id: item.serviceId ?? null,
         item_name: item.name,
         qty: item.qty,
         unit_price: item.unitPrice,

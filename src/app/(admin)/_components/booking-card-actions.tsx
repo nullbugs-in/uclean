@@ -28,6 +28,7 @@ import {
   notificationForStatus,
   type AdminOrderRow,
 } from "@/db/queries/admin-orders";
+import type { PricingCatalogPair } from "@/lib/pricing-options";
 import { INTERNAL_STATUS_LABEL } from "@/lib/order-status";
 
 import {
@@ -48,14 +49,21 @@ import { BookingInvoiceForm } from "./booking-invoice-form";
  * update is guarded server-side — but a grey button with a reason beats a
  * grey button an admin has to click to decode.
  */
-export function BookingCardActions({ row }: { row: AdminOrderRow }) {
+export function BookingCardActions({
+  row,
+  pricing,
+}: {
+  row: AdminOrderRow;
+  /** The DB price list pair, read once by the page that renders this card. */
+  pricing: PricingCatalogPair;
+}) {
   const [notice, setNotice] = useState<string | null>(null);
 
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <AnalysisButton row={row} onNotice={setNotice} />
-        <InvoiceButton row={row} onNotice={setNotice} />
+        <InvoiceButton row={row} pricing={pricing} onNotice={setNotice} />
         <SendInvoiceButton row={row} onNotice={setNotice} />
       </div>
 
@@ -250,9 +258,12 @@ function AnalysisButton({
  */
 function InvoiceButton({
   row,
+  pricing,
   onNotice,
 }: {
   row: AdminOrderRow;
+  /** The DB price list pair, passed through to the invoice form. */
+  pricing: PricingCatalogPair;
   onNotice: (notice: string) => void;
 }) {
   const router = useRouter();
@@ -274,7 +285,6 @@ function InvoiceButton({
     name: item.item_name,
     qty: item.qty,
     unitPrice: item.unit_price,
-    serviceId: item.service_id,
   }));
 
   function handleGenerated(invoiceNo: string) {
@@ -341,6 +351,7 @@ function InvoiceButton({
               status: row.status,
               created_at: row.created_at,
             }}
+            pricing={pricing}
             bookedLines={bookedLines}
             feedback={row.analysisNote}
             onGenerated={handleGenerated}
