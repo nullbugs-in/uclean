@@ -684,7 +684,7 @@ export function itemsTotal(items: OrderItem[]): number {
 }
 
 // ---------------------------------------------------------------------------
-// The booking card's two buttons
+// The booking card's quick actions
 // ---------------------------------------------------------------------------
 
 export type BookingCardActionState = {
@@ -709,17 +709,27 @@ export type BookingCardActionState = {
   send: "locked" | "ready" | "done";
   /** Why the Send to Customer button is disabled, when it is. */
   sendReason: string | null;
+  /**
+   * The Mark Ready button: `locked` until the invoice is confirmed paid, `ready`
+   * once it is and the booking can still reach `ready_for_delivery`, `done`
+   * once it already is there or beyond.
+   */
+  ready: "locked" | "ready" | "done";
+  /** Why the Mark Ready button is disabled, when it is. */
+  readyReason: string | null;
 };
 
 /**
- * Gating for the two quick actions on a list card.
+ * Gating for the quick actions on a list card.
  *
  * The card reads the booking, not the paperwork around it, so the gates are
  * stages rather than features: analysis is available the moment the laundry is
- * in the store (`picked_up`), and invoicing is available the moment the analysis
- * is recorded (`under_analysis`) and there is no invoice yet. Everything is
- * derived from `{ status, hasInvoice }` so it can be tested without a database
- * and never drift from what the row actually says.
+ * in the store (`picked_up`), invoicing is available the moment the analysis
+ * is recorded (`under_analysis`) and there is no invoice yet, and "mark ready"
+ * opens once the invoice itself reads `paid` — the Billing module is what
+ * confirms payment, and nothing is ready until that is true. Everything is
+ * derived from `{ status, hasInvoice, invoiceStatus }` so it can be tested
+ * without a database and never drift from what the row actually says.
  *
  * These gates do not replace the database's: the state machine in SQL and the
  * `expectedStatus` conflict check still decide whether a press is legal. This is
@@ -805,6 +815,42 @@ export function bookingCardActions(input: {
     sendReason = null;
   }
 
+  /*
+   * Mark Ready answers "is the laundry finished and can this booking go to the
+   * delivery queue?". The shop's rule is that nothing is ready until the money
+   * is confirmed — a paid invoice (`invoice_status = paid`), not merely a sent
+   * one — and the booking must still be able to reach `ready_for_delivery`.
+   * Confirming payment from the ready path for a stranded booking is fine: the
+   * server walks the intermediate `paid`/`in_process` hops the state machine
+   * allows, so the gate is deliberately wider on stage here than the hop itself.
+   */
+  let ready: BookingCardActionState["ready"];
+  let readyReason: string | null;
+
+  if (
+    status === "ready_for_delivery" ||
+    status === "out_for_delivery" ||
+    status === "delivered"
+  ) {
+    ready = "done";
+    readyReason = null;
+  } else if (status === "cancelled") {
+    ready = "locked";
+    readyReason = "This booking was cancelled.";
+  } else {
+    const paid = invoiceStatus === "paid";
+
+    if (!paid) {
+      ready = "locked";
+      readyReason = hasInvoice
+        ? "Waiting for the payment to be confirmed in Billing."
+        : "Available once the invoice is generated and paid.";
+    } else {
+      ready = "ready";
+      readyReason = null;
+    }
+  }
+
   return {
     analysis,
     analysisReason,
@@ -812,6 +858,8 @@ export function bookingCardActions(input: {
     invoiceReason,
     send,
     sendReason,
+    ready,
+    readyReason,
   };
 }
 

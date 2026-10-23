@@ -4,12 +4,12 @@ import { useMemo, useState, useTransition } from "react";
 import {
   Check,
   Copy,
-  FlaskConical,
   Layers,
   Loader2,
   Plus,
   ReceiptText,
   RotateCcw,
+  Shirt,
   Sparkles,
   Trash2,
   Truck,
@@ -616,7 +616,7 @@ export function BookingInvoiceForm({
               aria-hidden
               className="bg-primary/12 text-primary grid size-5 shrink-0 place-items-center rounded-md"
             >
-              <FlaskConical className="size-3" />
+              <Shirt className="size-3" />
             </span>
             Analysis feedback (optional)
           </Label>

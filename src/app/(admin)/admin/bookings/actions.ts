@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { BillingError } from "@/lib/invoice";
+import type { OrderStatus } from "@/lib/order-status";
 import { requireAdmin } from "@/server/auth";
 import { createClient } from "@/db/server";
 import {
@@ -57,6 +58,15 @@ function revalidateBookingViews(orderId: string) {
   revalidatePath("/admin/pickups");
   revalidatePath("/admin/deliveries");
   revalidatePath("/account/orders");
+  /*
+   * The staff panel reads the same rows this changes — the assigned agent's
+   * order list and the delivery queue show the stage and the state the card
+   * action moved the booking to — so they are re-read alongside everything
+   * else rather than waiting for the next navigation.
+   */
+  revalidatePath("/staff");
+  revalidatePath("/staff/orders");
+  revalidatePath("/staff/deliveries");
 }
 
 /**
@@ -153,6 +163,176 @@ export async function updateOrderStatusAction(input: {
         ? "The stage was updated, but the note was not saved. Stage notes are unavailable on this database."
         : undefined,
     };
+  } catch (error) {
+    return { ok: false, message: toOrderEditMessage(error) };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Marking a paid booking ready for delivery
+// ---------------------------------------------------------------------------
+
+/**
+ * The single hops that carry a booking to `ready_for_delivery`.
+ *
+ * The laundry is only ready once the money is confirmed, and payment can be
+ * confirmed (Billing marks the invoice `paid`) while the booking still stands
+ * at `invoice_sent`, `payment_pending` or earlier — cash on delivery never
+ * touches the order row on its own. Rather than asking the admin to click
+ * through "Payment Received" and "Processing Complete" first, the ready path
+ * walks the intermediate hops the state machine already allows, recording an
+ * honest note for each so the timeline and the status log tell exactly how the
+ * booking got here.
+ */
+const HOP_TO_READY: Partial<Record<OrderStatus, OrderStatus>> = {
+  under_analysis: "in_process",
+  invoice_sent: "paid",
+  payment_pending: "paid",
+  paid: "ready_for_delivery",
+  in_process: "ready_for_delivery",
+};
+
+const ALREADY_READY = new Set([
+  "ready_for_delivery",
+  "out_for_delivery",
+  "delivered",
+]);
+
+/** Which note a hop carries, one that will still make sense much later. */
+function hopNote(to: OrderStatus): string {
+  return to === "paid"
+    ? "Payment confirmed — invoice marked paid."
+    : "Laundry processing complete — marked ready for delivery.";
+}
+
+/**
+ * Marks the laundry ready for delivery from a booking card.
+ *
+ * The gate on the card only opens the button once the invoice reads `paid` —
+ * the Billing module is what confirms payment, and the shop's rule is that
+ * nothing moves to the delivery queue on an unpaid invoice — and this action
+ * repeats that check against the row itself before doing anything, so it is
+ * safe against any caller, not just the card that constrained itself.
+ *
+ * `expectedStatus` is the card's view of the booking's stage. If it disagrees
+ * with the row — a colleague moved the booking while the page sat open — the
+ * action refuses with a reload message instead of walking the machine from
+ * somewhere the admin did not think it was. From there each hop re-checks the
+ * state through the same `expected-status` transition the stage buttons use,
+ * so a race during the walk surfaces as an error too.
+ *
+ * The payment hop queues the customer's payment-received WhatsApp exactly the
+ * way the stage buttons would; the ready hop sends no message (matching the
+ * SQL template mapping), but the timeline history this writes is the signal —
+ * the staff page and the customer's tracker both update from the same rows.
+ */
+export async function markBookingReadyAction(input: {
+  orderId: string;
+  expectedStatus: string;
+}): Promise<AdminBookingResult> {
+  const parsed = z
+    .object({
+      orderId: orderIdSchema,
+      expectedStatus: statusSchema,
+    })
+    .safeParse(input);
+
+  if (!parsed.success) {
+    return { ok: false, message: "That booking could not be found." };
+  }
+
+  try {
+    await requireAdmin();
+
+    const client = await createClient();
+    const [orderResult, invoiceResult] = await Promise.all([
+      client
+        .from("orders")
+        .select("status")
+        .eq("id", parsed.data.orderId)
+        .maybeSingle(),
+      client
+        .from("invoices")
+        .select("status")
+        .eq("order_id", parsed.data.orderId)
+        .maybeSingle(),
+    ]);
+
+    if (orderResult.error) throw new Error(orderResult.error.message);
+    if (invoiceResult.error) throw new Error(invoiceResult.error.message);
+
+    if (!orderResult.data) {
+      return { ok: false, message: "That booking could not be found." };
+    }
+
+    if (invoiceResult.data?.status !== "paid") {
+      return {
+        ok: false,
+        message:
+          "The payment is not confirmed yet. Confirm it in Billing first.",
+      };
+    }
+
+    if (orderResult.data.status !== parsed.data.expectedStatus) {
+      return {
+        ok: false,
+        message:
+          "This booking moved while you were looking at it. Reload and try again.",
+      };
+    }
+
+    const current = orderResult.data.status as OrderStatus;
+
+    if (current === "cancelled") {
+      return { ok: false, message: "This booking was cancelled." };
+    }
+
+    if (ALREADY_READY.has(current)) {
+      return {
+        ok: true,
+        message: "This booking is already ready for delivery.",
+      };
+    }
+
+    const hop = async (from: OrderStatus, to: OrderStatus) => {
+      await advanceOrderStatusForCurrentUser({
+        orderId: parsed.data.orderId,
+        to,
+        expectedStatus: from,
+        note: hopNote(to),
+        reason: null,
+      });
+    };
+
+    let stage: OrderStatus | undefined = current;
+    for (;;) {
+      if (!stage) break;
+
+      const to: OrderStatus | undefined = HOP_TO_READY[stage];
+      if (!to) break;
+
+      await hop(stage, to);
+
+      stage = to;
+    }
+
+    /*
+     * Invoicing normally moves the booking to `invoice_sent`, so a paid
+     * invoice always has hops available. If a booking somehow sits before
+     * that (a manual path through Billing), say so rather than quietly
+     * changing nothing.
+     */
+    if (stage && !ALREADY_READY.has(stage)) {
+      return {
+        ok: false,
+        message:
+          "This booking is still before the invoice stage. Move it through the analysis first.",
+      };
+    }
+
+    revalidateBookingViews(parsed.data.orderId);
+
+    return { ok: true, message: "The laundry is ready for delivery." };
   } catch (error) {
     return { ok: false, message: toOrderEditMessage(error) };
   }
@@ -367,9 +547,7 @@ export async function generateBookingInvoiceAction(input: {
 export async function sendBookingInvoiceAction(input: {
   orderId: string;
 }): Promise<AdminBookingResult> {
-  const parsed = z
-    .object({ orderId: orderIdSchema })
-    .safeParse(input);
+  const parsed = z.object({ orderId: orderIdSchema }).safeParse(input);
 
   if (!parsed.success) {
     return { ok: false, message: "That booking could not be found." };

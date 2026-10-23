@@ -1039,4 +1039,82 @@ describe("bookingCardActions", () => {
       expect(result.sendReason).toBeTruthy();
     });
   });
+
+  describe("mark ready", () => {
+    it("stays done once the booking is ready or already on a delivery", () => {
+      for (const status of [
+        "ready_for_delivery",
+        "out_for_delivery",
+        "delivered",
+      ] as const) {
+        const result = bookingCardActions({
+          status,
+          hasInvoice: true,
+          invoiceStatus: "draft",
+        });
+        expect(result.ready, status).toBe("done");
+        expect(result.readyReason, status).toBeNull();
+      }
+    });
+
+    it("waits for Billing to confirm the payment before it opens", () => {
+      for (const [status, invoiceStatus] of [
+        ["invoice_sent", "draft"],
+        ["payment_pending", "draft"],
+        ["paid", "sent"],
+        ["in_process", "sent"],
+      ] as const) {
+        const result = bookingCardActions({
+          status,
+          hasInvoice: true,
+          invoiceStatus,
+        });
+        expect(result.ready, `${status} on ${invoiceStatus}`).toBe("locked");
+        expect(
+          result.readyReason,
+          `${status} on ${invoiceStatus}`,
+        ).toBeTruthy();
+      }
+    });
+
+    it("opens the moment the invoice reads paid", () => {
+      for (const status of [
+        "under_analysis",
+        "invoice_sent",
+        "payment_pending",
+        "paid",
+        "in_process",
+      ] as const) {
+        const result = bookingCardActions({
+          status,
+          hasInvoice: true,
+          invoiceStatus: "paid",
+        });
+        expect(result.ready, status).toBe("ready");
+        expect(result.readyReason, status).toBeNull();
+      }
+    });
+
+    it("stays locked while no invoice exists", () => {
+      for (const status of [
+        "picked_up",
+        "under_analysis",
+        "in_process",
+      ] as const) {
+        const result = bookingCardActions({ status, hasInvoice: false });
+        expect(result.ready, status).toBe("locked");
+        expect(result.readyReason, status).toBeTruthy();
+      }
+    });
+
+    it("rejects a cancelled booking", () => {
+      const result = bookingCardActions({
+        status: "cancelled",
+        hasInvoice: true,
+        invoiceStatus: "paid",
+      });
+      expect(result.ready).toBe("locked");
+      expect(result.readyReason).toBeTruthy();
+    });
+  });
 });
